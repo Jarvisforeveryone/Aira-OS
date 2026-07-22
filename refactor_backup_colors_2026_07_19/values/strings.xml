@@ -1,0 +1,36 @@
+<resources>
+    <string name="app_name">Aira</string>
+    <string name="accessibility_service_description">Aira Accessibility Service enables voice commands for screen readouts, system back navigation, launching designated applications, and media control.</string>
+
+    <!-- General / Navigation -->
+    <string name="back">Back</string>
+    <string name="cancel">CANCEL</string>
+
+    <!-- Home Screen -->
+    <string name="aira_logo_text">AIRA</string>
+    <string name="good_morning">Good Morning</string>
+    <string name="good_afternoon">Good Afternoon</string>
+    <string name="good_evening">Good Evening</string>
+    <string name="voice_label">Voice</string>
+    <string name="listening_status">Listening...</string>
+    <string name="speaking_status">Speaking</string>
+    <string name="thinking_status">Thinking</string>
+    <string name="ready_status">Ready to help</string>
+
+    <!-- Memory Settings -->
+    <string name="memory_settings_title">Memory Settings</string>
+    <string name="edit_memory_title">EDIT MEMORY</string>
+    <string name="memory_fact_label">Memory Fact</string>
+    <string name="save">SAVE</string>
+    <string name="delete">DELETE</string>
+    <string name="memory_engine_header">LONG-TERM MEMORY ENGINE</string>
+    <string name="memory_engine_desc">Aira remembers names, city, job, age, likes and dislikes dynamically from both voice and offline chats. You can also say \'remember this [fact]\' to manually force save memories.</string>
+    <string name="export_backup">EXPORT BACKUP</string>
+    <string name="import_backup">IMPORT BACKUP</string>
+    <string name="clear_all">CLEAR ALL</string>
+    <string name="recalled_facts">RECALLED FACTS (%1$d)</string>
+    <string name="no_memories_placeholder">No memories saved yet.\nHave a chat with Aira to record some facts!</string>
+
+    <!-- Advanced Settings -->
+    <string name="advanced_settings_title">Advanced Settings</string>
+</resources>

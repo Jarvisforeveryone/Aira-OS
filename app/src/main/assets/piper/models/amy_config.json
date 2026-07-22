@@ -1,0 +1,6 @@
+{
+  "model": "en_US-amy-medium.onnx",
+  "path": "assets/piper/models/",
+  "size_mb": 62,
+  "status": "real"
+}

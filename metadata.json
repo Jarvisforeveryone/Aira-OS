@@ -1,0 +1,6 @@
+{
+  "name": "Aira",
+  "description": "Your intelligent responsive vocal assistant with customizable themes, active Iron Man HUD, and Gemini Brain.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
