@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- ========================================== -->
-    <!-- EXACT COLORS REQUESTED IN SETUP COLOR SYSTEM -->
+    <!-- BLUE & WHITE PREMIUM DESIGN SYSTEM PALETTE -->
     <!-- ========================================== -->
     <!-- LIGHT MODE -->
-    <color name="aira_bg_light">#FBFAFC</color>
+    <color name="aira_bg_light">#F8FAFC</color>
     <color name="aira_surface_light">#FFFFFF</color>
-    <color name="aira_surface_variant_light">#1F1F29</color>
+    <color name="aira_surface_variant_light">#F1F5F9</color>
     <color name="aira_border_light">#E2E8F0</color>
     <color name="aira_disabled_light">#CBD5E1</color>
     <color name="aira_primary">#2563EB</color>
@@ -19,20 +19,32 @@
 
     <!-- DARK MODE -->
     <color name="aira_bg_dark">#0F172A</color>
-    <color name="aira_surface_dark">#1F1F29</color>
-    <color name="aira_surface_variant_dark">#1F1F29</color>
-    <color name="aira_border_dark">#1F1F29</color>
-    <color name="aira_disabled_dark">#CBD5E1</color>
-    <color name="aira_primary_dark">#2563EB</color>
-    <color name="aira_primary_variant_dark">#1D4EDB</color>
-    <color name="aira_pressed_dark">#1E40AF</color>
-    <color name="aira_gradient_start_dark">#2563EB</color>
-    <color name="aira_gradient_end_dark">#1D4EDB</color>
+    <color name="aira_surface_dark">#111827</color>
+    <color name="aira_surface_variant_dark">#1F2937</color>
+    <color name="aira_border_dark">#334155</color>
+    <color name="aira_disabled_dark">#64748B</color>
+    <color name="aira_primary_dark">#3B82F6</color>
+    <color name="aira_primary_variant_dark">#2563EB</color>
+    <color name="aira_pressed_dark">#1D4EDB</color>
+    <color name="aira_gradient_start_dark">#3B82F6</color>
+    <color name="aira_gradient_end_dark">#2563EB</color>
     <color name="aira_text_primary_dark">#FFFFFF</color>
     <color name="aira_text_secondary_dark">#CBD5E1</color>
 
-    <!-- STATUS (Both Modes) -->
-    <color name="aira_success">#16A344</color>
+    <!-- STATUS LIGHT -->
+    <color name="aira_success_light">#16A34A</color>
+    <color name="aira_warning_light">#F59E0B</color>
+    <color name="aira_error_light">#DC2626</color>
+    <color name="aira_info_light">#2563EB</color>
+
+    <!-- STATUS DARK -->
+    <color name="aira_success_dark">#22C55E</color>
+    <color name="aira_warning_dark">#FBBF24</color>
+    <color name="aira_error_dark">#F87171</color>
+    <color name="aira_info_dark">#60A5FA</color>
+
+    <!-- STATUS DEFAULT -->
+    <color name="aira_success">#16A34A</color>
     <color name="aira_warning">#F59E0B</color>
     <color name="aira_error">#DC2626</color>
     <color name="aira_info">#2563EB</color>

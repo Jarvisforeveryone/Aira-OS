@@ -36,6 +36,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.colorResource
+import com.example.R
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -1614,7 +1616,7 @@ fun VoiceCommandScreen(
                             Text(
                                 if (isAccessibilityActive) "Active & Connected" else "Disconnected",
                                 fontSize = 12.sp,
-                                color = if (isAccessibilityActive) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
+                                color = if (isAccessibilityActive) colorResource(id = R.color.aira_success_light) else MaterialTheme.colorScheme.error
                             )
                         }
                         OutlinedButton(
@@ -1644,7 +1646,7 @@ fun VoiceCommandScreen(
                             Text(
                                 if (isDeviceAdminActive) "Active & Enforced" else "Inactive",
                                 fontSize = 12.sp,
-                                color = if (isDeviceAdminActive) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
+                                color = if (isDeviceAdminActive) colorResource(id = R.color.aira_success_light) else MaterialTheme.colorScheme.error
                             )
                         }
                         Button(

@@ -43,6 +43,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.colorResource
+import com.example.R
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -521,7 +523,7 @@ private fun OnboardingBrainModeStep(
             .background(
                 Brush.linearGradient(
                     colors = listOf(
-                        if (isOfflineBrain) Color(0xFF4CAF50).copy(alpha = 0.2f) else primaryColor.copy(alpha = 0.2f),
+                        if (isOfflineBrain) colorResource(R.color.aira_success_light).copy(alpha = 0.2f) else primaryColor.copy(alpha = 0.2f),
                         MaterialTheme.colorScheme.surfaceVariant
                     )
                 )
@@ -556,14 +558,14 @@ private fun OnboardingBrainModeStep(
                 Icon(
                     imageVector = Icons.Default.Memory,
                     contentDescription = null,
-                    tint = if (isOfflineBrain) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    tint = if (isOfflineBrain) colorResource(R.color.aira_success_light) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                     modifier = Modifier.size(44.dp)
                 )
                 Text(
                     "Local LLaMA",
                     fontSize = 12.sp,
                     fontWeight = if (isOfflineBrain) FontWeight.Bold else FontWeight.Normal,
-                    color = if (isOfflineBrain) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (isOfflineBrain) colorResource(R.color.aira_success_light) else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -609,7 +611,7 @@ private fun OnboardingBrainModeStep(
         title = "100% Offline Local AI Mode",
         subtitle = "Runs LLaMA 3.2 local model directly on your device CPU/NPU. Complete privacy with zero data leaving phone.",
         icon = Icons.Default.PhonelinkRing,
-        accentColor = Color(0xFF4CAF50),
+        accentColor = colorResource(R.color.aira_success_light),
         isSelected = isOfflineBrain,
         tag = "onboarding_select_offline_brain",
         onClick = { viewModel.toggleOfflineBrain(true) }
@@ -642,7 +644,7 @@ private fun OnboardingThemeStep(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val previewColors = listOf(Color(0xFF00E5FF), Color(0xFFFF2A6D), Color(0xFF007AE5), Color(0xFFFFB300))
+            val previewColors = listOf(Color(0xFF2563EB), Color(0xFF1D4EDB), Color(0xFF3B82F6))
             previewColors.forEachIndexed { idx, col ->
                 Surface(
                     shape = CircleShape,
@@ -683,8 +685,8 @@ private fun OnboardingThemeStep(
     Spacer(modifier = Modifier.height(20.dp))
 
     // Theme Palette Options
-    val themeNames = listOf("Cyber Cyan", "Ruby Red", "Sapphire Blue", "Imperial Gold")
-    val themeColors = listOf(Color(0xFF00E5FF), Color(0xFFFF2A6D), Color(0xFF007AE5), Color(0xFFFFB300))
+    val themeNames = listOf("Premium Blue", "Stripe Blue", "Aether Focus")
+    val themeColors = listOf(Color(0xFF2563EB), Color(0xFF1D4EDB), Color(0xFF3B82F6))
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         themeNames.forEachIndexed { index, name ->
@@ -797,7 +799,7 @@ private fun OnboardingPermissionsStep(
             .clip(RoundedCornerShape(24.dp))
             .background(
                 Brush.linearGradient(
-                    colors = listOf(Color(0xFF4CAF50).copy(alpha = 0.2f), primaryColor.copy(alpha = 0.2f))
+                    colors = listOf(colorResource(R.color.aira_success_light).copy(alpha = 0.2f), primaryColor.copy(alpha = 0.2f))
                 )
             ),
         contentAlignment = Alignment.Center
@@ -806,7 +808,7 @@ private fun OnboardingPermissionsStep(
             Icon(
                 imageVector = Icons.Default.VerifiedUser,
                 contentDescription = null,
-                tint = Color(0xFF4CAF50),
+                tint = colorResource(R.color.aira_success_light),
                 modifier = Modifier.size(50.dp)
             )
             Spacer(modifier = Modifier.height(6.dp))
@@ -1050,7 +1052,7 @@ private fun PermissionCheckRow(
                 Icon(
                     imageVector = if (isGranted) Icons.Default.CheckCircle else Icons.Default.Warning,
                     contentDescription = null,
-                    tint = if (isGranted) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error,
+                    tint = if (isGranted) colorResource(R.color.aira_success_light) else MaterialTheme.colorScheme.error,
                     modifier = Modifier.size(24.dp)
                 )
 
@@ -1077,7 +1079,7 @@ private fun PermissionCheckRow(
                 Text(
                     text = if (isGranted) "Enabled" else "Configure",
                     fontSize = 12.sp,
-                    color = if (isGranted) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary
+                    color = if (isGranted) colorResource(R.color.aira_success_light) else MaterialTheme.colorScheme.primary
                 )
             }
         }

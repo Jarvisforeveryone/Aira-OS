@@ -42,8 +42,8 @@ val DarkSecondaryTextColor: Color @Composable @ReadOnlyComposable get() = colorR
 val DarkTertiaryTextColor: Color @Composable @ReadOnlyComposable get() = colorResource(R.color.aira_text_secondary_dark)
 val DarkDisabledTextColor: Color @Composable @ReadOnlyComposable get() = colorResource(R.color.aira_disabled_dark)
 
-val ColorScheme.success: Color @Composable @ReadOnlyComposable get() = colorResource(R.color.aira_success)
-val ColorScheme.warning: Color @Composable @ReadOnlyComposable get() = colorResource(R.color.aira_warning)
+val ColorScheme.success: Color @Composable @ReadOnlyComposable get() = colorResource(R.color.aira_success_light)
+val ColorScheme.warning: Color @Composable @ReadOnlyComposable get() = colorResource(R.color.aira_warning_light)
 
 object AiraLightColors {
     val Primary: Color @Composable @ReadOnlyComposable get() = colorResource(R.color.aira_primary)
@@ -55,10 +55,10 @@ object AiraLightColors {
     val TextPrimary: Color @Composable @ReadOnlyComposable get() = colorResource(R.color.aira_text_primary_light)
     val TextSecondary: Color @Composable @ReadOnlyComposable get() = colorResource(R.color.aira_text_secondary_light)
     val Border: Color @Composable @ReadOnlyComposable get() = colorResource(R.color.aira_border_light)
-    val Success: Color @Composable @ReadOnlyComposable get() = colorResource(R.color.aira_success)
-    val Warning: Color @Composable @ReadOnlyComposable get() = colorResource(R.color.aira_warning)
-    val Error: Color @Composable @ReadOnlyComposable get() = colorResource(R.color.aira_error)
-    val Accent: Color @Composable @ReadOnlyComposable get() = colorResource(R.color.aira_info)
+    val Success: Color @Composable @ReadOnlyComposable get() = colorResource(R.color.aira_success_light)
+    val Warning: Color @Composable @ReadOnlyComposable get() = colorResource(R.color.aira_warning_light)
+    val Error: Color @Composable @ReadOnlyComposable get() = colorResource(R.color.aira_error_light)
+    val Accent: Color @Composable @ReadOnlyComposable get() = colorResource(R.color.aira_info_light)
 }
 
 object AiraDarkColors {
@@ -69,10 +69,10 @@ object AiraDarkColors {
     val TextPrimary: Color @Composable @ReadOnlyComposable get() = colorResource(R.color.aira_text_primary_dark)
     val TextSecondary: Color @Composable @ReadOnlyComposable get() = colorResource(R.color.aira_text_secondary_dark)
     val Border: Color @Composable @ReadOnlyComposable get() = colorResource(R.color.aira_border_dark)
-    val Success: Color @Composable @ReadOnlyComposable get() = colorResource(R.color.aira_success)
-    val Warning: Color @Composable @ReadOnlyComposable get() = colorResource(R.color.aira_warning)
-    val Error: Color @Composable @ReadOnlyComposable get() = colorResource(R.color.aira_error)
-    val Accent: Color @Composable @ReadOnlyComposable get() = colorResource(R.color.aira_info)
+    val Success: Color @Composable @ReadOnlyComposable get() = colorResource(R.color.aira_success_dark)
+    val Warning: Color @Composable @ReadOnlyComposable get() = colorResource(R.color.aira_warning_dark)
+    val Error: Color @Composable @ReadOnlyComposable get() = colorResource(R.color.aira_error_dark)
+    val Accent: Color @Composable @ReadOnlyComposable get() = colorResource(R.color.aira_info_dark)
 }
 
 object AiraAccent {

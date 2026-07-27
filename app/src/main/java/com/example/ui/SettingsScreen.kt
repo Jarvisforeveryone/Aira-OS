@@ -46,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.colorResource
 import com.example.R
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -173,7 +174,7 @@ fun SettingsHomeScreen(navController: NavController, viewModel: AiraViewModel) {
                                 Box(
                                     modifier = Modifier
                                         .size(10.dp)
-                                        .background(Color(0xFF4CAF50), CircleShape)
+                                        .background(colorResource(id = R.color.aira_success_light), CircleShape)
                                 )
                                 Text(
                                     text = "Offline Mode Active",

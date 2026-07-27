@@ -25,6 +25,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.colorResource
+import com.example.R
 import com.example.util.NativeLibraryLoader
 import kotlinx.coroutines.launch
 
@@ -195,7 +197,7 @@ fun OfflineStatusDashboardScreen(
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     fontFamily = FontFamily.Monospace,
-                                    color = if (geminiStatus.contains("Connected") || geminiStatus.contains("200")) Color(0xFF4CAF50) else Color(0xFFFF9800)
+                                    color = if (geminiStatus.contains("Connected") || geminiStatus.contains("200")) colorResource(R.color.aira_success_light) else colorResource(R.color.aira_warning_light)
                                 )
                             }
                             InfoRow(label = "Endpoint Status", value = geminiStatus)
@@ -307,9 +309,9 @@ fun OfflineStatusDashboardScreen(
                                         .clip(CircleShape)
                                         .background(
                                             if (isJniLoaded && (isAmyDownloaded || voskModelLoaded))
-                                                Color(0xFF4CAF50)
+                                                colorResource(R.color.aira_success_light)
                                             else
-                                                Color(0xFFFF9800)
+                                                colorResource(R.color.aira_warning_light)
                                         )
                                 )
                                 Text(
@@ -381,9 +383,9 @@ fun OfflineStatusDashboardScreen(
                         else -> "MODEL MISSING"
                     },
                     statusBadgeColor = when {
-                        isAmyDownloaded -> Color(0xFF4CAF50)
-                        amyProgress > 0f -> Color(0xFF2196F3)
-                        else -> Color(0xFFFF9800)
+                        isAmyDownloaded -> colorResource(R.color.aira_success_light)
+                        amyProgress > 0f -> colorResource(R.color.aira_info_light)
+                        else -> colorResource(R.color.aira_warning_light)
                     },
                     testTag = "piper_tts_engine_card"
                 ) {
@@ -494,7 +496,7 @@ fun OfflineStatusDashboardScreen(
                     subtitle = "16kHz PCM Audio Stream Decoder",
                     icon = Icons.Default.Mic,
                     statusBadgeText = if (voskModelLoaded) "MODEL LOADED & READY" else "NOT INITIALIZED",
-                    statusBadgeColor = if (voskModelLoaded) Color(0xFF4CAF50) else Color(0xFFFF9800),
+                    statusBadgeColor = if (voskModelLoaded) colorResource(R.color.aira_success_light) else colorResource(R.color.aira_warning_light),
                     testTag = "vosk_stt_engine_card"
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -551,7 +553,7 @@ fun OfflineStatusDashboardScreen(
                     subtitle = "On-Device Neural Reasoning & SQLite Memory",
                     icon = Icons.Default.Psychology,
                     statusBadgeText = if (isOfflineBrain) "OFFLINE BRAIN ACTIVE" else "ONLINE HYBRID",
-                    statusBadgeColor = if (isOfflineBrain) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary,
+                    statusBadgeColor = if (isOfflineBrain) colorResource(R.color.aira_success_light) else MaterialTheme.colorScheme.primary,
                     testTag = "llama_local_brain_card"
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -598,7 +600,7 @@ fun OfflineStatusDashboardScreen(
                     subtitle = "Native JNI Drivers & Hardware Capabilities",
                     icon = Icons.Default.Hardware,
                     statusBadgeText = if (isJniLoaded) "JNI DRIVERS READY" else "PARTIAL",
-                    statusBadgeColor = if (isJniLoaded) Color(0xFF4CAF50) else Color(0xFFFF9800),
+                    statusBadgeColor = if (isJniLoaded) colorResource(R.color.aira_success_light) else colorResource(R.color.aira_warning_light),
                     testTag = "hw_acceleration_card"
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {

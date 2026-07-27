@@ -516,7 +516,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
 
     val currentEngineSource: StateFlow<String> = VoiceCommandManager.currentEngineSource
 
-    private val _themeIndex = MutableStateFlow(sharedPrefs.getInt("theme_index", 0)) // 0: Cyan, 1: Red, 2: Blue, 3: Gold
+    private val _themeIndex = MutableStateFlow(sharedPrefs.getInt("theme_index", 0)) // 0: Premium Blue, 1: Stripe Blue, 2: Aether Focus
     val themeIndex: StateFlow<Int> = _themeIndex.asStateFlow()
 
     private val _appTheme = MutableStateFlow(
