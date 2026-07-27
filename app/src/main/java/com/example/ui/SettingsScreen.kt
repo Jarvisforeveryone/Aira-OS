@@ -52,6 +52,12 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import kotlinx.coroutines.launch
 import com.example.data.ChatKeyManager
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.foundation.lazy.LazyRow
 import com.example.ui.theme.success
 import com.example.ui.theme.warning
 
@@ -92,7 +98,7 @@ fun SettingsScreen(
         }
     ) {
         composable("settings_home") {
-            SettingsHomeScreen(navController = navController)
+            SettingsHomeScreen(navController = navController, viewModel = viewModel)
         }
         composable("settings_general") {
             GeneralSettingsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
@@ -106,15 +112,23 @@ fun SettingsScreen(
         composable("settings_memory") {
             MemorySettingsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
+        composable("settings_accessibility") {
+            AccessibilitySettingsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
         composable("theme_screen") {
             com.example.ui.settings.ThemeScreen(navController = navController, viewModel = viewModel)
+        }
+        composable("offline_status_dashboard") {
+            OfflineStatusDashboardScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsHomeScreen(navController: NavController) {
+fun SettingsHomeScreen(navController: NavController, viewModel: AiraViewModel) {
+    val isOfflineBrain by viewModel.isOfflineBrain.collectAsState()
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -142,6 +156,44 @@ fun SettingsHomeScreen(navController: NavController) {
                 .padding(horizontal = 24.dp, vertical = 8.dp), // Outer Screen Padding: 24dp
             verticalArrangement = Arrangement.spacedBy(18.dp) // Between Cards: 18dp
         ) {
+            if (isOfflineBrain) {
+                item {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth().testTag("settings_offline_mode_banner")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(10.dp)
+                                        .background(Color(0xFF4CAF50), CircleShape)
+                                )
+                                Text(
+                                    text = "Offline Mode Active",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontFamily = FontFamily.SansSerif
+                                )
+                            }
+                            Text(
+                                text = "Llama 3.2 • Amy ONNX • Vosk STT",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontFamily = FontFamily.SansSerif
+                            )
+                        }
+                    }
+                }
+            }
+
             item {
                 Text(
                     text = "System",
@@ -150,6 +202,16 @@ fun SettingsHomeScreen(navController: NavController) {
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
                     fontFamily = FontFamily.SansSerif,
                     modifier = Modifier.padding(start = 8.dp, bottom = 4.dp, top = 8.dp)
+                )
+            }
+
+            item {
+                SettingsCategoryItem(
+                    title = "Offline Status Dashboard",
+                    subtitle = "Live status, model progress & HW acceleration",
+                    icon = Icons.Default.Memory,
+                    testTag = "settings_tab_offline_dashboard",
+                    onClick = { navController.navigate("offline_status_dashboard") }
                 )
             }
 
@@ -200,6 +262,16 @@ fun SettingsHomeScreen(navController: NavController) {
                     icon = Icons.Default.Memory,
                     testTag = "settings_tab_memory",
                     onClick = { navController.navigate("settings_memory") }
+                )
+            }
+
+            item {
+                SettingsCategoryItem(
+                    title = "Accessibility & VoiceOver",
+                    subtitle = "Reduce Motion, High Contrast & Live Status",
+                    icon = Icons.Default.Palette,
+                    testTag = "settings_tab_accessibility",
+                    onClick = { navController.navigate("settings_accessibility") }
                 )
             }
         }
@@ -276,10 +348,8 @@ fun GeneralSettingsScreen(
     onBack: () -> Unit
 ) {
     val themeIndex by viewModel.themeIndex.collectAsState()
-    val customHex by viewModel.customColorHex.collectAsState()
     val lowPerf by viewModel.lowPerformanceMode.collectAsState()
 
-    var tempHex by remember(customHex) { mutableStateOf(customHex) }
     val scrollState = rememberScrollState()
 
     Scaffold(
@@ -383,41 +453,6 @@ fun GeneralSettingsScreen(
                             }
                         }
                     }
-
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
-
-                    // Custom Color Hex Picker
-                    Text(
-                        text = "Custom Color Hex",
-                        fontSize = 13.sp, // Labels: 13sp Medium
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontFamily = FontFamily.SansSerif
-                    )
-
-                    TextField(
-                        value = tempHex,
-                        onValueChange = {
-                            tempHex = it
-                            if (it.length == 7 && it.startsWith("#")) {
-                                viewModel.updateCustomColorHex(it)
-                                viewModel.updateThemeIndex(99) // trigger custom picker choice
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("custom_hex_input"),
-                        textStyle = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 16.sp, fontWeight = FontWeight.Normal, color = MaterialTheme.colorScheme.onSurface),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                            unfocusedIndicatorColor = Color.Transparent,
-                            cursorColor = MaterialTheme.colorScheme.primary
-                        ),
-                        shape = RoundedCornerShape(16.dp), // Inputs: 16dp
-                        placeholder = { Text("Enter Hex #...", fontSize = 16.sp, fontFamily = FontFamily.SansSerif, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)) }
-                    )
                 }
             }
 
@@ -2499,14 +2534,130 @@ fun MemorySettingsScreen(
     val memories by viewModel.memories.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    var selectedCategory by remember { mutableStateOf("All") }
+    var searchQuery by remember { mutableStateOf("") }
+
+    var showAddDialog by remember { mutableStateOf(false) }
+    var addFactText by remember { mutableStateOf("") }
+    var addCategory by remember { mutableStateOf("Personal") }
+    var addIsImportant by remember { mutableStateOf(false) }
+
     var showEditDialog by remember { mutableStateOf(false) }
     var editingMemory by remember { mutableStateOf<com.example.data.Memory?>(null) }
     var editFactText by remember { mutableStateOf("") }
+    var editCategory by remember { mutableStateOf("Personal") }
+    var editIsImportant by remember { mutableStateOf(false) }
 
     LaunchedEffect(editingMemory) {
-        editFactText = editingMemory?.factText ?: ""
+        editingMemory?.let {
+            editFactText = it.factText
+            editCategory = it.category
+            editIsImportant = it.isImportant
+        }
     }
 
+    val categories = listOf("All", "Personal", "Work", "Tasks", "Reminders", "Preferences")
+
+    val filteredMemories = remember(memories, selectedCategory, searchQuery) {
+        memories.filter { mem ->
+            val matchesCat = if (selectedCategory == "All") true else mem.category.equals(selectedCategory, ignoreCase = true)
+            val matchesQuery = if (searchQuery.isBlank()) true else mem.factText.lowercase().contains(searchQuery.lowercase().trim())
+            matchesCat && matchesQuery
+        }.sortedWith(compareByDescending<com.example.data.Memory> { it.isImportant }.thenByDescending { it.createdAt })
+    }
+
+    // Add Memory Dialog
+    if (showAddDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddDialog = false },
+            title = {
+                Text(
+                    text = stringResource(R.string.add_memory_title),
+                    fontSize = 18.sp,
+                    fontFamily = FontFamily.SansSerif,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    TextField(
+                        value = addFactText,
+                        onValueChange = { addFactText = it },
+                        modifier = Modifier.fillMaxWidth().testTag("add_memory_input"),
+                        textStyle = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            cursorColor = MaterialTheme.colorScheme.primary
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        placeholder = { Text(stringResource(R.string.memory_fact_label), fontSize = 16.sp, fontFamily = FontFamily.SansSerif) }
+                    )
+
+                    Text(stringResource(R.string.category_label), fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(listOf("Personal", "Work", "Tasks", "Reminders", "Preferences").size) { idx ->
+                            val cat = listOf("Personal", "Work", "Tasks", "Reminders", "Preferences")[idx]
+                            FilterChip(
+                                selected = addCategory == cat,
+                                onClick = { addCategory = cat },
+                                label = { Text(cat, fontSize = 13.sp, fontFamily = FontFamily.SansSerif) },
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(stringResource(R.string.mark_important), fontSize = 14.sp, fontFamily = FontFamily.SansSerif, color = MaterialTheme.colorScheme.onSurface)
+                        Switch(
+                            checked = addIsImportant,
+                            onCheckedChange = { addIsImportant = it },
+                            modifier = Modifier.testTag("add_memory_important_switch")
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (addFactText.isNotBlank()) {
+                            viewModel.addMemoryManual(addFactText, addCategory, addIsImportant)
+                            addFactText = ""
+                            addIsImportant = false
+                            showAddDialog = false
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar("Memory added successfully ✅")
+                            }
+                        }
+                    },
+                    modifier = Modifier.testTag("confirm_add_memory_btn"),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(stringResource(R.string.save), fontFamily = FontFamily.SansSerif, fontSize = 14.sp, color = MaterialTheme.colorScheme.onPrimary)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showAddDialog = false },
+                    modifier = Modifier.testTag("cancel_add_memory_btn")
+                ) {
+                    Text(stringResource(R.string.cancel), fontFamily = FontFamily.SansSerif, fontSize = 14.sp)
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(22.dp)
+        )
+    }
+
+    // Edit Memory Dialog
     if (showEditDialog && editingMemory != null) {
         val memoryItem = editingMemory!!
         AlertDialog(
@@ -2514,14 +2665,14 @@ fun MemorySettingsScreen(
             title = {
                 Text(
                     text = stringResource(R.string.edit_memory_title),
-                    fontSize = 18.sp, // Card Title
+                    fontSize = 18.sp,
                     fontFamily = FontFamily.SansSerif,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.primary
                 )
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     TextField(
                         value = editFactText,
                         onValueChange = { editFactText = it },
@@ -2537,9 +2688,36 @@ fun MemorySettingsScreen(
                         shape = RoundedCornerShape(16.dp),
                         placeholder = { Text(stringResource(R.string.memory_fact_label), fontSize = 16.sp, fontFamily = FontFamily.SansSerif) }
                     )
+
+                    Text(stringResource(R.string.category_label), fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(listOf("Personal", "Work", "Tasks", "Reminders", "Preferences").size) { idx ->
+                            val cat = listOf("Personal", "Work", "Tasks", "Reminders", "Preferences")[idx]
+                            FilterChip(
+                                selected = editCategory == cat,
+                                onClick = { editCategory = cat },
+                                label = { Text(cat, fontSize = 13.sp, fontFamily = FontFamily.SansSerif) },
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(stringResource(R.string.mark_important), fontSize = 14.sp, fontFamily = FontFamily.SansSerif, color = MaterialTheme.colorScheme.onSurface)
+                        Switch(
+                            checked = editIsImportant,
+                            onCheckedChange = { editIsImportant = it },
+                            modifier = Modifier.testTag("edit_memory_important_switch")
+                        )
+                    }
+
                     Text(
-                        text = "Source: ${memoryItem.source.uppercase()}",
-                        fontSize = 14.sp, // Caption
+                        text = "Source Layer: ${memoryItem.source.uppercase()}",
+                        fontSize = 12.sp,
                         fontFamily = FontFamily.SansSerif,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -2553,7 +2731,9 @@ fun MemorySettingsScreen(
                                 id = memoryItem.id,
                                 factText = editFactText.trim(),
                                 source = memoryItem.source,
-                                createdAt = memoryItem.createdAt
+                                createdAt = memoryItem.createdAt,
+                                category = editCategory,
+                                isImportant = editIsImportant
                             )
                             showEditDialog = false
                             coroutineScope.launch {
@@ -2592,8 +2772,6 @@ fun MemorySettingsScreen(
                 }
             },
             containerColor = MaterialTheme.colorScheme.surface,
-            textContentColor = MaterialTheme.colorScheme.onSurface,
-            titleContentColor = MaterialTheme.colorScheme.primary,
             shape = RoundedCornerShape(22.dp)
         )
     }
@@ -2606,7 +2784,7 @@ fun MemorySettingsScreen(
                     Text(
                         text = stringResource(R.string.memory_settings_title),
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 22.sp, // Section Title
+                        fontSize = 22.sp,
                         color = MaterialTheme.colorScheme.primary,
                         fontFamily = FontFamily.SansSerif
                     )
@@ -2616,6 +2794,345 @@ fun MemorySettingsScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.back),
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(
+                        onClick = { showAddDialog = true },
+                        modifier = Modifier.testTag("add_memory_fab_btn")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Add Memory",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Backup/Restore Controls Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                shape = RoundedCornerShape(22.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.memory_engine_header),
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontFamily = FontFamily.SansSerif
+                    )
+                    Text(
+                        text = stringResource(R.string.memory_engine_desc),
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontFamily = FontFamily.SansSerif,
+                        lineHeight = 17.sp
+                    )
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                coroutineScope.launch {
+                                    val msg = viewModel.exportMemoriesToDownloads(context)
+                                    android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
+                                }
+                            },
+                            modifier = Modifier.weight(1f).height(44.dp).testTag("export_memories_btn"),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(
+                                stringResource(R.string.export_backup),
+                                color = MaterialTheme.colorScheme.primary,
+                                fontSize = 13.sp,
+                                fontFamily = FontFamily.SansSerif,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+
+                        Button(
+                            onClick = {
+                                coroutineScope.launch {
+                                    val msg = viewModel.importMemoriesFromDownloads(context)
+                                    android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
+                                }
+                            },
+                            modifier = Modifier.weight(1f).height(44.dp).testTag("import_memories_btn"),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(
+                                stringResource(R.string.import_backup),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                fontSize = 13.sp,
+                                fontFamily = FontFamily.SansSerif,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Search Bar
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier.fillMaxWidth().testTag("search_memories_input"),
+                placeholder = { Text(stringResource(R.string.search_memories), fontSize = 14.sp) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(Icons.Default.Clear, contentDescription = "Clear search", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                )
+            )
+
+            // Category Chips Row
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(categories.size) { index ->
+                    val cat = categories[index]
+                    FilterChip(
+                        selected = selectedCategory == cat,
+                        onClick = { selectedCategory = cat },
+                        label = { Text(cat, fontSize = 13.sp, fontFamily = FontFamily.SansSerif) },
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.testTag("filter_chip_$cat")
+                    )
+                }
+            }
+
+            // Memories List Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "RECALLED FACTS (${filteredMemories.size})",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                    fontFamily = FontFamily.SansSerif,
+                    fontWeight = FontWeight.SemiBold
+                )
+                if (memories.isNotEmpty()) {
+                    Text(
+                        text = stringResource(R.string.clear_all),
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
+                        fontFamily = FontFamily.SansSerif,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.clickable { viewModel.clearMemories() }
+                    )
+                }
+            }
+
+            if (filteredMemories.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        stringResource(R.string.no_memories_placeholder),
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontFamily = FontFamily.SansSerif,
+                        lineHeight = 18.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(filteredMemories.size) { index ->
+                        val item = filteredMemories[index]
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .combinedClickable(
+                                    onClick = {
+                                        editingMemory = item
+                                        showEditDialog = true
+                                    },
+                                    onLongClick = {
+                                        editingMemory = item
+                                        showEditDialog = true
+                                    }
+                                ),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (item.isImportant) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surface
+                            ),
+                            shape = RoundedCornerShape(18.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        // Category Badge
+                                        Surface(
+                                            color = when (item.category) {
+                                                "Work" -> MaterialTheme.colorScheme.secondaryContainer
+                                                "Tasks" -> MaterialTheme.colorScheme.tertiaryContainer
+                                                "Reminders" -> MaterialTheme.colorScheme.warning.copy(alpha = 0.2f)
+                                                "Preferences" -> MaterialTheme.colorScheme.surfaceVariant
+                                                else -> MaterialTheme.colorScheme.primaryContainer
+                                            },
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Text(
+                                                text = item.category.uppercase(),
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+
+                                        // Source Badge
+                                        Surface(
+                                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Text(
+                                                text = item.source.uppercase(),
+                                                fontSize = 10.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+
+                                    Text(
+                                        text = item.factText,
+                                        fontSize = 15.sp,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        fontFamily = FontFamily.SansSerif,
+                                        fontWeight = if (item.isImportant) FontWeight.SemiBold else FontWeight.Normal
+                                    )
+
+                                    Text(
+                                        text = android.text.format.DateFormat.format("yyyy-MM-dd HH:mm", item.createdAt).toString(),
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontFamily = FontFamily.SansSerif
+                                    )
+                                }
+
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    // Important Star Toggle
+                                    IconButton(onClick = {
+                                        viewModel.toggleMemoryImportant(item)
+                                        coroutineScope.launch {
+                                            val stateText = if (!item.isImportant) "Marked as important ⭐" else "Unmarked important"
+                                            snackbarHostState.showSnackbar(stateText)
+                                        }
+                                    }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Star,
+                                            contentDescription = "Toggle Important",
+                                            tint = if (item.isImportant) MaterialTheme.colorScheme.warning else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+
+                                    // Delete Button
+                                    IconButton(onClick = {
+                                        viewModel.deleteMemory(item.id)
+                                        coroutineScope.launch {
+                                            snackbarHostState.showSnackbar("Deleted")
+                                        }
+                                    }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "Delete Memory",
+                                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AccessibilitySettingsScreen(
+    viewModel: AiraViewModel,
+    onBack: () -> Unit
+) {
+    val reduceAnimations by viewModel.reduceAnimations.collectAsState()
+    val announceStatusChanges by viewModel.announceStatusChanges.collectAsState()
+    val highContrastText by viewModel.highContrastText.collectAsState()
+
+    val scrollState = rememberScrollState()
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "Accessibility & VoiceOver",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 20.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontFamily = FontFamily.SansSerif
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack, modifier = Modifier.testTag("accessibility_back_btn")) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(24.dp)
                         )
@@ -2633,179 +3150,200 @@ fun MemorySettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(24.dp), // Outer Screen Padding
-            verticalArrangement = Arrangement.spacedBy(28.dp) // Spacing between sections
+                .verticalScroll(scrollState)
+                .padding(horizontal = 24.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Backup/Restore Controls Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 shape = RoundedCornerShape(22.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
             ) {
                 Column(
                     modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = stringResource(R.string.memory_engine_header),
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 18.sp, // Card Title
-                        color = MaterialTheme.colorScheme.onSurface,
+                        text = "Universal Access & Screen Readers",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary,
                         fontFamily = FontFamily.SansSerif
                     )
                     Text(
-                        text = stringResource(R.string.memory_engine_desc),
-                        fontSize = 14.sp, // Caption
+                        text = "Aira is fully optimized for VoiceOver and TalkBack screen readers, featuring high-contrast typography, live status announcements, and touch target enforcement.",
+                        fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontFamily = FontFamily.SansSerif,
-                        lineHeight = 18.sp
+                        lineHeight = 20.sp
                     )
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Button(
-                            onClick = {
-                                coroutineScope.launch {
-                                    val msg = viewModel.exportMemoriesToDownloads(context)
-                                    android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
-                                }
-                            },
-                            modifier = Modifier.weight(1f).height(48.dp).testTag("export_memories_btn"),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text(
-                                stringResource(R.string.export_backup),
-                                color = MaterialTheme.colorScheme.primary,
-                                fontSize = 14.sp, // Caption
-                                fontFamily = FontFamily.SansSerif,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-
-                        Button(
-                            onClick = {
-                                coroutineScope.launch {
-                                    val msg = viewModel.importMemoriesFromDownloads(context)
-                                    android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
-                                }
-                            },
-                            modifier = Modifier.weight(1f).height(48.dp).testTag("import_memories_btn"),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text(
-                                stringResource(R.string.import_backup),
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                fontSize = 14.sp, // Caption
-                                fontFamily = FontFamily.SansSerif,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
                 }
             }
 
-            // Memories List Header
-            Row(
+            // Toggle 1: Reduce Animations
+            Card(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                shape = RoundedCornerShape(22.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
             ) {
-                Text(
-                    text = stringResource(R.string.recalled_facts, memories.size),
-                    fontSize = 13.sp, // Labels
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                    fontFamily = FontFamily.SansSerif,
-                    fontWeight = FontWeight.Medium
-                )
-                if (memories.isNotEmpty()) {
-                    Text(
-                        text = stringResource(R.string.clear_all),
-                        fontSize = 13.sp, // Labels
-                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
-                        fontFamily = FontFamily.SansSerif,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.clickable { viewModel.clearMemories() }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                        Text(
+                            text = "Reduce Animations & Motion",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontFamily = FontFamily.SansSerif
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Disables ambient pulsing canvas animations, rotation loops, and dynamic orb scaling for reduced sensory motion.",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontFamily = FontFamily.SansSerif
+                        )
+                    }
+                    Switch(
+                        checked = reduceAnimations,
+                        onCheckedChange = { viewModel.setReduceAnimations(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                            checkedTrackColor = MaterialTheme.colorScheme.primary
+                        ),
+                        modifier = Modifier.testTag("reduce_animations_switch")
                     )
                 }
             }
 
-            if (memories.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxWidth().weight(1f),
-                    contentAlignment = Alignment.Center
+            // Toggle 2: TalkBack Live Status Announcements
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                shape = RoundedCornerShape(22.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        stringResource(R.string.no_memories_placeholder),
-                        fontSize = 14.sp, // Caption
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontFamily = FontFamily.SansSerif,
-                        lineHeight = 18.sp,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                        Text(
+                            text = "Screen Reader Live Status",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontFamily = FontFamily.SansSerif
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Announces AI status updates ('Listening...', 'Aira Thinking...', 'Offline Mode Active') automatically to screen readers.",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontFamily = FontFamily.SansSerif
+                        )
+                    }
+                    Switch(
+                        checked = announceStatusChanges,
+                        onCheckedChange = { viewModel.setAnnounceStatusChanges(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                            checkedTrackColor = MaterialTheme.colorScheme.primary
+                        ),
+                        modifier = Modifier.testTag("announce_status_switch")
                     )
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth().weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+            }
+
+            // Toggle 3: High Contrast Mode
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                shape = RoundedCornerShape(22.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    items(memories.size) { index ->
-                        val item = memories[index]
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .combinedClickable(
-                                    onClick = {},
-                                    onLongClick = {
-                                        editingMemory = item
-                                        showEditDialog = true
-                                    }
-                                ),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                            shape = RoundedCornerShape(22.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .defaultMinSize(minHeight = 64.dp)
-                                    .padding(16.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Text(
-                                        text = item.factText,
-                                        fontSize = 16.sp, // Body
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        fontFamily = FontFamily.SansSerif
-                                    )
-                                    Text(
-                                        text = "Source: ${item.source.uppercase()} • ${android.text.format.DateFormat.format("yyyy-MM-dd HH:mm", item.createdAt)}",
-                                        fontSize = 14.sp, // Caption
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        fontFamily = FontFamily.SansSerif
-                                    )
-                                }
-                                IconButton(onClick = {
-                                    viewModel.deleteMemory(item.id)
-                                    coroutineScope.launch {
-                                        snackbarHostState.showSnackbar("Deleted")
-                                    }
-                                }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription = "Delete Memory",
-                                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f),
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
-                            }
-                        }
+                    Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                        Text(
+                            text = "High Contrast Mode",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontFamily = FontFamily.SansSerif
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Enhances border stroke opacity and text contrast across controls for maximum legibility.",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontFamily = FontFamily.SansSerif
+                        )
+                    }
+                    Switch(
+                        checked = highContrastText,
+                        onCheckedChange = { viewModel.setHighContrastText(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                            checkedTrackColor = MaterialTheme.colorScheme.primary
+                        ),
+                        modifier = Modifier.testTag("high_contrast_switch")
+                    )
+                }
+            }
+
+            // Replay Onboarding Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                shape = RoundedCornerShape(22.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                        Text(
+                            text = "Onboarding Guide",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontFamily = FontFamily.SansSerif
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Replay the step-by-step introduction guide to review wake word, AI modes, themes, and phone controls.",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontFamily = FontFamily.SansSerif
+                        )
+                    }
+                    Button(
+                        onClick = { viewModel.resetOnboarding() },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        modifier = Modifier.testTag("replay_onboarding_btn")
+                    ) {
+                        Text("Replay", fontSize = 13.sp)
                     }
                 }
             }

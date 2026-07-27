@@ -1,5 +1,6 @@
 package com.example.ui.settings
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -65,16 +66,93 @@ fun ThemeScreen(navController: NavController, viewModel: AiraViewModel) {
         containerColor = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground
     ) { innerPadding ->
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(24.dp), // Outer Screen Padding: 24dp
-            horizontalArrangement = Arrangement.spacedBy(18.dp), // Between Cards: 18dp
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+                .padding(horizontal = 24.dp)
         ) {
-            itemsIndexed(ThemeRepository.themes) { index, theme ->
+            // Live Theme Preview Card
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                shape = RoundedCornerShape(22.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Live Theme Preview",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontFamily = FontFamily.SansSerif
+                        )
+                        Surface(
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(
+                                text = "Active Color Accent",
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontFamily = FontFamily.SansSerif
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "Changes apply instantly across all screens. Theme colors, buttons, accents, and surfaces adapt dynamically.",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontFamily = FontFamily.SansSerif,
+                        lineHeight = 18.sp
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Button(
+                            onClick = {},
+                            modifier = Modifier.weight(1f).height(44.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Primary", color = MaterialTheme.colorScheme.onPrimary, fontSize = 14.sp, fontFamily = FontFamily.SansSerif)
+                        }
+
+                        OutlinedButton(
+                            onClick = {},
+                            modifier = Modifier.weight(1f).height(44.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Accent Outline", color = MaterialTheme.colorScheme.primary, fontSize = 14.sp, fontFamily = FontFamily.SansSerif)
+                        }
+                    }
+                }
+            }
+
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.spacedBy(18.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
+                contentPadding = PaddingValues(bottom = 24.dp)
+            ) {
+                itemsIndexed(ThemeRepository.themes) { index, theme ->
                 val isSelected = (themeIndex == index)
 
                 Box(
@@ -156,4 +234,5 @@ fun ThemeScreen(navController: NavController, viewModel: AiraViewModel) {
             }
         }
     }
+}
 }

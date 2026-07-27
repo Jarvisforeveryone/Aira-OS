@@ -6,6 +6,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
@@ -96,181 +100,196 @@ class MainActivity : ComponentActivity() {
             val viewModel: AiraViewModel = viewModel()
             
             val themeIndex by viewModel.themeIndex.collectAsState()
-            val customColorHex by viewModel.customColorHex.collectAsState()
             val appTheme by viewModel.appTheme.collectAsState()
+            val hasCompletedOnboarding by viewModel.hasCompletedOnboarding.collectAsState()
 
-            AiraTheme(themeIndex = themeIndex, customColorHex = customColorHex, appTheme = appTheme) {
-                var selectedTab by remember { mutableIntStateOf(0) }
-                val snackbarHostState = remember { SnackbarHostState() }
-                val globalError by AiraViewModel.globalError.collectAsState()
-
-                LaunchedEffect(globalError) {
-                    globalError?.let { message ->
-                        snackbarHostState.showSnackbar(message)
-                        AiraViewModel.clearGlobalError()
-                    }
-                }
-
-                val showTtsDialog by viewModel.showTtsDataDialog.collectAsState()
-                val missingTtsLocale by viewModel.missingTtsLanguageLocale.collectAsState()
-
-                if (showTtsDialog) {
-                    AlertDialog(
-                        onDismissRequest = { viewModel.dismissTtsDataDialog() },
-                        title = {
-                            Text(
-                                text = "Google TTS Voice Data Missing",
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontFamily = FontFamily.SansSerif
-                            )
-                        },
-                        text = {
-                            Text(
-                                text = "Voice data for '$missingTtsLocale' is missing or incomplete on your device. Would you like to install Google TTS voice data now?",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 14.sp,
-                                fontFamily = FontFamily.SansSerif
-                            )
-                        },
-                        confirmButton = {
-                            Button(
-                                onClick = { viewModel.openInstallTtsDataSettings() },
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                            ) {
-                                Text("Install Voice Data")
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { viewModel.dismissTtsDataDialog() }) {
-                                Text("Cancel", color = MaterialTheme.colorScheme.primary)
-                            }
-                        },
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        shape = RoundedCornerShape(24.dp)
+            AiraTheme(themeIndex = themeIndex, appTheme = appTheme) {
+                if (!hasCompletedOnboarding) {
+                    OnboardingScreen(
+                        viewModel = viewModel,
+                        onFinish = { viewModel.setOnboardingCompleted(true) }
                     )
-                }
+                } else {
+                    var selectedTab by remember { mutableIntStateOf(0) }
+                    val snackbarHostState = remember { SnackbarHostState() }
+                    val globalError by AiraViewModel.globalError.collectAsState()
 
-                Scaffold(
-                    modifier = Modifier.fillMaxSize(),
-                    containerColor = MaterialTheme.colorScheme.background,
-                    snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-                    bottomBar = {
-                        Surface(
-                            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp), // Radius.Navigation: 24dp
-                            tonalElevation = 4.dp, // Soft elevation
-                            color = MaterialTheme.colorScheme.surface, // Premium dark surface matching status card
-                            modifier = Modifier
-                                .height(72.dp) // Height: 72dp
-                                .fillMaxWidth()
-                                .windowInsetsPadding(WindowInsets.navigationBars)
-                        ) {
-                            NavigationBar(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .testTag("bottom_nav_bar"),
-                                containerColor = Color.Transparent,
-                                tonalElevation = 0.dp
-                            ) {
-                                NavigationBarItem(
-                                    selected = selectedTab == 0,
-                                    onClick = { selectedTab = 0 },
-                                    icon = { Icon(Icons.Outlined.Home, contentDescription = "Assistant Hub", modifier = Modifier.size(24.dp)) },
-                                    label = {
-                                        Text(
-                                            text = "Home",
-                                            fontFamily = FontFamily.SansSerif, // Never use monospace
-                                            fontWeight = if (selectedTab == 0) FontWeight.Medium else FontWeight.Normal,
-                                            fontSize = 11.sp
-                                        )
-                                    },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = MaterialTheme.colorScheme.primary,
-                                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                                        unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
-                                        unselectedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
-                                        indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) // Selected tab uses subtle filled background, no glow
-                                    ),
-                                    modifier = Modifier.testTag("nav_assistant_tab")
-                                )
-                                NavigationBarItem(
-                                    selected = selectedTab == 1,
-                                    onClick = { selectedTab = 1 },
-                                    icon = { Icon(Icons.Outlined.AutoAwesome, contentDescription = "Command Deck", modifier = Modifier.size(24.dp)) },
-                                    label = {
-                                        Text(
-                                            text = "Automation",
-                                            fontFamily = FontFamily.SansSerif, // Never use monospace
-                                            fontWeight = if (selectedTab == 1) FontWeight.Medium else FontWeight.Normal,
-                                            fontSize = 11.sp
-                                        )
-                                    },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = MaterialTheme.colorScheme.primary,
-                                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                                        unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
-                                        unselectedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
-                                        indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                                    ),
-                                    modifier = Modifier.testTag("nav_commands_tab")
-                                )
-                                NavigationBarItem(
-                                    selected = selectedTab == 2,
-                                    onClick = { selectedTab = 2 },
-                                    icon = { Icon(Icons.Outlined.Article, contentDescription = "Climate News Feed", modifier = Modifier.size(24.dp)) },
-                                    label = {
-                                        Text(
-                                            text = "Feeds",
-                                            fontFamily = FontFamily.SansSerif, // Never use monospace
-                                            fontWeight = if (selectedTab == 2) FontWeight.Medium else FontWeight.Normal,
-                                            fontSize = 11.sp
-                                        )
-                                    },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = MaterialTheme.colorScheme.primary,
-                                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                                        unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
-                                        unselectedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
-                                        indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                                    ),
-                                    modifier = Modifier.testTag("nav_feeds_tab")
-                                )
-                                NavigationBarItem(
-                                    selected = selectedTab == 3,
-                                    onClick = { selectedTab = 3 },
-                                    icon = { Icon(Icons.Outlined.Settings, contentDescription = "Module Configurations", modifier = Modifier.size(24.dp)) },
-                                    label = {
-                                        Text(
-                                            text = "Settings",
-                                            fontFamily = FontFamily.SansSerif, // Never use monospace
-                                            fontWeight = if (selectedTab == 3) FontWeight.Medium else FontWeight.Normal,
-                                            fontSize = 11.sp
-                                        )
-                                    },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = MaterialTheme.colorScheme.primary,
-                                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                                        unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
-                                        unselectedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
-                                        indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                                    ),
-                                    modifier = Modifier.testTag("nav_config_tab")
-                                )
-                            }
+                    LaunchedEffect(globalError) {
+                        globalError?.let { message ->
+                            snackbarHostState.showSnackbar(message)
+                            AiraViewModel.clearGlobalError()
                         }
                     }
-                ) { innerPadding ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding)
-                            .background(MaterialTheme.colorScheme.background)
-                    ) {
-                        when (selectedTab) {
-                            0 -> HomeScreen(viewModel = viewModel)
-                            1 -> SystemControlScreen(viewModel = viewModel)
-                            2 -> ExtrasScreen(viewModel = viewModel)
-                            3 -> SettingsScreen(viewModel = viewModel)
+
+                    val showTtsDialog by viewModel.showTtsDataDialog.collectAsState()
+                    val missingTtsLocale by viewModel.missingTtsLanguageLocale.collectAsState()
+
+                    if (showTtsDialog) {
+                        AlertDialog(
+                            onDismissRequest = { viewModel.dismissTtsDataDialog() },
+                            title = {
+                                Text(
+                                    text = "Google TTS Voice Data Missing",
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontFamily = FontFamily.SansSerif
+                                )
+                            },
+                            text = {
+                                Text(
+                                    text = "Voice data for '$missingTtsLocale' is missing or incomplete on your device. Would you like to install Google TTS voice data now?",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 14.sp,
+                                    fontFamily = FontFamily.SansSerif
+                                )
+                            },
+                            confirmButton = {
+                                Button(
+                                    onClick = { viewModel.openInstallTtsDataSettings() },
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                ) {
+                                    Text("Install Voice Data")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { viewModel.dismissTtsDataDialog() }) {
+                                    Text("Cancel", color = MaterialTheme.colorScheme.primary)
+                                }
+                            },
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            shape = RoundedCornerShape(24.dp)
+                        )
+                    }
+
+                    Scaffold(
+                        modifier = Modifier.fillMaxSize(),
+                        containerColor = MaterialTheme.colorScheme.background,
+                        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+                        bottomBar = {
+                            Surface(
+                                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp), // Radius.Navigation: 24dp
+                                tonalElevation = 4.dp, // Soft elevation
+                                color = MaterialTheme.colorScheme.surface, // Premium dark surface matching status card
+                                modifier = Modifier
+                                    .height(72.dp) // Height: 72dp
+                                    .fillMaxWidth()
+                                    .windowInsetsPadding(WindowInsets.navigationBars)
+                            ) {
+                                NavigationBar(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .testTag("bottom_nav_bar"),
+                                    containerColor = Color.Transparent,
+                                    tonalElevation = 0.dp
+                                ) {
+                                    NavigationBarItem(
+                                        selected = selectedTab == 0,
+                                        onClick = { selectedTab = 0 },
+                                        icon = { Icon(Icons.Outlined.Home, contentDescription = "Assistant Hub", modifier = Modifier.size(24.dp)) },
+                                        label = {
+                                            Text(
+                                                text = "Home",
+                                                fontFamily = FontFamily.SansSerif, // Never use monospace
+                                                fontWeight = if (selectedTab == 0) FontWeight.Medium else FontWeight.Normal,
+                                                fontSize = 11.sp
+                                            )
+                                        },
+                                        colors = NavigationBarItemDefaults.colors(
+                                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                                            unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                                            unselectedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) // Selected tab uses subtle filled background, no glow
+                                        ),
+                                        modifier = Modifier.testTag("nav_assistant_tab")
+                                    )
+                                    NavigationBarItem(
+                                        selected = selectedTab == 1,
+                                        onClick = { selectedTab = 1 },
+                                        icon = { Icon(Icons.Outlined.AutoAwesome, contentDescription = "Command Deck", modifier = Modifier.size(24.dp)) },
+                                        label = {
+                                            Text(
+                                                text = "Automation",
+                                                fontFamily = FontFamily.SansSerif, // Never use monospace
+                                                fontWeight = if (selectedTab == 1) FontWeight.Medium else FontWeight.Normal,
+                                                fontSize = 11.sp
+                                            )
+                                        },
+                                        colors = NavigationBarItemDefaults.colors(
+                                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                                            unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                                            unselectedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                        ),
+                                        modifier = Modifier.testTag("nav_commands_tab")
+                                    )
+                                    NavigationBarItem(
+                                        selected = selectedTab == 2,
+                                        onClick = { selectedTab = 2 },
+                                        icon = { Icon(Icons.Outlined.Article, contentDescription = "Climate News Feed", modifier = Modifier.size(24.dp)) },
+                                        label = {
+                                            Text(
+                                                text = "Feeds",
+                                                fontFamily = FontFamily.SansSerif, // Never use monospace
+                                                fontWeight = if (selectedTab == 2) FontWeight.Medium else FontWeight.Normal,
+                                                fontSize = 11.sp
+                                            )
+                                        },
+                                        colors = NavigationBarItemDefaults.colors(
+                                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                                            unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                                            unselectedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                        ),
+                                        modifier = Modifier.testTag("nav_feeds_tab")
+                                    )
+                                    NavigationBarItem(
+                                        selected = selectedTab == 3,
+                                        onClick = { selectedTab = 3 },
+                                        icon = { Icon(Icons.Outlined.Settings, contentDescription = "Module Configurations", modifier = Modifier.size(24.dp)) },
+                                        label = {
+                                            Text(
+                                                text = "Settings",
+                                                fontFamily = FontFamily.SansSerif, // Never use monospace
+                                                fontWeight = if (selectedTab == 3) FontWeight.Medium else FontWeight.Normal,
+                                                fontSize = 11.sp
+                                            )
+                                        },
+                                        colors = NavigationBarItemDefaults.colors(
+                                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                                            unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                                            unselectedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                        ),
+                                        modifier = Modifier.testTag("nav_config_tab")
+                                    )
+                                }
+                            }
+                        }
+                    ) { innerPadding ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(innerPadding)
+                                .background(MaterialTheme.colorScheme.background)
+                        ) {
+                            AnimatedContent(
+                                targetState = selectedTab,
+                                transitionSpec = {
+                                    fadeIn().togetherWith(fadeOut())
+                                },
+                                label = "MainTabTransition"
+                            ) { tab ->
+                                when (tab) {
+                                    0 -> HomeScreen(viewModel = viewModel)
+                                    1 -> SystemControlScreen(viewModel = viewModel)
+                                    2 -> ExtrasScreen(viewModel = viewModel)
+                                    3 -> SettingsScreen(viewModel = viewModel)
+                                }
+                            }
                         }
                     }
                 }

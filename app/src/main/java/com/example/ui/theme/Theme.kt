@@ -142,7 +142,6 @@ val AiraTypography = Typography(
 @Composable
 fun AiraTheme(
     themeIndex: Int = 0,
-    customColorHex: String = "#2563EB",
     appTheme: String = "light",
     content: @Composable () -> Unit
 ) {
@@ -177,16 +176,8 @@ fun AiraTheme(
     val themeResId = ThemeRepository.themes.getOrNull(themeIndex)?.colorResId
     val themeColor = themeResId?.let { colorResource(id = it) }
 
-    // Resolve the primary color from the selected theme, with fallback to customColorHex parsing
-    val primaryColor = try {
-        themeColor ?: if (customColorHex.startsWith("#") && (customColorHex.length == 7 || customColorHex.length == 9)) {
-            Color(android.graphics.Color.parseColor(customColorHex))
-        } else {
-            primaryColorRes
-        }
-    } catch (e: Exception) {
-        primaryColorRes
-    }
+    // Resolve the primary color from the selected design system theme
+    val primaryColor = themeColor ?: primaryColorRes
 
     // Determine the base schemes based on the target dark/light mode and primary color choice
     val baseScheme = if (darkTheme) {

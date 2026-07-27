@@ -1,0 +1,36 @@
+<resources>
+    <string name="app_name">آيرا</string>
+    <string name="accessibility_service_description">تتيح خدمة إمكانية الوصول في آيرا الأوامر الصوتية لقراءة الشاشة والتنقل والتحكم في التطبيقات والوسائط.</string>
+
+    <!-- General / Navigation -->
+    <string name="back">رجوع</string>
+    <string name="cancel">إلغاء</string>
+
+    <!-- Home Screen -->
+    <string name="aira_logo_text">AIRA</string>
+    <string name="good_morning">صباح الخير</string>
+    <string name="good_afternoon">مساء الخير</string>
+    <string name="good_evening">مساء الخير</string>
+    <string name="voice_label">صوت</string>
+    <string name="listening_status">جاري الاستماع...</string>
+    <string name="speaking_status">جاري التحدث</string>
+    <string name="thinking_status">جاري التفكير</string>
+    <string name="ready_status">جاهز للمساعدة</string>
+
+    <!-- Memory Settings -->
+    <string name="memory_settings_title">إعدادات الذاكرة</string>
+    <string name="edit_memory_title">تعديل الذاكرة</string>
+    <string name="memory_fact_label">حقيقة الذاكرة</string>
+    <string name="save">حفظ</string>
+    <string name="delete">حذف</string>
+    <string name="memory_engine_header">محرك الذاكرة طويلة المدى</string>
+    <string name="memory_engine_desc">يتذكر آيرا الأسماء والمدن والوظائف والتفضيلات تلقائيًا.</string>
+    <string name="export_backup">تصدير النسخة الاحتياطية</string>
+    <string name="import_backup">استيراد النسخة الاحتياطية</string>
+    <string name="clear_all">مسح الكل</string>
+    <string name="recalled_facts">الحقائق المسترجعة (%1$d)</string>
+    <string name="no_memories_placeholder">لم يتم حفظ أي ذكريات بعد.</string>
+
+    <!-- Advanced Settings -->
+    <string name="advanced_settings_title">إعدادات متقدمة</string>
+</resources>

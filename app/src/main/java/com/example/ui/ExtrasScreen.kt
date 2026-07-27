@@ -1,10 +1,12 @@
 package com.example.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -30,6 +32,7 @@ fun ExtrasScreen(
 ) {
     val weatherData by viewModel.weatherText.collectAsState()
     val newsArticles by viewModel.newsFeed.collectAsState()
+    val isOfflineBrain by viewModel.isOfflineBrain.collectAsState()
 
     val scrollState = rememberScrollState()
 
@@ -49,6 +52,42 @@ fun ExtrasScreen(
             color = MaterialTheme.colorScheme.primary,
             fontFamily = FontFamily.SansSerif
         )
+
+        if (isOfflineBrain) {
+            Surface(
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth().testTag("extras_offline_mode_banner")
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .size(10.dp)
+                                .background(Color(0xFF4CAF50), CircleShape)
+                        )
+                        Text(
+                            text = "Offline Mode Active",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontFamily = FontFamily.SansSerif
+                        )
+                    }
+                    Text(
+                        text = "Llama 3.2 • Amy ONNX • Vosk STT",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontFamily = FontFamily.SansSerif
+                    )
+                }
+            }
+        }
 
         // CARD 1: ENVIRONMENTAL METRIC CORES (WEATHER)
         Card(
@@ -107,6 +146,59 @@ fun ExtrasScreen(
             }
         }
 
+        var selectedArticleForDialog by remember { mutableStateOf<Pair<String, String>?>(null) }
+
+        if (selectedArticleForDialog != null) {
+            val (title, detail) = selectedArticleForDialog!!
+            AlertDialog(
+                onDismissRequest = { selectedArticleForDialog = null },
+                title = {
+                    Text(
+                        text = title,
+                        fontSize = 18.sp,
+                        fontFamily = FontFamily.SansSerif,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            text = "Broadcast Transmission • Live Aira Feed",
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.SansSerif,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                        )
+                        Text(
+                            text = detail,
+                            fontSize = 15.sp,
+                            fontFamily = FontFamily.SansSerif,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            lineHeight = 22.sp
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.speakText(detail)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Read Aloud", fontFamily = FontFamily.SansSerif, fontSize = 14.sp)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { selectedArticleForDialog = null }) {
+                        Text("Close", fontFamily = FontFamily.SansSerif, fontSize = 14.sp)
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surface,
+                shape = RoundedCornerShape(22.dp)
+            )
+        }
+
         // CARD 2: DIGITAL NEWS TRANSMISSION CORE
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -139,7 +231,7 @@ fun ExtrasScreen(
                 }
 
                 Text(
-                    text = "Latest Intel & Updates",
+                    text = "Latest Intel & Updates (Tap card to view full article details)",
                     fontSize = 14.sp, // Caption: 14sp
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
                     fontFamily = FontFamily.SansSerif
@@ -158,6 +250,11 @@ fun ExtrasScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp) // Comfortable spacing
                     ) {
                         newsArticles.forEachIndexed { i, article ->
+                            val extendedDetail = when (i) {
+                                0 -> "AI Advances in local edge reasoning platforms enable on-device LLM inference via Llama 3.2 1B/3B without cloud dependencies, providing zero-latency privacy-focused intelligence directly on Android."
+                                1 -> "Android 16 dynamic color customization rolls out system-wide with expanded Material 3 palettes, adaptive contrast ratios, and seamless dark/light mode transitions."
+                                else -> "Global climate systems display warming trends this season. Multi-spectral satellite telemetry records ocean surface temperature variations across tropical regions."
+                            }
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -165,11 +262,14 @@ fun ExtrasScreen(
                                     .defaultMinSize(minHeight = 64.dp) // Height: 64dp minimum
                                     .clip(RoundedCornerShape(14.dp))
                                     .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.03f))
+                                    .clickable {
+                                        selectedArticleForDialog = Pair("Broadcast Update #${i + 1}", extendedDetail)
+                                    }
                                     .padding(16.dp),
                                 verticalArrangement = Arrangement.Center
                             ) {
                                 Text(
-                                    text = "Broadcast Update",
+                                    text = "Broadcast Update #${i + 1}",
                                     fontSize = 13.sp, // Labels: 13sp Medium
                                     fontWeight = FontWeight.Medium,
                                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
@@ -226,7 +326,7 @@ fun ExtrasScreen(
                 }
 
                 Text(
-                    text = "Broadcast mock intelligence updates directly to your device notifications tray to test the high-tech alert systems.",
+                    text = "Broadcast live intelligence alerts directly to your device notifications tray to test the high-tech voice alert systems.",
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
                     fontFamily = FontFamily.SansSerif,

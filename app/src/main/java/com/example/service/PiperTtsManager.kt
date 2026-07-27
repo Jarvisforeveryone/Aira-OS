@@ -490,13 +490,7 @@ class PiperTtsManager(private val context: Context) {
     }
 
     private fun getVoiceUrl(voiceId: String): String {
-        return when (voiceId) {
-            "en_US-amy-medium" -> "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/amy/medium/en_US-amy-medium.onnx?download=true"
-            "en_US-ryan-medium" -> "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/ryan/medium/en_US-ryan-medium.onnx"
-            "en_US-lessac-high" -> "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/high/en_US-lessac-high.onnx"
-            "en_US-joanna-neural" -> "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/joanna/medium/en_US-joanna-medium.onnx"
-            else -> "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/amy/medium/en_US-amy-medium.onnx?download=true"
-        }
+        return "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/amy/medium/en_US-amy-medium.onnx?download=true"
     }
 
     fun isReady(): Boolean {
@@ -660,7 +654,7 @@ class PiperTtsManager(private val context: Context) {
     private fun speakOnlineFallback(text: String, pitch: Float, length: Float) {
         try {
             Log.d("PiperTtsManager", "Falling back to device online/system TTS: $text")
-            if (nativeTts != null) {
+            if (isNativeTtsReady && nativeTts != null) {
                 nativeTts?.language = java.util.Locale.US
                 nativeTts?.setPitch(pitch)
                 nativeTts?.setSpeechRate(if (length > 0) 1.0f / length else 1.0f)
@@ -673,12 +667,10 @@ class PiperTtsManager(private val context: Context) {
 
                 nativeTts?.speak(humanizedText, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "AiraOnlineFallbackTts")
             } else {
-                Log.e("PiperTtsManager", "Critical: Fallback online TTS holds null engine")
-                com.example.ui.AiraViewModel.showGlobalError("Speech synthesis engine unavailable.")
+                Log.w("PiperTtsManager", "Native TextToSpeech engine not ready yet for fallback speech.")
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e("PiperTtsManager", "Critical: Fallback online TTS also failed", e)
-            com.example.ui.AiraViewModel.showGlobalError("All speech synthesis options failed: ${e.localizedMessage}")
         }
     }
 

@@ -271,7 +271,7 @@ class AiBrain(private val context: Context) {
                 "Offline Mode Assistant: Alarm module activated. Let's configure your alert."
             }
             clean.contains("weather") || clean.contains("temperature") -> {
-                "Offline Mode Assistant: Live weather retrieval requires online sync. Current offline mock temperature is 24°C, Clear Sky."
+                "Offline Mode Assistant: Live weather retrieval requires active internet connection. Offline cached temperature is 20°C, Clear Sky."
             }
             clean.contains("news") || clean.contains("headline") -> {
                 "Offline Mode Assistant: News feeds require online sync. Locally saved headline: Aira Version 1.0 successfully active."

@@ -1,6 +1,8 @@
 package com.example.ui
 
+import android.content.Intent
 import android.media.AudioManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -37,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.foundation.lazy.LazyRow
 import com.example.data.Action
 import com.example.ui.theme.success
 import com.example.ui.theme.warning
@@ -1445,6 +1448,259 @@ fun VoiceCommandScreen(
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(28.dp)
         ) {
+            // Live Voice Command Parser Card
+            var voiceInputTestText by remember { mutableStateOf("") }
+            var parseResultOutput by remember { mutableStateOf<String?>(null) }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                shape = RoundedCornerShape(22.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Text(
+                        text = "Voice Command Parser Tester",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium,
+                        fontFamily = FontFamily.SansSerif,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    Text(
+                        text = "Test voice commands for Wi-Fi toggling, screen brightness, setting alarms, sound modes, or flashlight.",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontFamily = FontFamily.SansSerif
+                    )
+
+                    OutlinedTextField(
+                        value = voiceInputTestText,
+                        onValueChange = { voiceInputTestText = it },
+                        modifier = Modifier.fillMaxWidth().testTag("voice_command_input"),
+                        placeholder = { Text("e.g. 'set brightness to 80%' or 'set alarm for 7:30 AM'", fontSize = 14.sp) },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                        ),
+                        singleLine = true
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                if (voiceInputTestText.isNotBlank()) {
+                                    val res = viewModel.parseAndExecuteVoiceCommand(voiceInputTestText)
+                                    parseResultOutput = res
+                                }
+                            },
+                            modifier = Modifier.weight(1f).height(44.dp).testTag("parse_and_execute_btn"),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Parse & Execute Action", fontSize = 13.sp, color = MaterialTheme.colorScheme.onPrimary)
+                        }
+                    }
+
+                    // Sample Quick Preset Chips
+                    val presets = listOf(
+                        "turn on wifi",
+                        "set brightness to 80%",
+                        "set alarm for 7:30 AM",
+                        "silent mode",
+                        "lock screen",
+                        "take screenshot",
+                        "open notifications",
+                        "open quick settings",
+                        "open power menu",
+                        "click on save",
+                        "check device admin"
+                    )
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(presets.size) { index ->
+                            val chip = presets[index]
+                            SuggestionChip(
+                                onClick = {
+                                    voiceInputTestText = chip
+                                    parseResultOutput = viewModel.parseAndExecuteVoiceCommand(chip)
+                                },
+                                label = { Text(chip, fontSize = 12.sp) },
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.testTag("preset_chip_$index")
+                            )
+                        }
+                    }
+
+                    parseResultOutput?.let { result ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(
+                                    text = "PARSER EXECUTION OUTPUT",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = result,
+                                    fontSize = 14.sp,
+                                    fontFamily = FontFamily.SansSerif,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Accessibility & Device Policy Framework Integration Card
+            val isAccessibilityActive = viewModel.isAccessibilityServiceConnected()
+            val isDeviceAdminActive = viewModel.checkDeviceAdminActive()
+            val context = LocalContext.current
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                shape = RoundedCornerShape(22.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Security,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "Accessibility & Device Policy Framework",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium,
+                            fontFamily = FontFamily.SansSerif,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    Text(
+                        text = "Automates deep Android system actions and security policies via natural language commands.",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    // Accessibility Status Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("Accessibility Service", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                if (isAccessibilityActive) "Active & Connected" else "Disconnected",
+                                fontSize = 12.sp,
+                                color = if (isAccessibilityActive) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
+                            )
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                val intent = Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                }
+                                context.startActivity(intent)
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.testTag("open_accessibility_settings_btn")
+                        ) {
+                            Text("Configure", fontSize = 12.sp)
+                        }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                    // Device Policy Admin Status Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("Device Policy Admin", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                if (isDeviceAdminActive) "Active & Enforced" else "Inactive",
+                                fontSize = 12.sp,
+                                color = if (isDeviceAdminActive) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
+                            )
+                        }
+                        Button(
+                            onClick = {
+                                val intent = viewModel.getDeviceAdminActivationIntent()
+                                context.startActivity(intent)
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.testTag("activate_device_admin_btn")
+                        ) {
+                            Text(if (isDeviceAdminActive) "Manage" else "Enable Admin", fontSize = 12.sp)
+                        }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                    Text("Quick Accessibility & Policy Actions", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+
+                    // Quick Action Buttons Grid
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(
+                                onClick = { parseResultOutput = viewModel.lockDeviceScreen() },
+                                modifier = Modifier.weight(1f).testTag("quick_lock_screen_btn"),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Lock Screen", fontSize = 12.sp)
+                            }
+                            OutlinedButton(
+                                onClick = { parseResultOutput = viewModel.parseAndExecuteVoiceCommand("take screenshot") },
+                                modifier = Modifier.weight(1f).testTag("quick_screenshot_btn"),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Screenshot", fontSize = 12.sp)
+                            }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(
+                                onClick = { parseResultOutput = viewModel.parseAndExecuteVoiceCommand("open notifications") },
+                                modifier = Modifier.weight(1f).testTag("quick_notifications_btn"),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Notifications", fontSize = 12.sp)
+                            }
+                            OutlinedButton(
+                                onClick = { parseResultOutput = viewModel.parseAndExecuteVoiceCommand("open power menu") },
+                                modifier = Modifier.weight(1f).testTag("quick_power_menu_btn"),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Power Menu", fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+            }
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),

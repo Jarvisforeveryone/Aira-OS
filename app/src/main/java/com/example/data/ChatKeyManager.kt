@@ -23,7 +23,7 @@ class ChatKeyManager private constructor(context: Context) {
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
         )
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
         Log.e("ChatKeyManager", "EncryptedSharedPreferences fail, fallback to cleartext settings", e)
         context.applicationContext.getSharedPreferences("aira_api_keys_fallback", Context.MODE_PRIVATE)
     }

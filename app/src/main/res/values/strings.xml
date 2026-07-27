@@ -20,6 +20,11 @@
     <!-- Memory Settings -->
     <string name="memory_settings_title">Memory Settings</string>
     <string name="edit_memory_title">EDIT MEMORY</string>
+    <string name="add_memory_title">ADD MEMORY</string>
+    <string name="add_memory">ADD MEMORY</string>
+    <string name="category_label">Category</string>
+    <string name="mark_important">Mark as Important</string>
+    <string name="search_memories">Search memories...</string>
     <string name="memory_fact_label">Memory Fact</string>
     <string name="save">SAVE</string>
     <string name="delete">DELETE</string>

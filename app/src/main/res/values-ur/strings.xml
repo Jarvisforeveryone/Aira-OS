@@ -1,0 +1,36 @@
+<resources>
+    <string name="app_name">آئیرا</string>
+    <string name="accessibility_service_description">آئیرا رسائی کی سروس اسکرین پڑھنے، سسٹم نیویگیشن، اور ایپس اور میڈیا کنٹرول کے لیے صوتی کمانڈز کی اجازت دیتی ہے۔</string>
+
+    <!-- General / Navigation -->
+    <string name="back">واپس</string>
+    <string name="cancel">منسوخ کریں</string>
+
+    <!-- Home Screen -->
+    <string name="aira_logo_text">AIRA</string>
+    <string name="good_morning">صبح بخیر</string>
+    <string name="good_afternoon">دوپہر بخیر</string>
+    <string name="good_evening">شام بخیر</string>
+    <string name="voice_label">آواز</string>
+    <string name="listening_status">سن رہا ہے...</string>
+    <string name="speaking_status">بول رہا ہے</string>
+    <string name="thinking_status">سوچ رہا ہے</string>
+    <string name="ready_status">مدد کے لیے تیار</string>
+
+    <!-- Memory Settings -->
+    <string name="memory_settings_title">میموری کی ترتیبات</string>
+    <string name="edit_memory_title">میموری میں ترمیم کریں</string>
+    <string name="memory_fact_label">میموری کی حقیقت</string>
+    <string name="save">محفوظ کریں</string>
+    <string name="delete">حذف کریں</string>
+    <string name="memory_engine_header">طویل مدتی میموری انجن</string>
+    <string name="memory_engine_desc">آئیرا نام، شہر، ملازمت اور ترجیحات کو خود بخود یاد رکھتی ہے۔</string>
+    <string name="export_backup">بیک اپ ایکسپورٹ کریں</string>
+    <string name="import_backup">بیک اپ امپورٹ کریں</string>
+    <string name="clear_all">تمام صاف کریں</string>
+    <string name="recalled_facts">یاد کی گئی حقائق (%1$d)</string>
+    <string name="no_memories_placeholder">ابھی تک کوئی میموری محفوظ نہیں ہے۔</string>
+
+    <!-- Advanced Settings -->
+    <string name="advanced_settings_title">اعلی ترتیبات</string>
+</resources>

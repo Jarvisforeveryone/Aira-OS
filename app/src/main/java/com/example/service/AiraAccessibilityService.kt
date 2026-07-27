@@ -196,6 +196,52 @@ class AiraAccessibilityService : AccessibilityService() {
         return performGlobalAction(GLOBAL_ACTION_RECENTS)
     }
 
+    fun performLockScreenAction(): Boolean {
+        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)
+        } else {
+            false
+        }
+    }
+
+    fun performScreenshotAction(): Boolean {
+        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            performGlobalAction(GLOBAL_ACTION_TAKE_SCREENSHOT)
+        } else {
+            false
+        }
+    }
+
+    fun performNotificationsAction(): Boolean {
+        return performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS)
+    }
+
+    fun performQuickSettingsAction(): Boolean {
+        return performGlobalAction(GLOBAL_ACTION_QUICK_SETTINGS)
+    }
+
+    fun performPowerMenuAction(): Boolean {
+        return performGlobalAction(GLOBAL_ACTION_POWER_DIALOG)
+    }
+
+    fun clickElementByText(targetText: String): String {
+        val rootNode = rootInActiveWindow ?: return "Screen content unavailable or inactive."
+        return try {
+            val targets = listOf(targetText.lowercase().trim())
+            val clicked = findAndClickNodeByTextOrContent(rootNode, targets)
+            if (clicked) {
+                "Successfully clicked element matching '$targetText' on screen."
+            } else {
+                "Could not find any clickable element matching '$targetText' on current screen."
+            }
+        } catch (e: Exception) {
+            Log.e("AiraAccessibility", "Failed to click element by text: $targetText", e)
+            "Error performing click on '$targetText': ${e.localizedMessage}"
+        } finally {
+            rootNode.recycle()
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         serviceScope.cancel()

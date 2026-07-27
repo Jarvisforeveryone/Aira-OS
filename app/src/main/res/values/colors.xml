@@ -4,10 +4,10 @@
     <!-- EXACT COLORS REQUESTED IN SETUP COLOR SYSTEM -->
     <!-- ========================================== -->
     <!-- LIGHT MODE -->
-    <color name="aira_bg_light">#F1F5F9</color>
+    <color name="aira_bg_light">#FBFAFC</color>
     <color name="aira_surface_light">#FFFFFF</color>
-    <color name="aira_surface_variant_light">#E2E8F0</color>
-    <color name="aira_border_light">#CBD5E1</color>
+    <color name="aira_surface_variant_light">#1F1F29</color>
+    <color name="aira_border_light">#E2E8F0</color>
     <color name="aira_disabled_light">#CBD5E1</color>
     <color name="aira_primary">#2563EB</color>
     <color name="aira_primary_variant">#1D4EDB</color>
@@ -18,18 +18,18 @@
     <color name="aira_text_secondary_light">#475569</color>
 
     <!-- DARK MODE -->
-    <color name="aira_bg_dark">#0B1120</color>
-    <color name="aira_surface_dark">#111827</color>
-    <color name="aira_surface_variant_dark">#1F2937</color>
-    <color name="aira_border_dark">#374151</color>
-    <color name="aira_disabled_dark">#4B5563</color>
+    <color name="aira_bg_dark">#0F172A</color>
+    <color name="aira_surface_dark">#1F1F29</color>
+    <color name="aira_surface_variant_dark">#1F1F29</color>
+    <color name="aira_border_dark">#1F1F29</color>
+    <color name="aira_disabled_dark">#CBD5E1</color>
     <color name="aira_primary_dark">#2563EB</color>
-    <color name="aira_primary_variant_dark">#3B82F6</color>
-    <color name="aira_pressed_dark">#1D4EDB</color>
+    <color name="aira_primary_variant_dark">#1D4EDB</color>
+    <color name="aira_pressed_dark">#1E40AF</color>
     <color name="aira_gradient_start_dark">#2563EB</color>
-    <color name="aira_gradient_end_dark">#3B82F6</color>
-    <color name="aira_text_primary_dark">#F9FAFB</color>
-    <color name="aira_text_secondary_dark">#9CA3AF</color>
+    <color name="aira_gradient_end_dark">#1D4EDB</color>
+    <color name="aira_text_primary_dark">#FFFFFF</color>
+    <color name="aira_text_secondary_dark">#CBD5E1</color>
 
     <!-- STATUS (Both Modes) -->
     <color name="aira_success">#16A344</color>

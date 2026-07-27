@@ -38,6 +38,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
@@ -62,6 +71,7 @@ fun HomeScreen(
     }
 
     val isOfflineBrain by viewModel.isOfflineBrain.collectAsState()
+    val reduceAnimations by viewModel.reduceAnimations.collectAsState()
     var onlineMode by remember { mutableStateOf(!isOfflineBrain) }
     LaunchedEffect(isOfflineBrain) {
         onlineMode = !isOfflineBrain
@@ -203,52 +213,54 @@ fun HomeScreen(
                     }
                 }
 
-                Box {
-                    OutlinedButton(
-                        onClick = { showVoiceDropdown = true },
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.primary
-                        ),
-                        modifier = Modifier.testTag("quick_voice_switcher")
-                    ) {
-                        Text(
-                            text = stringResource(R.string.voice_label),
-                            fontFamily = FontFamily.SansSerif,
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 14.sp
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Icon(
-                            imageVector = Icons.Default.ArrowDropDown,
-                            contentDescription = stringResource(R.string.voice_label),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
+                Surface(
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = "Voice: $selectedVoiceName",
+                        fontFamily = FontFamily.SansSerif,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                    )
+                }
+            }
 
-                    DropdownMenu(
-                        expanded = showVoiceDropdown,
-                        onDismissRequest = { showVoiceDropdown = false },
-                        modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+            if (isOfflineBrain) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth().testTag("offline_mode_banner")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        piperAvailableVoices.forEach { voice ->
-                            val isCurrent = piperActiveVoice == voice.id
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        text = voice.displayName,
-                                        color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                        fontSize = 14.sp,
-                                        fontFamily = FontFamily.SansSerif,
-                                        fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Normal
-                                    )
-                                },
-                                onClick = {
-                                    viewModel.updatePiperVoice(voice.id)
-                                    showVoiceDropdown = false
-                                }
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .background(Color(0xFF4CAF50), CircleShape)
+                            )
+                            Text(
+                                text = "Offline Mode Active",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontFamily = FontFamily.SansSerif
                             )
                         }
+                        Text(
+                            text = "Llama 3.2 • Amy ONNX • Vosk STT",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontFamily = FontFamily.SansSerif
+                        )
                     }
                 }
             }
@@ -285,6 +297,20 @@ fun HomeScreen(
             Box(
                 modifier = Modifier
                     .size(180.dp) // Orb Size: 180dp
+                    .semantics {
+                        contentDescription = if (isListening) "Aira Voice Assistant Orb, listening. Tap to stop." else "Aira Voice Assistant Orb, idle. Tap to start talking."
+                        role = Role.Button
+                        stateDescription = derivedStatus
+                        onClick(label = if (isListening) "Stop voice detection" else "Start voice listening") {
+                            if (isListening) {
+                                viewModel.stopListening()
+                            } else {
+                                viewModel.startListening()
+                            }
+                            isListening = !isListening
+                            true
+                        }
+                    }
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
@@ -300,9 +326,9 @@ fun HomeScreen(
             ) {
                 val primaryColor = MaterialTheme.colorScheme.primary
 
-                // Layer 2 Central Accent: Premium solid animated center
+                // Layer 2 Central Accent: Premium solid center (respects reduceAnimations)
                 val animatedScale by animateFloatAsState(
-                    targetValue = if (isListening) 1.1f + audioAmp * 0.4f else if (isSpeaking) 1.05f + audioAmp * 0.2f else 1.0f,
+                    targetValue = if (reduceAnimations) 1.0f else if (isListening) 1.1f + audioAmp * 0.4f else if (isSpeaking) 1.05f + audioAmp * 0.2f else 1.0f,
                     animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMedium),
                     label = "OrbScale"
                 )
@@ -357,6 +383,10 @@ fun HomeScreen(
                 modifier = Modifier
                     .height(52.dp) // Height: 52dp
                     .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(18.dp)) // Soft Material surface, Corner radius: 18dp, No border
+                    .semantics {
+                        liveRegion = LiveRegionMode.Polite
+                        contentDescription = "System Status: $derivedStatus. Connection mode: ${if (onlineMode) "Online" else "Offline"}. Voice detection is active."
+                    }
                     .padding(horizontal = 18.dp), // Horizontal padding: 18dp
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally) // Internal spacing: 12dp, Items perfectly centered
@@ -364,6 +394,15 @@ fun HomeScreen(
                 // PART A - CONNECTION
                 Row(
                     modifier = Modifier
+                        .semantics {
+                            role = Role.Switch
+                            contentDescription = if (onlineMode) "Switch connection mode, currently Online" else "Switch connection mode, currently Offline"
+                            onClick(label = "Toggle online/offline connection mode") {
+                                onlineMode = !onlineMode
+                                viewModel.toggleOfflineBrain(!onlineMode)
+                                true
+                            }
+                        }
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
@@ -480,43 +519,41 @@ fun HomeScreen(
                     val primaryColor = MaterialTheme.colorScheme.primary
                     val secondaryColor = MaterialTheme.colorScheme.secondary
 
-                    val mockItems = remember(primaryColor, secondaryColor) {
-                        listOf(
-                            RecentConvItem("A", primaryColor, "Aira", "Neural engine active and initialized.", "10:42"),
-                            RecentConvItem("U", secondaryColor, "User", "Check system status and latency.", "10:41"),
-                            RecentConvItem("A", primaryColor, "Aira", "All parameters are standard.", "10:40")
-                        )
-                    }
-
                     val displayItems = remember(chatHistory, primaryColor, secondaryColor) {
-                        if (chatHistory.isEmpty()) {
-                            mockItems
-                        } else {
-                            chatHistory.takeLast(3).reversed().map { msg ->
-                                val isUser = msg.sender == "user"
-                                val avatar = if (isUser) "U" else "A"
-                                val color = if (isUser) secondaryColor else primaryColor
-                                val name = if (isUser) "User" else "Aira"
-                                val timeStr = sdf.format(java.util.Date(msg.timestamp))
-                                RecentConvItem(avatar, color, name, msg.message, timeStr)
-                            }
+                        chatHistory.takeLast(3).reversed().map { msg ->
+                            val isUser = msg.sender == "user"
+                            val avatar = if (isUser) "U" else "A"
+                            val color = if (isUser) secondaryColor else primaryColor
+                            val name = if (isUser) "User" else "Aira"
+                            val timeStr = sdf.format(java.util.Date(msg.timestamp))
+                            RecentConvItem(avatar, color, name, msg.message, timeStr)
                         }
                     }
 
-                    displayItems.forEachIndexed { index, item ->
-                        RecentConversationRow(
-                            avatarText = item.avatarText,
-                            avatarBg = item.avatarBg,
-                            name = item.name,
-                            message = item.message,
-                            time = item.time
+                    if (displayItems.isEmpty()) {
+                        Text(
+                            text = "No recent conversations. Tap the voice orb to begin.",
+                            fontSize = 14.sp,
+                            fontFamily = FontFamily.SansSerif,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 12.dp)
                         )
-                        if (index < displayItems.lastIndex) {
-                            HorizontalDivider(
-                                color = MaterialTheme.colorScheme.outlineVariant, // Low opacity, very subtle
-                                thickness = 1.dp, // 1dp
-                                modifier = Modifier.padding(vertical = 4.dp)
+                    } else {
+                        displayItems.forEachIndexed { index, item ->
+                            RecentConversationRow(
+                                avatarText = item.avatarText,
+                                avatarBg = item.avatarBg,
+                                name = item.name,
+                                message = item.message,
+                                time = item.time
                             )
+                            if (index < displayItems.lastIndex) {
+                                HorizontalDivider(
+                                    color = MaterialTheme.colorScheme.outlineVariant,
+                                    thickness = 1.dp,
+                                    modifier = Modifier.padding(vertical = 4.dp)
+                                )
+                            }
                         }
                     }
                 }
