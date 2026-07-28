@@ -387,7 +387,7 @@ fun GeneralSettingsScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = Color(0xFF0F172A),
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -573,6 +573,7 @@ fun VoiceSettingsScreen(
     val piperAvailableVoices = viewModel.piperAvailableVoices
     val selectedTtsEngine by viewModel.selectedTtsEngine.collectAsState()
     val selectedSttEngine by viewModel.selectedSttEngine.collectAsState()
+    val isLocalMode by viewModel.isLocalMode.collectAsState()
     val modelReadyState by viewModel.modelReadyState.collectAsState()
     val voicePitch by viewModel.voicePitch.collectAsState()
 
@@ -622,7 +623,7 @@ fun VoiceSettingsScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = Color(0xFF0F172A),
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -1403,6 +1404,68 @@ fun VoiceSettingsScreen(
                 }
             }
 
+            // CARD: LOCAL MODE TOGGLE
+            Card(
+                modifier = Modifier.fillMaxWidth().testTag("local_mode_card"),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isLocalMode) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surface
+                ),
+                shape = RoundedCornerShape(22.dp),
+                border = if (isLocalMode) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .background(
+                                        if (isLocalMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                        CircleShape
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Mic,
+                                    contentDescription = null,
+                                    tint = if (isLocalMode) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = "Local Mode",
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontFamily = FontFamily.SansSerif,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = if (isLocalMode) "Processing all voice commands locally via integrated Vosk library" else "Automatic routing (Vosk used offline or when enabled)",
+                                    fontSize = 13.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontFamily = FontFamily.SansSerif
+                                )
+                            }
+                        }
+                        Switch(
+                            checked = isLocalMode,
+                            onCheckedChange = { viewModel.toggleLocalMode(it) },
+                            modifier = Modifier.testTag("local_mode_toggle_switch")
+                        )
+                    }
+                }
+            }
+
             // CARD: SPEECH RECOGNITION ENGINE (STT)
             Card(
                 modifier = Modifier.fillMaxWidth().testTag("speech_recognition_engine_card"),
@@ -2080,7 +2143,7 @@ fun SystemSettingsScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = Color(0xFF0F172A),
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -2814,7 +2877,7 @@ fun MemorySettingsScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.back),
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = Color(0xFF0F172A),
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -3099,7 +3162,7 @@ fun MemorySettingsScreen(
                                         Icon(
                                             imageVector = Icons.Default.Star,
                                             contentDescription = "Toggle Important",
-                                            tint = if (item.isImportant) MaterialTheme.colorScheme.warning else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                            tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(24.dp)
                                         )
                                     }
@@ -3114,7 +3177,7 @@ fun MemorySettingsScreen(
                                         Icon(
                                             imageVector = Icons.Default.Delete,
                                             contentDescription = "Delete Memory",
-                                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
+                                            tint = MaterialTheme.colorScheme.error,
                                             modifier = Modifier.size(22.dp)
                                         )
                                     }
@@ -3157,7 +3220,7 @@ fun AccessibilitySettingsScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = Color(0xFF0F172A),
                             modifier = Modifier.size(24.dp)
                         )
                     }

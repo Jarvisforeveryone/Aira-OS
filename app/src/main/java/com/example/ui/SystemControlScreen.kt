@@ -17,6 +17,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -202,7 +203,7 @@ fun AutomationHomeScreen(
                                     Icon(
                                         imageVector = Icons.Default.FlashOn,
                                         contentDescription = "ON",
-                                        tint = MaterialTheme.colorScheme.onPrimary,
+                                        tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(Modifier.width(4.dp))
@@ -274,7 +275,7 @@ fun AutomationHomeScreen(
                                     Icon(
                                         imageVector = Icons.Default.Notifications,
                                         contentDescription = "Vibrate",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -285,7 +286,7 @@ fun AutomationHomeScreen(
                                     Icon(
                                         imageVector = Icons.Default.VolumeMute,
                                         contentDescription = "Silent",
-                                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
+                                        tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -539,7 +540,7 @@ fun AutomationHomeScreen(
                                                 Icon(
                                                     imageVector = Icons.Default.Delete,
                                                     contentDescription = "Delete",
-                                                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f),
+                                                    tint = MaterialTheme.colorScheme.error,
                                                     modifier = Modifier.size(20.dp)
                                                 )
                                             }
@@ -853,7 +854,7 @@ fun SmartAutoScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = Color(0xFF0F172A),
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -1080,7 +1081,7 @@ fun MyActionsScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = Color(0xFF0F172A),
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -1367,7 +1368,7 @@ fun MyActionsScreen(
                                                 Icon(
                                                     imageVector = Icons.Outlined.PlayArrow,
                                                     contentDescription = "Run",
-                                                    tint = MaterialTheme.colorScheme.success,
+                                                    tint = MaterialTheme.colorScheme.primary,
                                                     modifier = Modifier.size(24.dp)
                                                 )
                                             }
@@ -1403,6 +1404,7 @@ fun VoiceCommandScreen(
 ) {
     val allActions by viewModel.allActions.collectAsState()
     val allCommands by viewModel.allCommands.collectAsState()
+    val isLocalMode by viewModel.isLocalMode.collectAsState()
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
@@ -1434,7 +1436,7 @@ fun VoiceCommandScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = Color(0xFF0F172A),
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -1455,6 +1457,51 @@ fun VoiceCommandScreen(
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(28.dp)
         ) {
+            // Local Mode Vosk Processing Banner & Toggle
+            Card(
+                modifier = Modifier.fillMaxWidth().testTag("voice_command_local_mode_card"),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isLocalMode) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surface
+                ),
+                shape = RoundedCornerShape(22.dp),
+                border = if (isLocalMode) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(18.dp).fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .background(if (isLocalMode) colorResource(id = R.color.aira_success_light) else MaterialTheme.colorScheme.outline, CircleShape)
+                            )
+                            Text(
+                                text = "Local Mode (Vosk Library)",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontFamily = FontFamily.SansSerif
+                            )
+                        }
+                        Text(
+                            text = if (isLocalMode) "Processing all voice commands locally on-device using Vosk STT." else "Auto: Uses Vosk locally when internet is offline.",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontFamily = FontFamily.SansSerif
+                        )
+                    }
+                    Switch(
+                        checked = isLocalMode,
+                        onCheckedChange = { viewModel.toggleLocalMode(it) },
+                        modifier = Modifier.testTag("voice_command_local_mode_switch")
+                    )
+                }
+            }
+
             // Live Voice Command Parser Card
             var voiceInputTestText by remember { mutableStateOf("") }
             var parseResultOutput by remember { mutableStateOf<String?>(null) }
@@ -1593,7 +1640,7 @@ fun VoiceCommandScreen(
                         Icon(
                             imageVector = Icons.Default.Security,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = MaterialTheme.colorScheme.onPrimary
                         )
                         Text(
                             text = "Accessibility & Device Policy Framework",
@@ -2206,7 +2253,7 @@ fun VoiceCommandScreen(
                                                 Icon(
                                                     imageVector = Icons.Outlined.PlayArrow,
                                                     contentDescription = "Test Execute",
-                                                    tint = MaterialTheme.colorScheme.success,
+                                                    tint = MaterialTheme.colorScheme.primary,
                                                     modifier = Modifier.size(24.dp)
                                                 )
                                             }

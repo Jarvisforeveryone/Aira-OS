@@ -53,7 +53,7 @@ fun ThemeScreen(navController: NavController, viewModel: AiraViewModel) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = Color(0xFF0F172A),
                             modifier = Modifier.size(24.dp)
                         )
                     }

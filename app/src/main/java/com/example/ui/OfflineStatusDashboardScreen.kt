@@ -47,6 +47,7 @@ fun OfflineStatusDashboardScreen(
     val downloadStatusMsg by viewModel.piperDownloadStatusMessage.collectAsState()
     val selectedTtsEngine by viewModel.selectedTtsEngine.collectAsState()
     val selectedSttEngine by viewModel.selectedSttEngine.collectAsState()
+    val isLocalMode by viewModel.isLocalMode.collectAsState()
     val isOfflineBrain by viewModel.isOfflineBrain.collectAsState()
     val llamaThreads by viewModel.llamaThreads.collectAsState()
     val currentEngineSource by viewModel.currentEngineSource.collectAsState()
@@ -97,7 +98,7 @@ fun OfflineStatusDashboardScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = Color(0xFF0F172A)
                         )
                     }
                 },
@@ -500,7 +501,31 @@ fun OfflineStatusDashboardScreen(
                     testTag = "vosk_stt_engine_card"
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        InfoRow(label = "STT Engine Mode", value = selectedSttEngine.name)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Local Mode (Force Vosk STT)",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = if (isLocalMode) "Processing all commands locally via Vosk" else "Auto (Vosk active offline)",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = isLocalMode,
+                                onCheckedChange = { viewModel.toggleLocalMode(it) },
+                                modifier = Modifier.testTag("dashboard_local_mode_switch")
+                            )
+                        }
+                        InfoRow(label = "STT Engine Mode", value = if (isLocalMode) "LOCAL VOSK MODE (FORCED)" else selectedSttEngine.name)
                         InfoRow(label = "Model Identifier", value = "vosk-model-small-en-us-0.15")
                         InfoRow(
                             label = "Model Memory Cache",

@@ -503,6 +503,24 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     private val _isOfflineBrain = MutableStateFlow(sharedPrefs.getBoolean("offline_brain", false))
     val isOfflineBrain: StateFlow<Boolean> = _isOfflineBrain.asStateFlow()
 
+    private val _isLocalMode = MutableStateFlow(sharedPrefs.getBoolean("is_local_mode", false))
+    val isLocalMode: StateFlow<Boolean> = _isLocalMode.asStateFlow()
+
+    fun toggleLocalMode(enabled: Boolean) {
+        _isLocalMode.value = enabled
+        sharedPrefs.edit().putBoolean("is_local_mode", enabled).apply()
+        if (enabled) {
+            setSelectedSttEngine(SttEngine.VOSK_OFFLINE)
+            toggleOfflineBrain(true)
+            initVoskModel()
+            speakText("Local Mode enabled. All voice commands will be processed locally using Vosk.")
+        } else {
+            setSelectedSttEngine(SttEngine.AUTO)
+            toggleOfflineBrain(false)
+            speakText("Local Mode disabled. Automatic network speech recognition restored.")
+        }
+    }
+
     private val _onlineModel = MutableStateFlow(sharedPrefs.getString("online_model", "Gemini API") ?: "Gemini API")
     val onlineModel: StateFlow<String> = _onlineModel.asStateFlow()
 
@@ -951,8 +969,19 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     private val _weatherText = MutableStateFlow("Offline / Not Loaded")
     val weatherText: StateFlow<String> = _weatherText.asStateFlow()
 
+    private val newsRepository = com.example.repository.NewsRepository()
+
+    private val _newsItems = MutableStateFlow<List<com.example.data.models.NewsItem>>(emptyList())
+    val newsItems: StateFlow<List<com.example.data.models.NewsItem>> = _newsItems.asStateFlow()
+
     private val _newsFeed = MutableStateFlow<List<String>>(emptyList())
     val newsFeed: StateFlow<List<String>> = _newsFeed.asStateFlow()
+
+    private val _isNewsLoading = MutableStateFlow(false)
+    val isNewsLoading: StateFlow<Boolean> = _isNewsLoading.asStateFlow()
+
+    private val _newsError = MutableStateFlow<String?>(null)
+    val newsError: StateFlow<String?> = _newsError.asStateFlow()
 
     private val _voiceCommandLogs = MutableStateFlow<List<VoiceCommandLog>>(emptyList())
     val voiceCommandLogs: StateFlow<List<VoiceCommandLog>> = _voiceCommandLogs.asStateFlow()
@@ -1276,7 +1305,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
 
     private var consecutiveSpeechErrors = 0
 
-    private fun isInternetAvailable(): Boolean {
+    fun isInternetAvailable(): Boolean {
         val cm = getApplication<Application>().getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
         val capabilities = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
         return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
@@ -1307,7 +1336,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         _isListening.value = true
         hasSpeechStarted = false
 
-        if (selectedSttEngine.value == SttEngine.VOSK_OFFLINE) {
+        if (_isLocalMode.value || selectedSttEngine.value == SttEngine.VOSK_OFFLINE || !isInternetAvailable()) {
             switchToOfflineVosk()
         } else if (isInternetAvailable()) {
             isUsingGoogleSTT = true
@@ -2267,44 +2296,27 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         }
     }
 
-    private fun fetchNews() {
-        viewModelScope.launch(Dispatchers.IO) {
-            val liveHeadlines = try {
-                val request = Request.Builder().url("https://hacker-news.firebaseio.com/v0/topstories.json").build()
-                okHttpClient.newCall(request).execute().use { response ->
-                    if (response.isSuccessful) {
-                        val body = response.body?.string()
-                        if (body != null) {
-                            val arr = org.json.JSONArray(body)
-                            val list = mutableListOf<String>()
-                            for (i in 0 until minOf(4, arr.length())) {
-                                val id = arr.getInt(i)
-                                val itemReq = Request.Builder().url("https://hacker-news.firebaseio.com/v0/item/$id.json").build()
-                                okHttpClient.newCall(itemReq).execute().use { itemResp ->
-                                    if (itemResp.isSuccessful) {
-                                        val itemBody = itemResp.body?.string()
-                                        if (itemBody != null) {
-                                            val title = JSONObject(itemBody).optString("title")
-                                            if (title.isNotEmpty()) list.add(title)
-                                        }
-                                    }
-                                }
-                            }
-                            if (list.isNotEmpty()) list else null
-                        } else null
-                    } else null
+    fun fetchNews() {
+        viewModelScope.launch {
+            _isNewsLoading.value = true
+            _newsError.value = null
+            val result = newsRepository.getGoogleNews()
+            result.onSuccess { items ->
+                _newsItems.value = items
+                _newsFeed.value = items.map { it.title }
+                _isNewsLoading.value = false
+            }.onFailure { error ->
+                Log.e("AiraViewModel", "Error fetching Google News RSS feed", error)
+                _newsError.value = error.message ?: "Failed to load Google News feed"
+                _isNewsLoading.value = false
+                if (_newsFeed.value.isEmpty()) {
+                    _newsFeed.value = listOf(
+                        "AI Advances in local edge reasoning platforms enable zero-latency processing.",
+                        "Android standard 16 dynamic color customization rolls out system-wide.",
+                        "Global satellite telemetry records ocean surface temperature variations."
+                    )
                 }
-            } catch (e: Exception) {
-                Log.e("AiraViewModel", "Live news API fetch offline fallback", e)
-                null
             }
-
-            val headlines = liveHeadlines ?: listOf(
-                "AI Advances in local edge reasoning platforms enable zero-latency processing.",
-                "Android standard 16 dynamic color customization rolls out system-wide.",
-                "Global satellite telemetry records ocean surface temperature variations."
-            )
-            _newsFeed.value = headlines
         }
     }
 

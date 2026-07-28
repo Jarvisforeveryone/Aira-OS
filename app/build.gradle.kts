@@ -119,6 +119,7 @@ dependencies {
   implementation(libs.moshi.kotlin)
   implementation(libs.okhttp)
   implementation("com.squareup.okhttp3:okhttp:4.12.0")
+  implementation("com.squareup.retrofit2:converter-simplexml:2.9.0")
   // implementation(libs.play.services.location)
   implementation(libs.retrofit)
   testImplementation(libs.androidx.compose.ui.test.junit4)

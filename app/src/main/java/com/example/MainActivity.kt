@@ -37,7 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.*
-import com.example.ui.theme.AiraTheme
+import com.example.ui.theme.*
 
 class MainActivity : ComponentActivity() {
 
@@ -183,86 +183,86 @@ class MainActivity : ComponentActivity() {
                                     tonalElevation = 0.dp
                                 ) {
                                     NavigationBarItem(
-                                        selected = selectedTab == 0,
-                                        onClick = { selectedTab = 0 },
-                                        icon = { Icon(Icons.Outlined.Home, contentDescription = "Assistant Hub", modifier = Modifier.size(24.dp)) },
+                                        selected = selectedTab == NavRoutes.TAB_ASSISTANT,
+                                        onClick = { selectedTab = NavRoutes.TAB_ASSISTANT },
+                                        icon = { Icon(Icons.Outlined.Home, contentDescription = "Assistant Hub", modifier = Modifier.size(Dimensions.IconSizeLarge)) },
                                         label = {
                                             Text(
                                                 text = "Home",
                                                 fontFamily = FontFamily.SansSerif, // Never use monospace
-                                                fontWeight = if (selectedTab == 0) FontWeight.Medium else FontWeight.Normal,
+                                                fontWeight = if (selectedTab == NavRoutes.TAB_ASSISTANT) FontWeight.Medium else FontWeight.Normal,
                                                 fontSize = 11.sp
                                             )
                                         },
                                         colors = NavigationBarItemDefaults.colors(
-                                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                                            unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
-                                            unselectedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
-                                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) // Selected tab uses subtle filled background, no glow
+                                            selectedIconColor = IconColors.TabActive,
+                                            selectedTextColor = IconColors.TabActive,
+                                            unselectedIconColor = IconColors.TabInactive,
+                                            unselectedTextColor = IconColors.TabInactive,
+                                            indicatorColor = IconColors.TabActive.copy(alpha = Opacities.ActivePillBg)
                                         ),
                                         modifier = Modifier.testTag("nav_assistant_tab")
                                     )
                                     NavigationBarItem(
-                                        selected = selectedTab == 1,
-                                        onClick = { selectedTab = 1 },
-                                        icon = { Icon(Icons.Outlined.AutoAwesome, contentDescription = "Command Deck", modifier = Modifier.size(24.dp)) },
+                                        selected = selectedTab == NavRoutes.TAB_COMMANDS,
+                                        onClick = { selectedTab = NavRoutes.TAB_COMMANDS },
+                                        icon = { Icon(Icons.Outlined.AutoAwesome, contentDescription = "Command Deck", modifier = Modifier.size(Dimensions.IconSizeLarge)) },
                                         label = {
                                             Text(
                                                 text = "Automation",
                                                 fontFamily = FontFamily.SansSerif, // Never use monospace
-                                                fontWeight = if (selectedTab == 1) FontWeight.Medium else FontWeight.Normal,
+                                                fontWeight = if (selectedTab == NavRoutes.TAB_COMMANDS) FontWeight.Medium else FontWeight.Normal,
                                                 fontSize = 11.sp
                                             )
                                         },
-                                        colors = NavigationBarItemDefaults.colors(
-                                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                                            unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
-                                            unselectedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
-                                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                         colors = NavigationBarItemDefaults.colors(
+                                            selectedIconColor = IconColors.TabActive,
+                                            selectedTextColor = IconColors.TabActive,
+                                            unselectedIconColor = IconColors.TabInactive,
+                                            unselectedTextColor = IconColors.TabInactive,
+                                            indicatorColor = IconColors.TabActive.copy(alpha = Opacities.ActivePillBg)
                                         ),
                                         modifier = Modifier.testTag("nav_commands_tab")
                                     )
                                     NavigationBarItem(
-                                        selected = selectedTab == 2,
-                                        onClick = { selectedTab = 2 },
-                                        icon = { Icon(Icons.Outlined.Article, contentDescription = "Climate News Feed", modifier = Modifier.size(24.dp)) },
+                                        selected = selectedTab == NavRoutes.TAB_FEEDS,
+                                        onClick = { selectedTab = NavRoutes.TAB_FEEDS },
+                                        icon = { Icon(Icons.Outlined.Article, contentDescription = "Climate News Feed", modifier = Modifier.size(Dimensions.IconSizeLarge)) },
                                         label = {
                                             Text(
                                                 text = "Feeds",
                                                 fontFamily = FontFamily.SansSerif, // Never use monospace
-                                                fontWeight = if (selectedTab == 2) FontWeight.Medium else FontWeight.Normal,
+                                                fontWeight = if (selectedTab == NavRoutes.TAB_FEEDS) FontWeight.Medium else FontWeight.Normal,
                                                 fontSize = 11.sp
                                             )
                                         },
                                         colors = NavigationBarItemDefaults.colors(
-                                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                                            unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
-                                            unselectedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
-                                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                            selectedIconColor = IconColors.TabActive,
+                                            selectedTextColor = IconColors.TabActive,
+                                            unselectedIconColor = IconColors.TabInactive,
+                                            unselectedTextColor = IconColors.TabInactive,
+                                            indicatorColor = IconColors.TabActive.copy(alpha = Opacities.ActivePillBg)
                                         ),
                                         modifier = Modifier.testTag("nav_feeds_tab")
                                     )
                                     NavigationBarItem(
-                                        selected = selectedTab == 3,
-                                        onClick = { selectedTab = 3 },
-                                        icon = { Icon(Icons.Outlined.Settings, contentDescription = "Module Configurations", modifier = Modifier.size(24.dp)) },
+                                        selected = selectedTab == NavRoutes.TAB_CONFIG,
+                                        onClick = { selectedTab = NavRoutes.TAB_CONFIG },
+                                        icon = { Icon(Icons.Outlined.Settings, contentDescription = "Module Configurations", modifier = Modifier.size(Dimensions.IconSizeLarge)) },
                                         label = {
                                             Text(
                                                 text = "Settings",
                                                 fontFamily = FontFamily.SansSerif, // Never use monospace
-                                                fontWeight = if (selectedTab == 3) FontWeight.Medium else FontWeight.Normal,
+                                                fontWeight = if (selectedTab == NavRoutes.TAB_CONFIG) FontWeight.Medium else FontWeight.Normal,
                                                 fontSize = 11.sp
                                             )
                                         },
                                         colors = NavigationBarItemDefaults.colors(
-                                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                                            unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
-                                            unselectedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
-                                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                            selectedIconColor = IconColors.TabActive,
+                                            selectedTextColor = IconColors.TabActive,
+                                            unselectedIconColor = IconColors.TabInactive,
+                                            unselectedTextColor = IconColors.TabInactive,
+                                            indicatorColor = IconColors.TabActive.copy(alpha = Opacities.ActivePillBg)
                                         ),
                                         modifier = Modifier.testTag("nav_config_tab")
                                     )

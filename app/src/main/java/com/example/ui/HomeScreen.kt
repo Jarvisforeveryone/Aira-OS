@@ -22,7 +22,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Warning
@@ -33,11 +36,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import com.example.ui.theme.*
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -163,74 +169,67 @@ fun HomeScreen(
                 .padding(24.dp), // Outer padding: 24dp
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Header Section
+            Spacer(Modifier.height(16.dp))
+
+            // 1. TOP ROW
             Row(
                 modifier = Modifier
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    .padding(vertical = Spacing.ExtraSmall),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Start
-                ) {
-                    Text(
-                        text = stringResource(R.string.aira_logo_text),
-                        fontSize = 30.sp, // AIRA Logo 30sp
-                        fontWeight = FontWeight.SemiBold, // SemiBold
-                        fontFamily = FontFamily.SansSerif, // Never use monospace
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    when (modelReadyState) {
-                        AiraViewModel.VoiceAssistantState.READY -> {
-                            Icon(
-                                imageVector = androidx.compose.material.icons.Icons.Outlined.CheckCircle,
-                                contentDescription = "Voice Assistant Offline/Ready",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .testTag("voice_assistant_status_ready")
-                            )
-                        }
-                        AiraViewModel.VoiceAssistantState.DOWNLOADING -> {
-                            CircularProgressIndicator(
-                                color = MaterialTheme.colorScheme.secondary,
-                                strokeWidth = 2.dp,
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .testTag("voice_assistant_status_downloading")
-                            )
-                        }
-                        AiraViewModel.VoiceAssistantState.NOT_DOWNLOADED -> {
-                            Icon(
-                                imageVector = androidx.compose.material.icons.Icons.Outlined.CloudDownload,
-                                contentDescription = "Voice Assistant Needs Download",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .testTag("voice_assistant_status_not_downloaded")
-                            )
-                        }
-                    }
-                }
-
-                Surface(
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                    shape = RoundedCornerShape(12.dp)
+                Text(
+                    text = AppStrings.AppBrand,
+                    fontSize = TypographySubsystem.SizeTitleMedium,
+                    fontWeight = TypographySubsystem.WeightBold,
+                    color = IconColors.PrimaryActions
+                )
+                Box(
+                    modifier = Modifier
+                        .background(IconColors.PrimaryActions.copy(alpha = Opacities.SubtleChipBg), shape = RoundedCornerShape(Radius.ExtraLarge))
+                        .padding(horizontal = Spacing.Small, vertical = 6.dp)
                 ) {
                     Text(
                         text = "Voice: $selectedVoiceName",
-                        fontFamily = FontFamily.SansSerif,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.primary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                        color = IconColors.PrimaryActions,
+                        fontSize = TypographySubsystem.SizeCaption,
+                        fontWeight = TypographySubsystem.WeightMedium
                     )
                 }
             }
+
+            Spacer(Modifier.height(Spacing.Large))
+
+            // 2. NEXT 2 LINES BELOW TOP ROW
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.Start
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = AppStrings.DefaultGreeting,
+                        fontSize = TypographySubsystem.SizeDisplay,
+                        fontWeight = TypographySubsystem.WeightBold,
+                        color = IconColors.NavigationBack
+                    )
+                    Spacer(Modifier.width(Spacing.ExtraSmall))
+                    Icon(
+                        imageVector = Icons.Outlined.AutoAwesome,
+                        contentDescription = null,
+                        modifier = Modifier.size(Dimensions.IconSizeLarge),
+                        tint = IconColors.Warning
+                    )
+                }
+                Spacer(Modifier.height(Spacing.Tiny))
+                Text(
+                    text = AppStrings.DefaultSubtitle,
+                    fontSize = TypographySubsystem.SizeBodyLarge,
+                    color = IconColors.InactivePassive
+                )
+            }
+
+            Spacer(Modifier.height(28.dp))
 
             if (isOfflineBrain) {
                 Spacer(modifier = Modifier.height(12.dp))
@@ -287,36 +286,10 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(28.dp)) // Section spacing: 28dp
 
-            // Greeting Section
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = greetingText,
-                    fontSize = 36.sp, // Greeting 36sp
-                    fontWeight = FontWeight.Bold, // Bold
-                    fontFamily = FontFamily.SansSerif,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(6.dp)) // Subtitle sits exactly 6dp below
-                Text(
-                    text = "Ready to help",
-                    fontSize = 17.sp, // Subtitle 17sp
-                    fontWeight = FontWeight.Normal, // Regular
-                    fontFamily = FontFamily.SansSerif,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
-            }
-
-            Spacer(modifier = Modifier.height(32.dp)) // Distance from subtitle: 32dp
-
             // Hero Orb
             Box(
                 modifier = Modifier
-                    .size(180.dp) // Orb Size: 180dp
+                    .size(200.dp)
                     .semantics {
                         contentDescription = if (isListening) "Aira Voice Assistant Orb, listening. Tap to stop." else "Aira Voice Assistant Orb, idle. Tap to start talking."
                         role = Role.Button
@@ -344,25 +317,15 @@ fun HomeScreen(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                val primaryColor = MaterialTheme.colorScheme.primary
-
-                // Layer 2 Central Accent: Premium solid center (respects reduceAnimations)
                 val animatedScale by animateFloatAsState(
                     targetValue = if (reduceAnimations) 1.0f else if (isListening) 1.1f + audioAmp * 0.4f else if (isSpeaking) 1.05f + audioAmp * 0.2f else 1.0f,
                     animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMedium),
                     label = "OrbScale"
                 )
 
-                // Layer 1 Outer Ring: Premium 2dp thin circle
-                Canvas(
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    drawCircle(
-                        color = primaryColor.copy(alpha = 0.2f),
-                        radius = (size.minDimension - 2.dp.toPx()) / 2f,
-                        style = Stroke(width = 2.dp.toPx())
-                    )
-                }
+                // Glow Layers
+                Box(Modifier.size(200.dp).border(1.dp, Color(0xFF2563EB).copy(alpha = 0.2f), CircleShape))
+                Box(Modifier.size(160.dp).background(Color(0xFF2563EB).copy(alpha = 0.1f), CircleShape))
 
                 Box(
                     modifier = Modifier
@@ -371,14 +334,22 @@ fun HomeScreen(
                             scaleX = animatedScale
                             scaleY = animatedScale
                         }
-                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
-                        .border(1.dp, primaryColor.copy(alpha = 0.3f), CircleShape),
+                        .shadow(16.dp, CircleShape, ambientColor = Color(0xFF2563EB).copy(alpha = 0.4f))
+                        .background(
+                            brush = Brush.radialGradient(
+                                colors = listOf(Color(0xFF3B82F6), Color(0xFF2563EB)),
+                                center = Offset(0.3f, 0.3f),
+                                radius = 60f
+                            ),
+                            shape = CircleShape
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(64.dp)
-                            .background(primaryColor, CircleShape)
+                    Icon(
+                        imageVector = Icons.Default.GraphicEq,
+                        contentDescription = "Voice Waves",
+                        tint = Color.White,
+                        modifier = Modifier.size(48.dp)
                     )
                 }
             }
@@ -402,14 +373,14 @@ fun HomeScreen(
             Row(
                 modifier = Modifier
                     .defaultMinSize(minHeight = 48.dp)
-                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(18.dp))
+                    .background(Color(0xFF1E293B), RoundedCornerShape(20.dp))
                     .semantics {
                         liveRegion = LiveRegionMode.Polite
                         contentDescription = "System Status: $derivedStatus. Connection mode: ${if (onlineMode) "Online" else "Offline"}. Voice detection is active."
                     }
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
+                horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)
             ) {
                 // PART A - CONNECTION
                 Row(
@@ -436,26 +407,20 @@ fun HomeScreen(
                     Box(
                         modifier = Modifier
                             .size(8.dp)
-                            .background(if (onlineMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                            .background(Color(0xFF16A34A), CircleShape)
                     )
                     Text(
                         text = if (onlineMode) "Online" else "Offline",
                         fontSize = 14.sp,
                         fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.Medium,
-                        color = if (onlineMode) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = Color.White,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                // Divider: very subtle, 1dp, low opacity
-                Box(
-                    modifier = Modifier
-                        .width(1.dp)
-                        .height(16.dp)
-                        .background(MaterialTheme.colorScheme.outlineVariant)
-                )
+                Text("|", color = Color.White.copy(alpha = 0.3f))
 
                 // PART B - VOICE
                 Row(
@@ -465,14 +430,14 @@ fun HomeScreen(
                     Box(
                         modifier = Modifier
                             .size(8.dp)
-                            .background(if (isListening) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                            .background(Color(0xFF16A34A), CircleShape)
                     )
                     Text(
                         text = "Voice Detection Active",
                         fontSize = 14.sp,
                         fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = Color.White,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )

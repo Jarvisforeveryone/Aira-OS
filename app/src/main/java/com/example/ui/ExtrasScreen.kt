@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudQueue
 import androidx.compose.material.icons.filled.Newspaper
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,7 +36,10 @@ fun ExtrasScreen(
     modifier: Modifier = Modifier
 ) {
     val weatherData by viewModel.weatherText.collectAsState()
+    val newsItems by viewModel.newsItems.collectAsState()
     val newsArticles by viewModel.newsFeed.collectAsState()
+    val isNewsLoading by viewModel.isNewsLoading.collectAsState()
+    val newsError by viewModel.newsError.collectAsState()
     val isOfflineBrain by viewModel.isOfflineBrain.collectAsState()
 
     val scrollState = rememberScrollState()
@@ -135,7 +139,7 @@ fun ExtrasScreen(
                     Icon(
                         imageVector = Icons.Default.CloudQueue,
                         contentDescription = "Weather Icon",
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = Color(0xFF2563EB),
                         modifier = Modifier.size(24.dp) // Icons: 24dp
                     )
                 }
@@ -236,61 +240,166 @@ fun ExtrasScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "News Feed",
+                        text = "Google News Feed",
                         fontSize = 18.sp, // Card Title: 18sp Medium
                         fontWeight = FontWeight.Medium,
                         fontFamily = FontFamily.SansSerif,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.87f)
                     )
-                    Icon(
-                        imageVector = Icons.Default.Newspaper,
-                        contentDescription = "News Icon",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp) // Icons: 24dp
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        IconButton(
+                            onClick = { viewModel.fetchNews() },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Refresh News",
+                                tint = Color(0xFF475569),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Default.Newspaper,
+                            contentDescription = "News Icon",
+                            tint = Color(0xFF2563EB),
+                            modifier = Modifier.size(24.dp) // Icons: 24dp
+                        )
+                    }
                 }
 
                 Text(
-                    text = "Latest Intel & Updates (Tap card to view full article details)",
+                    text = "Live headlines & updates from Google News RSS (Tap card to read full story)",
                     fontSize = 14.sp, // Caption: 14sp
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
                     fontFamily = FontFamily.SansSerif
                 )
 
-                if (newsArticles.isEmpty()) {
-                    Text(
-                        text = "No updates available at this moment.",
-                        fontSize = 16.sp, // Body: 16sp Regular
-                        fontFamily = FontFamily.SansSerif,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                } else {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(12.dp) // Comfortable spacing
+                if (isNewsLoading) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        newsArticles.forEachIndexed { i, article ->
-                            val extendedDetail = when (i) {
-                                0 -> "AI Advances in local edge reasoning platforms enable on-device LLM inference via Llama 3.2 1B/3B without cloud dependencies, providing zero-latency privacy-focused intelligence directly on Android."
-                                1 -> "Android 16 dynamic color customization rolls out system-wide with expanded Material 3 palettes, adaptive contrast ratios, and seamless dark/light mode transitions."
-                                else -> "Global climate systems display warming trends this season. Multi-spectral satellite telemetry records ocean surface temperature variations across tropical regions."
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(22.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "Fetching Google News RSS feed...",
+                            fontSize = 14.sp,
+                            fontFamily = FontFamily.SansSerif,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                    }
+                } else if (newsError != null && newsItems.isEmpty()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = newsError ?: "Failed to load Google News RSS feed",
+                            fontSize = 14.sp,
+                            fontFamily = FontFamily.SansSerif,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        OutlinedButton(
+                            onClick = { viewModel.fetchNews() },
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Retry Loading RSS Feed", fontSize = 13.sp, fontFamily = FontFamily.SansSerif)
+                        }
+                    }
+                } else if (newsItems.isNotEmpty()) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        newsItems.forEachIndexed { i, item ->
+                            val metaLabel = if (item.source.isNotEmpty()) {
+                                if (item.pubDate.isNotEmpty()) "${item.source} • ${item.pubDate}" else item.source
+                            } else {
+                                item.pubDate.ifEmpty { "Google News" }
+                            }
+                            val dialogDetail = if (item.description.isNotBlank()) {
+                                "${item.title}\n\n${item.description}"
+                            } else {
+                                item.title
                             }
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .minimumInteractiveComponentSize()
-                                    .defaultMinSize(minHeight = 64.dp) // Height: 64dp minimum
+                                    .defaultMinSize(minHeight = 64.dp)
                                     .clip(RoundedCornerShape(14.dp))
                                     .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.03f))
                                     .clickable {
-                                        selectedArticleForDialog = Pair("Broadcast Update #${i + 1}", extendedDetail)
+                                        selectedArticleForDialog = Pair(item.title, dialogDetail)
                                     }
                                     .padding(16.dp),
                                 verticalArrangement = Arrangement.Center
                             ) {
                                 Text(
-                                    text = "Broadcast Update #${i + 1}",
-                                    fontSize = 13.sp, // Labels: 13sp Medium
+                                    text = metaLabel,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                                    fontFamily = FontFamily.SansSerif,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.padding(bottom = 4.dp)
+                                )
+                                Text(
+                                    text = item.title,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.87f),
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    fontFamily = FontFamily.SansSerif,
+                                    modifier = Modifier.testTag("news_article_$i")
+                                )
+                                if (item.description.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = item.description,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                        fontSize = 13.sp,
+                                        fontFamily = FontFamily.SansSerif,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else if (newsArticles.isNotEmpty()) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        newsArticles.forEachIndexed { i, article ->
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .minimumInteractiveComponentSize()
+                                    .defaultMinSize(minHeight = 64.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.03f))
+                                    .clickable {
+                                        selectedArticleForDialog = Pair("Google News Item #${i + 1}", article)
+                                    }
+                                    .padding(16.dp),
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = "Google News Update #${i + 1}",
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium,
                                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                                     fontFamily = FontFamily.SansSerif,
@@ -299,13 +408,21 @@ fun ExtrasScreen(
                                 Text(
                                     text = article,
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.87f),
-                                    fontSize = 16.sp, // Body: 16sp Regular
+                                    fontSize = 16.sp,
                                     fontFamily = FontFamily.SansSerif,
                                     modifier = Modifier.testTag("news_article_$i")
                                 )
                             }
                         }
                     }
+                } else {
+                    Text(
+                        text = "No news updates available at this moment.",
+                        fontSize = 16.sp,
+                        fontFamily = FontFamily.SansSerif,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
         }
@@ -340,7 +457,7 @@ fun ExtrasScreen(
                     Icon(
                         imageVector = Icons.Default.Notifications,
                         contentDescription = "Alert Config",
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = Color(0xFF2563EB),
                         modifier = Modifier.size(24.dp)
                     )
                 }
