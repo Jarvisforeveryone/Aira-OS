@@ -12,16 +12,13 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
+import com.example.data.GeminiOkHttpCache
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 class AiBrain(private val context: Context) {
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
-        .build()
+    private val client = GeminiOkHttpCache.getClient(context)
 
     suspend fun getAiResponse(
         prompt: String,

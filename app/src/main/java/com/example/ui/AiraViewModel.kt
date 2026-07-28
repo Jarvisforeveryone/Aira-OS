@@ -88,10 +88,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     private val chatDao = db.chatMessageDao()
     private val reminderDao = db.reminderDao()
     private val aiBrain = AiBrain(application)
-    private val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
-        .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
-        .build()
+    private val okHttpClient = com.example.data.GeminiOkHttpCache.getClient(application)
 
     private val sharedPrefs: SharedPreferences =
         application.getSharedPreferences("aira_settings", Context.MODE_PRIVATE)
@@ -1799,10 +1796,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                 put("contents", contents)
             }
 
-            val client = OkHttpClient.Builder()
-                .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
-                .readTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
-                .build()
+            val client = okHttpClient
 
             val mediaType = "application/json; charset=utf-8".toMediaType()
             val requestBody = jsonPrompt.toString().toRequestBody(mediaType)

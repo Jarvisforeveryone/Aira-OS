@@ -47,6 +47,7 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
@@ -224,6 +225,8 @@ fun HomeScreen(
                         fontWeight = FontWeight.Medium,
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                     )
                 }
@@ -238,11 +241,15 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxWidth().testTag("offline_mode_banner")
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier.weight(1f, fill = false),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
                             Box(
                                 modifier = Modifier
                                     .size(10.dp)
@@ -253,15 +260,27 @@ fun HomeScreen(
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface,
-                                fontFamily = FontFamily.SansSerif
+                                fontFamily = FontFamily.SansSerif,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
-                        Text(
-                            text = "Llama 3.2 • Amy ONNX • Vosk STT",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontFamily = FontFamily.SansSerif
-                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = "Llama 3.2 • Amy ONNX • Vosk STT",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontFamily = FontFamily.SansSerif,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -382,15 +401,15 @@ fun HomeScreen(
             // Status Card
             Row(
                 modifier = Modifier
-                    .height(52.dp) // Height: 52dp
-                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(18.dp)) // Soft Material surface, Corner radius: 18dp, No border
+                    .defaultMinSize(minHeight = 48.dp)
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(18.dp))
                     .semantics {
                         liveRegion = LiveRegionMode.Polite
                         contentDescription = "System Status: $derivedStatus. Connection mode: ${if (onlineMode) "Online" else "Offline"}. Voice detection is active."
                     }
-                    .padding(horizontal = 18.dp), // Horizontal padding: 18dp
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally) // Internal spacing: 12dp, Items perfectly centered
+                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
             ) {
                 // PART A - CONNECTION
                 Row(
@@ -420,11 +439,13 @@ fun HomeScreen(
                             .background(if (onlineMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, CircleShape)
                     )
                     Text(
-                        text = "Online",
-                        fontSize = 14.sp, // Caption: 14sp
+                        text = if (onlineMode) "Online" else "Offline",
+                        fontSize = 14.sp,
                         fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.Medium,
-                        color = if (onlineMode) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (onlineMode) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
@@ -448,10 +469,12 @@ fun HomeScreen(
                     )
                     Text(
                         text = "Voice Detection Active",
-                        fontSize = 14.sp, // Caption: 14sp
+                        fontSize = 14.sp,
                         fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
@@ -744,14 +767,15 @@ fun RecentConversationRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(68.dp), // Height: 68dp
+            .defaultMinSize(minHeight = 56.dp)
+            .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp) // Gap: 16dp
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Avatar
         Box(
             modifier = Modifier
-                .size(40.dp) // Avatar: 40dp
+                .size(40.dp)
                 .background(avatarBg.copy(alpha = 0.12f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
@@ -771,16 +795,19 @@ fun RecentConversationRow(
             Text(
                 text = name,
                 color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Medium, // Conversation Name: 16sp Medium
+                fontWeight = FontWeight.Medium,
                 fontSize = 16.sp,
-                fontFamily = FontFamily.SansSerif
+                fontFamily = FontFamily.SansSerif,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = message,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 14.sp, // Conversation Preview: 14sp Regular
+                fontSize = 14.sp,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 fontFamily = FontFamily.SansSerif,
                 fontWeight = FontWeight.Normal
             )
@@ -790,9 +817,10 @@ fun RecentConversationRow(
         Text(
             text = time,
             color = MaterialTheme.colorScheme.outline,
-            fontSize = 13.sp, // Time: 13sp
+            fontSize = 13.sp,
             fontFamily = FontFamily.SansSerif,
-            fontWeight = FontWeight.Normal
+            fontWeight = FontWeight.Normal,
+            maxLines = 1
         )
     }
 }
