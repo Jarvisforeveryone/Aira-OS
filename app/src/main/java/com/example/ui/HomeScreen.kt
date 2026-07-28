@@ -183,16 +183,16 @@ fun HomeScreen(
                     text = AppStrings.AppBrand,
                     fontSize = TypographySubsystem.SizeTitleMedium,
                     fontWeight = TypographySubsystem.WeightBold,
-                    color = IconColors.PrimaryActions
+                    color = MaterialTheme.colorScheme.primary
                 )
                 Box(
                     modifier = Modifier
-                        .background(IconColors.PrimaryActions.copy(alpha = Opacities.SubtleChipBg), shape = RoundedCornerShape(Radius.ExtraLarge))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), shape = RoundedCornerShape(Radius.ExtraLarge))
                         .padding(horizontal = Spacing.Small, vertical = 6.dp)
                 ) {
                     Text(
                         text = "Voice: $selectedVoiceName",
-                        color = IconColors.PrimaryActions,
+                        color = MaterialTheme.colorScheme.primary,
                         fontSize = TypographySubsystem.SizeCaption,
                         fontWeight = TypographySubsystem.WeightMedium
                     )
@@ -211,21 +211,21 @@ fun HomeScreen(
                         text = AppStrings.DefaultGreeting,
                         fontSize = TypographySubsystem.SizeDisplay,
                         fontWeight = TypographySubsystem.WeightBold,
-                        color = IconColors.NavigationBack
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                     Spacer(Modifier.width(Spacing.ExtraSmall))
                     Icon(
                         imageVector = Icons.Outlined.AutoAwesome,
                         contentDescription = null,
                         modifier = Modifier.size(Dimensions.IconSizeLarge),
-                        tint = IconColors.Warning
+                        tint = MaterialTheme.colorScheme.tertiary
                     )
                 }
                 Spacer(Modifier.height(Spacing.Tiny))
                 Text(
                     text = AppStrings.DefaultSubtitle,
                     fontSize = TypographySubsystem.SizeBodyLarge,
-                    color = IconColors.InactivePassive
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -324,8 +324,8 @@ fun HomeScreen(
                 )
 
                 // Glow Layers
-                Box(Modifier.size(200.dp).border(1.dp, Color(0xFF2563EB).copy(alpha = 0.2f), CircleShape))
-                Box(Modifier.size(160.dp).background(Color(0xFF2563EB).copy(alpha = 0.1f), CircleShape))
+                Box(Modifier.size(200.dp).border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), CircleShape))
+                Box(Modifier.size(160.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), CircleShape))
 
                 Box(
                     modifier = Modifier
@@ -334,10 +334,10 @@ fun HomeScreen(
                             scaleX = animatedScale
                             scaleY = animatedScale
                         }
-                        .shadow(16.dp, CircleShape, ambientColor = Color(0xFF2563EB).copy(alpha = 0.4f))
+                        .shadow(16.dp, CircleShape, ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
                         .background(
                             brush = Brush.radialGradient(
-                                colors = listOf(Color(0xFF3B82F6), Color(0xFF2563EB)),
+                                colors = listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.primary),
                                 center = Offset(0.3f, 0.3f),
                                 radius = 60f
                             ),
@@ -348,7 +348,7 @@ fun HomeScreen(
                     Icon(
                         imageVector = Icons.Default.GraphicEq,
                         contentDescription = "Voice Waves",
-                        tint = Color.White,
+                        tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(48.dp)
                     )
                 }
@@ -373,7 +373,7 @@ fun HomeScreen(
             Row(
                 modifier = Modifier
                     .defaultMinSize(minHeight = 48.dp)
-                    .background(Color(0xFF1E293B), RoundedCornerShape(20.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(20.dp))
                     .semantics {
                         liveRegion = LiveRegionMode.Polite
                         contentDescription = "System Status: $derivedStatus. Connection mode: ${if (onlineMode) "Online" else "Offline"}. Voice detection is active."
@@ -407,20 +407,20 @@ fun HomeScreen(
                     Box(
                         modifier = Modifier
                             .size(8.dp)
-                            .background(Color(0xFF16A34A), CircleShape)
+                            .background(colorResource(id = R.color.aira_success_light), CircleShape)
                     )
                     Text(
                         text = if (onlineMode) "Online" else "Offline",
                         fontSize = 14.sp,
                         fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.Medium,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                Text("|", color = Color.White.copy(alpha = 0.3f))
+                Text("|", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
 
                 // PART B - VOICE
                 Row(
@@ -430,14 +430,14 @@ fun HomeScreen(
                     Box(
                         modifier = Modifier
                             .size(8.dp)
-                            .background(Color(0xFF16A34A), CircleShape)
+                            .background(colorResource(id = R.color.aira_success_light), CircleShape)
                     )
                     Text(
                         text = "Voice Detection Active",
                         fontSize = 14.sp,
                         fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.Medium,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )

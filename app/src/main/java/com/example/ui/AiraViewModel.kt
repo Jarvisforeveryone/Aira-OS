@@ -1198,18 +1198,25 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                 }
             }
 
-            if (File(unpackedDir, "conf/model.conf").exists()) {
+            val confFile = File(unpackedDir, "conf/model.conf")
+            if (confFile.exists() && confFile.length() > 0L) {
                 try {
                     voskModel = Model(unpackedDir.absolutePath)
                     isVoskInitializing = false
                     Log.d("AiraViewModel", "Vosk model loaded directly from: ${unpackedDir.absolutePath}")
                     _currentStatus.value = "Offline engine ready"
                 } catch (e: Throwable) {
-                    Log.e("AiraViewModel", "Failed to load model from ${unpackedDir.absolutePath}, will unpack again", e)
+                    Log.e("AiraViewModel", "Failed to load model from ${unpackedDir.absolutePath}, cleaning corrupted model & unpacking again", e)
+                    if (unpackedDir.exists()) {
+                        unpackedDir.deleteRecursively()
+                    }
                     performModelUnpack()
                 }
             } else {
-                Log.d("AiraViewModel", "No cached Vosk model found. Performing unpack from assets...")
+                if (unpackedDir.exists()) {
+                    unpackedDir.deleteRecursively()
+                }
+                Log.d("AiraViewModel", "No valid cached Vosk model found. Performing unpack from assets...")
                 performModelUnpack()
             }
         }
@@ -1258,19 +1265,25 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                 }
                 Log.d("AiraViewModel", "Extracting Vosk model assets directly to: ${targetDir.absolutePath}")
                 
+                var loadedSuccessfully = false
                 val extracted = copyAssetFolder(context.assets, "models/model-en", targetDir)
-                if (extracted && File(targetDir, "conf/model.conf").exists()) {
+                val confFile = File(targetDir, "conf/model.conf")
+                if (extracted && confFile.exists() && confFile.length() > 0L) {
                     try {
                         voskModel = Model(targetDir.absolutePath)
                         isVoskInitializing = false
+                        loadedSuccessfully = true
                         Log.d("AiraViewModel", "Vosk model successfully extracted and loaded from assets!")
                         _currentStatus.value = "Offline engine ready"
                     } catch (e: Throwable) {
-                        isVoskInitializing = false
                         Log.e("AiraViewModel", "Vosk model load from extracted files failed: ${e.message}", e)
-                        _currentStatus.value = "Vosk Init Error"
+                        if (targetDir.exists()) {
+                            targetDir.deleteRecursively()
+                        }
                     }
-                } else {
+                }
+                
+                if (!loadedSuccessfully) {
                     Log.w("AiraViewModel", "Direct extraction failed or incomplete. Attempting Vosk StorageService unpack...")
                     if (targetDir.exists()) {
                         targetDir.deleteRecursively()
@@ -1285,20 +1298,20 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                             },
                             { exception ->
                                 isVoskInitializing = false
-                                Log.e("AiraViewModel", "Vosk model unpack failed: ${exception.message}", exception)
-                                _currentStatus.value = "Vosk Init Error"
+                                Log.e("AiraViewModel", "Vosk model StorageService unpack failed: ${exception.message}")
+                                _currentStatus.value = "System STT Ready"
                             }
                         )
                     } catch (e: Throwable) {
                         isVoskInitializing = false
-                        Log.e("AiraViewModel", "StorageService unpack error: ${e.message}", e)
-                        _currentStatus.value = "Vosk Init Error"
+                        Log.e("AiraViewModel", "StorageService unpack exception: ${e.message}")
+                        _currentStatus.value = "System STT Ready"
                     }
                 }
             } catch (e: Throwable) {
                 isVoskInitializing = false
                 Log.e("AiraViewModel", "Exception during performModelUnpack: ${e.message}", e)
-                _currentStatus.value = "Vosk Init Error"
+                _currentStatus.value = "System STT Ready"
             }
         }
     }
