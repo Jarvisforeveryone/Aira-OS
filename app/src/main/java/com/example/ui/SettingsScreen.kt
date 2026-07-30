@@ -2602,6 +2602,156 @@ fun SystemSettingsScreen(
                     }
                 }
             }
+
+            // CARD 4: Emotion & Tone Engine Toggle
+            val isEmotionEnabled by viewModel.isEmotionDetectionEnabled.collectAsState()
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                shape = RoundedCornerShape(22.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = "Emotion & Tone Engine",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium,
+                            fontFamily = FontFamily.SansSerif,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Detect user emotion (Happy, Sad, Angry, Neutral) and dynamically adjust AI response tone.",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontFamily = FontFamily.SansSerif,
+                            lineHeight = 18.sp
+                        )
+                    }
+
+                    Switch(
+                        checked = isEmotionEnabled,
+                        onCheckedChange = { viewModel.toggleEmotionDetection(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.primary,
+                            checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                        ),
+                        modifier = Modifier.testTag("emotion_detection_switch")
+                    )
+                }
+            }
+
+            // CARD 5: Temperature Control
+            val tempMode by viewModel.temperatureMode.collectAsState()
+            val customTempText by viewModel.customTemperatureText.collectAsState()
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                shape = RoundedCornerShape(22.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = "Model Temperature",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium,
+                            fontFamily = FontFamily.SansSerif,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Set response randomness and creativity level. Low (0.3) for factual precision, High (0.9) for creative responses.",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontFamily = FontFamily.SansSerif,
+                            lineHeight = 18.sp
+                        )
+                    }
+
+                    val options = listOf("Low (0.3)", "Medium (0.6)", "High (0.9)", "Custom")
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        options.forEach { option ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable { viewModel.setTemperatureMode(option) }
+                                    .padding(vertical = 4.dp, horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = (tempMode == option),
+                                    onClick = { viewModel.setTemperatureMode(option) },
+                                    colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary),
+                                    modifier = Modifier.testTag("temp_radio_${option.replace(" ", "_").replace("(", "").replace(")", "").replace(".", "")}")
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = option,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    fontFamily = FontFamily.SansSerif,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+
+                    if (tempMode == "Custom") {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = "Custom Temperature (0.0 to 1.0)",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                fontFamily = FontFamily.SansSerif,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+
+                            OutlinedTextField(
+                                value = customTempText,
+                                onValueChange = { newValue ->
+                                    viewModel.setCustomTemperatureText(newValue)
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("custom_temperature_input"),
+                                placeholder = {
+                                    Text(
+                                        text = "Enter value e.g. 0.75",
+                                        fontFamily = FontFamily.SansSerif,
+                                        color = MaterialTheme.colorScheme.outline
+                                    )
+                                },
+                                singleLine = true,
+                                shape = RoundedCornerShape(14.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                                )
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

@@ -23,7 +23,8 @@ class AiBrain(private val context: Context) {
     suspend fun getAiResponse(
         prompt: String,
         systemInstruction: String,
-        history: List<Pair<String, String>> = emptyList()
+        history: List<Pair<String, String>> = emptyList(),
+        temperature: Double? = null
     ): String = withContext(Dispatchers.IO) {
         val query = prompt.trim()
         val cacheDao = AppDatabase.getDatabase(context).grokCacheDao()
@@ -87,6 +88,9 @@ class AiBrain(private val context: Context) {
                     put("model", "llama-3.2-3b-preview") // Ultra-fast Llama model on Groq
                     put("messages", messagesArray)
                     put("max_tokens", 300)
+                    if (temperature != null) {
+                        put("temperature", temperature)
+                    }
                 }
 
                 val mediaType = "application/json; charset=utf-8".toMediaType()
@@ -142,7 +146,7 @@ class AiBrain(private val context: Context) {
                 return@withContext "All chat keys are down. Add new key in Settings"
             }
 
-            val modelName = "gemini-3.5-flash"
+            val modelName = "gemini-1.5-flash"
             val url = "https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$activeKey"
 
             try {
@@ -185,6 +189,9 @@ class AiBrain(private val context: Context) {
                     // Max tokens setting to save API quotas
                     put("generationConfig", JSONObject().apply {
                         put("maxOutputTokens", 300)
+                        if (temperature != null) {
+                            put("temperature", temperature)
+                        }
                     })
                 }
 

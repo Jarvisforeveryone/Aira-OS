@@ -99,7 +99,7 @@ fun OnboardingScreen(
                             modifier = Modifier.testTag("onboarding_skip_btn")
                         ) {
                             Text(
-                                text = "Skip",
+                                text = "Skip for Now",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = onSurfaceVariant
@@ -190,7 +190,7 @@ fun OnboardingScreen(
                         modifier = Modifier.testTag("onboarding_next_btn")
                     ) {
                         Text(
-                            text = if (currentStep == totalSteps - 1) "Get Started" else "Next",
+                            text = if (currentStep == totalSteps - 1) "Let's Go!" else "Next",
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.width(6.dp))
@@ -644,7 +644,7 @@ private fun OnboardingThemeStep(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val previewColors = listOf(Color(0xFF2563EB), Color(0xFF1D4EDB), Color(0xFF3B82F6))
+            val previewColors = listOf(Color(0xFF2563EB), Color(0xFF1D4ED8), Color(0xFF1E40AF))
             previewColors.forEachIndexed { idx, col ->
                 Surface(
                     shape = CircleShape,
@@ -686,7 +686,7 @@ private fun OnboardingThemeStep(
 
     // Theme Palette Options
     val themeNames = listOf("Premium Blue", "Stripe Blue", "Aether Focus")
-    val themeColors = listOf(Color(0xFF2563EB), Color(0xFF1D4EDB), Color(0xFF3B82F6))
+    val themeColors = listOf(Color(0xFF2563EB), Color(0xFF1D4ED8), Color(0xFF1E40AF))
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         themeNames.forEachIndexed { index, name ->
@@ -824,7 +824,7 @@ private fun OnboardingPermissionsStep(
     Spacer(modifier = Modifier.height(20.dp))
 
     Text(
-        text = "Permissions & System Setup",
+        text = "Enable Features",
         fontSize = 24.sp,
         fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.onSurface,
@@ -885,29 +885,108 @@ private fun OnboardingPermissionsStep(
             }
         )
 
-        PermissionCheckRow(
-            title = "Accessibility Command Core",
-            subtitle = "Automates system gestures & screen taps",
-            isGranted = isAccessibilityActive,
-            tag = "perm_accessibility_row",
-            onAction = {
-                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                }
-                context.startActivity(intent)
-            }
-        )
+    var showAccessibilityRationale by remember { mutableStateOf(false) }
+    var showDeviceAdminRationale by remember { mutableStateOf(false) }
 
-        PermissionCheckRow(
-            title = "Device Policy Admin",
-            subtitle = "Enables secure voice screen locking",
-            isGranted = isDeviceAdminActive,
-            tag = "perm_device_admin_row",
-            onAction = {
-                val intent = viewModel.getDeviceAdminActivationIntent()
-                context.startActivity(intent)
-            }
+    if (showAccessibilityRationale) {
+        AlertDialog(
+            onDismissRequest = { showAccessibilityRationale = false },
+            title = {
+                Text(
+                    text = "Accessibility Permission Required",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            },
+            text = {
+                Text(
+                    text = "AIRA needs accessibility for system actions (Home, Back, Recents). Without this permission, system gestures and remote actions will be disabled, but all other AIRA features will continue to work normally.",
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showAccessibilityRationale = false
+                        val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        }
+                        context.startActivity(intent)
+                    }
+                ) {
+                    Text("Open Settings")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showAccessibilityRationale = false }
+                ) {
+                    Text("Continue Without Action")
+                }
+            },
+            shape = RoundedCornerShape(20.dp)
         )
+    }
+
+    if (showDeviceAdminRationale) {
+        AlertDialog(
+            onDismissRequest = { showDeviceAdminRationale = false },
+            title = {
+                Text(
+                    text = "Device Policy Admin Required",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            },
+            text = {
+                Text(
+                    text = "AIRA needs device admin for remote lock and security commands. Without device admin, voice lock will be unavailable, but all other AIRA features will work normally.",
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeviceAdminRationale = false
+                        val intent = viewModel.getDeviceAdminActivationIntent()
+                        context.startActivity(intent)
+                    }
+                ) {
+                    Text("Enable Admin")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeviceAdminRationale = false }
+                ) {
+                    Text("Continue Without Admin")
+                }
+            },
+            shape = RoundedCornerShape(20.dp)
+        )
+    }
+
+    PermissionCheckRow(
+        title = "Accessibility",
+        subtitle = "Control your phone with voice",
+        isGranted = isAccessibilityActive,
+        tag = "perm_accessibility_row",
+        onAction = {
+            showAccessibilityRationale = true
+        }
+    )
+
+    PermissionCheckRow(
+        title = "Device Admin",
+        subtitle = "Lock your phone with voice",
+        isGranted = isDeviceAdminActive,
+        tag = "perm_device_admin_row",
+        onAction = {
+            showDeviceAdminRationale = true
+        }
+    )
     }
 }
 

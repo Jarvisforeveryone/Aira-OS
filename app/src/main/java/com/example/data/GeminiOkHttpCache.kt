@@ -124,9 +124,9 @@ object GeminiOkHttpCache {
             clientInstance = OkHttpClient.Builder()
                 .cache(Cache(cacheDirectory, cacheSize))
                 .addInterceptor(GeminiCacheInterceptor(context.applicationContext))
-                .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(30, TimeUnit.SECONDS)
-                .writeTimeout(30, TimeUnit.SECONDS)
+                .connectTimeout(8, TimeUnit.SECONDS)
+                .readTimeout(12, TimeUnit.SECONDS)
+                .writeTimeout(12, TimeUnit.SECONDS)
                 .build()
         }
         return clientInstance!!

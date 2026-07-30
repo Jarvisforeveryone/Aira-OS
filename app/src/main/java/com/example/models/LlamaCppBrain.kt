@@ -66,35 +66,45 @@ class LlamaCppBrain(private val context: Context) {
     }
 
     /**
-     * Initializes the native model context.
+     * Initializes the native model context on demand via MemoryManager.
      */
     fun initializeNativeEngine(threads: Int = DEFAULT_THREADS): Boolean {
         if (!isNativeLibraryLoaded) return false
         val modelFile = getModelFile()
         if (!modelFile.exists()) return false
 
-        return try {
-            nativeContext = initNativeLlama(modelFile.absolutePath, threads)
-            Log.i(TAG, "Initialized native llama.cpp context: $nativeContext")
-            nativeContext != 0L
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize native llama.cpp model context", e)
-            false
+        var success = false
+        com.example.utils.MemoryManager.loadModelOnDemand(
+            context,
+            com.example.utils.NativeModelType.LLAMA_CPP
+        ) {
+            try {
+                nativeContext = initNativeLlama(modelFile.absolutePath, threads)
+                Log.i(TAG, "Initialized native llama.cpp context: $nativeContext")
+                success = (nativeContext != 0L)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to initialize native llama.cpp model context", e)
+            }
         }
+        return success
     }
 
     /**
-     * Deinitializes the native model context.
+     * Deinitializes the native model context and releases native RAM via MemoryManager.
      */
     fun deinitializeNativeEngine() {
         if (nativeContext != 0L) {
-            try {
-                freeNativeLlama(nativeContext)
-                Log.i(TAG, "Deinitialized native llama.cpp context: $nativeContext")
-            } catch (e: Exception) {
-                Log.e(TAG, "Exception during native deinitialization", e)
-            } finally {
-                nativeContext = 0L
+            com.example.utils.MemoryManager.releaseModel(
+                com.example.utils.NativeModelType.LLAMA_CPP
+            ) {
+                try {
+                    freeNativeLlama(nativeContext)
+                    Log.i(TAG, "Deinitialized native llama.cpp context: $nativeContext")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Exception during native deinitialization", e)
+                } finally {
+                    nativeContext = 0L
+                }
             }
         }
     }
@@ -105,7 +115,8 @@ class LlamaCppBrain(private val context: Context) {
     suspend fun getResponse(
         prompt: String,
         systemInstruction: String,
-        history: List<Pair<String, String>> = emptyList()
+        history: List<Pair<String, String>> = emptyList(),
+        temperature: Double? = null
     ): String = withContext(Dispatchers.IO) {
         val cleanPrompt = prompt.trim()
 

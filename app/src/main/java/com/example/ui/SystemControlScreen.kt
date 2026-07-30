@@ -151,6 +151,9 @@ fun AutomationHomeScreen(
                 .padding(24.dp), // Outer Screen Padding: 24dp
             verticalArrangement = Arrangement.spacedBy(28.dp) // Between Sections: 28dp
         ) {
+            // ================== GOOGLE ASSISTANT INTEGRATION ==================
+            AssistantGoogleControlCard(viewModel = viewModel)
+
             // ================== SYSTEM UTILS ==================
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(
@@ -376,11 +379,20 @@ fun AutomationHomeScreen(
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier
-                                    .weight(1.2f)
+                                    .wrapContentWidth()
+                                    .defaultMinSize(minWidth = 120.dp)
                                     .height(54.dp)
                                     .testTag("set_alarm_btn")
                             ) {
-                                Text("Schedule", fontSize = 14.sp, fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onPrimary)
+                                Text(
+                                    text = "Schedule",
+                                    fontSize = 14.sp,
+                                    fontFamily = FontFamily.SansSerif,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
                         }
                     }
@@ -1623,6 +1635,96 @@ fun VoiceCommandScreen(
             val isDeviceAdminActive = viewModel.checkDeviceAdminActive()
             val context = LocalContext.current
 
+            var showAccessibilityRationale by remember { mutableStateOf(false) }
+            var showDeviceAdminRationale by remember { mutableStateOf(false) }
+
+            if (showAccessibilityRationale) {
+                AlertDialog(
+                    onDismissRequest = { showAccessibilityRationale = false },
+                    title = {
+                        Text(
+                            text = "Accessibility Permission Required",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                    },
+                    text = {
+                        Text(
+                            text = "AIRA needs accessibility for system actions (Home, Back, Recents). Without this permission, system gestures and remote actions will be disabled, but all other AIRA features will continue to work normally.",
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                showAccessibilityRationale = false
+                                try {
+                                    val intent = Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                    }
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    android.util.Log.e("SystemControlScreen", "Error launching settings", e)
+                                }
+                            }
+                        ) {
+                            Text("Open Settings")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = { showAccessibilityRationale = false }
+                        ) {
+                            Text("Continue Without Action")
+                        }
+                    },
+                    shape = RoundedCornerShape(20.dp)
+                )
+            }
+
+            if (showDeviceAdminRationale) {
+                AlertDialog(
+                    onDismissRequest = { showDeviceAdminRationale = false },
+                    title = {
+                        Text(
+                            text = "Device Policy Admin Required",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                    },
+                    text = {
+                        Text(
+                            text = "AIRA needs device admin for remote lock and security commands. Without device admin, voice lock will be unavailable, but all other AIRA features will work normally.",
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                showDeviceAdminRationale = false
+                                try {
+                                    context.startActivity(viewModel.getDeviceAdminActivationIntent())
+                                } catch (e: Exception) {
+                                    android.util.Log.e("SystemControlScreen", "Error launching admin intent", e)
+                                }
+                            }
+                        ) {
+                            Text("Enable Admin")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = { showDeviceAdminRationale = false }
+                        ) {
+                            Text("Continue Without Admin")
+                        }
+                    },
+                    shape = RoundedCornerShape(20.dp)
+                )
+            }
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -1673,10 +1775,7 @@ fun VoiceCommandScreen(
                         }
                         OutlinedButton(
                             onClick = {
-                                val intent = Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
-                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                                }
-                                context.startActivity(intent)
+                                showAccessibilityRationale = true
                             },
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.testTag("open_accessibility_settings_btn")
@@ -1703,8 +1802,7 @@ fun VoiceCommandScreen(
                         }
                         Button(
                             onClick = {
-                                val intent = viewModel.getDeviceAdminActivationIntent()
-                                context.startActivity(intent)
+                                showDeviceAdminRationale = true
                             },
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.testTag("activate_device_admin_btn")
@@ -2307,4 +2405,201 @@ private fun calculateLevenshteinSimilarity(x: String, y: String): Float {
     val distance = dp[n]
     val maxLen = maxOf(m, n)
     return 1.0f - (distance.toFloat() / maxLen)
+}
+
+@Composable
+fun AssistantGoogleControlCard(
+    viewModel: AiraViewModel,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val isAccessibilityActive = viewModel.isAccessibilityServiceConnected()
+    val isAdminActive = viewModel.checkDeviceAdminActive()
+    val canWriteSettings = viewModel.checkWriteSettingsPermission()
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(22.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(44.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Assistant,
+                            contentDescription = "Google Assistant",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Google Assistant Mode",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontFamily = FontFamily.SansSerif
+                    )
+                    Text(
+                        text = "Full system assistant capability with voice & permissions",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontFamily = FontFamily.SansSerif
+                    )
+                }
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+            // Status Badges
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                AssistantStatusRow(
+                    label = "System Default Digital Assistant",
+                    statusText = "VoiceInteraction Ready",
+                    isGranted = true
+                )
+                AssistantStatusRow(
+                    label = "Accessibility Service (UI Control)",
+                    statusText = if (isAccessibilityActive) "Active" else "Action Required",
+                    isGranted = isAccessibilityActive
+                )
+                AssistantStatusRow(
+                    label = "Device Admin (Screen Lock)",
+                    statusText = if (isAdminActive) "Active" else "Inactive",
+                    isGranted = isAdminActive
+                )
+                AssistantStatusRow(
+                    label = "System Settings (Brightness)",
+                    statusText = if (canWriteSettings) "Granted" else "Action Required",
+                    isGranted = canWriteSettings
+                )
+            }
+
+            // Quick Setup Actions
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Button(
+                    onClick = { viewModel.openDefaultAssistantSettings() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .testTag("set_default_assistant_btn"),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Tune,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = "Set AIRA as Default Digital Assistant",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        fontFamily = FontFamily.SansSerif,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { viewModel.openAccessibilitySettings() },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Accessibility", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            try {
+                                context.startActivity(viewModel.getDeviceAdminActivationIntent())
+                            } catch (_: Exception) {}
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Device Admin", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { viewModel.openWriteSettings() },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Write Settings", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    }
+                    OutlinedButton(
+                        onClick = { viewModel.openAppPermissionSettings() },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("All Permissions", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AssistantStatusRow(
+    label: String,
+    statusText: String,
+    isGranted: Boolean
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            fontSize = 13.sp,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontFamily = FontFamily.SansSerif
+        )
+        Surface(
+            shape = RoundedCornerShape(50),
+            color = if (isGranted) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer
+        ) {
+            Text(
+                text = statusText,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (isGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                fontFamily = FontFamily.SansSerif
+            )
+        }
+    }
 }

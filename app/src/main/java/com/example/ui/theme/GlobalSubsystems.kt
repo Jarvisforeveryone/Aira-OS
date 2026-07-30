@@ -13,9 +13,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
 
+// Global Navigation system alias
+typealias NavRoutes = com.example.ui.navigation.NavRoutes
+
 // ==============================================================================
 // GLOBAL SUBSYSTEMS ARCHITECTURE
-// Single Source of Truth for all Design Tokens, Constants, Logic & Configurations
+// Single Source of Truth for Design Tokens, Constants, Logic & Configurations
 // ==============================================================================
 
 /**
@@ -23,18 +26,18 @@ import com.example.R
  */
 object AiraColors {
     val BluePrimary = Color(0xFF2563EB)
-    val BlueSecondary = Color(0xFF1D4EDB)
-    val BackgroundLight = Color(0xFFF8FAFC)
-    val BackgroundDark = Color(0xFF0B1220)
+    val BlueSecondary = Color(0xFF1D4ED8)
+    val BackgroundLight = Color(0xFFFBFAFC)
+    val BackgroundDark = Color(0xFF0F172A)
     val SurfaceLight = Color(0xFFFFFFFF)
-    val SurfaceDark = Color(0xFF0B1220)
+    val SurfaceDark = Color(0xFF1E293B)
     val TextPrimaryLight = Color(0xFF0F172A)
-    val TextSecondaryLight = Color(0xFF475569)
-    val TextPrimaryDark = Color(0xFFF8FAFC)
-    val TextSecondaryDark = Color(0xFF94A3B8)
+    val TextSecondaryLight = Color(0xFF6B7280)
+    val TextPrimaryDark = Color(0xFFFFFFFF)
+    val TextSecondaryDark = Color(0xFF9CA3AF)
     val Error = Color(0xFFDC2626)
     val Warning = Color(0xFFF59E0B)
-    val Success = Color(0xFF16A344)
+    val Success = Color(0xFF16A34A)
     val Border = Color(0xFFE2E8F0)
 }
 
@@ -72,23 +75,6 @@ object Spacing {
 }
 
 /**
- * SUBSYSTEM 4: NAVIGATION
- */
-object NavRoutes {
-    const val TAB_ASSISTANT = 0
-    const val TAB_COMMANDS = 1
-    const val TAB_FEEDS = 2
-    const val TAB_CONFIG = 3
-
-    const val ROUTE_HOME = "home"
-    const val ROUTE_SETTINGS = "settings"
-    const val ROUTE_EXTRAS = "extras"
-    const val ROUTE_SYSTEM_CONTROL = "system_control"
-    const val ROUTE_OFFLINE_STATUS = "offline_status"
-    const val ROUTE_THEME = "theme_settings"
-}
-
-/**
  * SUBSYSTEM 5: STRINGS
  */
 object AppStrings {
@@ -121,22 +107,6 @@ object AiraThemeConfig {
     const val THEME_SYSTEM = 0
     const val THEME_LIGHT = 1
     const val THEME_DARK = 2
-}
-
-/**
- * SUBSYSTEM 8: ICON COLORS
- * Purpose-based icon color mappings
- */
-object IconColors {
-    val PrimaryActions = Color(0xFF2563EB)
-    val SecondaryActions = Color(0xFF1D4EDB)
-    val Destructive = Color(0xFFDC2626)
-    val Warning = Color(0xFFF59E0B)
-    val Success = Color(0xFF16A344)
-    val NavigationBack = Color(0xFF0F172A)
-    val InactivePassive = Color(0xFF475569)
-    val TabActive = Color(0xFF2563EB)
-    val TabInactive = Color(0xFF475569)
 }
 
 /**

@@ -12,9 +12,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudQueue
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Newspaper
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,7 +32,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.R
+import com.example.ui.components.AiraCard
+import com.example.ui.components.AiraBadge
+import com.example.ui.theme.bounceClick
 
 @Composable
 fun ExtrasScreen(
@@ -113,61 +123,162 @@ fun ExtrasScreen(
             }
         }
 
+        var showWeatherDetailsDialog by remember { mutableStateOf(false) }
+        var searchCityQuery by remember { mutableStateOf("") }
+        val openMeteoData by viewModel.openMeteoWeather.collectAsState()
+
         // CARD 1: ENVIRONMENTAL METRIC CORES (WEATHER)
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), // Premium dark surface
-            shape = RoundedCornerShape(22.dp), // Corner Radius: 22dp
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp) // Very soft Material elevation
-        ) {
-            Column(
-                modifier = Modifier.padding(20.dp), // Inside Cards: 20dp
-                verticalArrangement = Arrangement.spacedBy(16.dp) // Between Elements: 16dp
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Weather",
-                        fontSize = 18.sp, // Card Title: 18sp Medium
-                        fontWeight = FontWeight.Medium,
-                        fontFamily = FontFamily.SansSerif,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.87f)
-                    )
-                    Icon(
-                        imageVector = Icons.Default.CloudQueue,
-                        contentDescription = "Weather Icon",
-                        tint = Color(0xFF2563EB),
-                        modifier = Modifier.size(24.dp) // Icons: 24dp
-                    )
-                }
-
-                Text(
-                    text = "Updating environmental metrics...",
-                    fontSize = 14.sp, // Caption: 14sp
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
-                    fontFamily = FontFamily.SansSerif
-                )
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.03f))
-                        .padding(16.dp)
-                ) {
-                    Text(
-                        text = weatherData,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.87f),
-                        fontSize = 16.sp, // Body: 16sp Regular
-                        fontWeight = FontWeight.Normal,
-                        fontFamily = FontFamily.SansSerif,
-                        modifier = Modifier.testTag("weather_display_txt")
-                    )
-                }
+        AiraCard(
+            onClick = { showWeatherDetailsDialog = true },
+            title = "Weather",
+            subtitle = "Updating environmental metrics...",
+            icon = Icons.Outlined.Cloud,
+            headerTrailing = {
+                AiraBadge(text = "LIVE METRICS", badgeColor = MaterialTheme.colorScheme.primaryContainer, textColor = MaterialTheme.colorScheme.primary)
             }
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    .padding(14.dp)
+            ) {
+                Text(
+                    text = weatherData,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Normal,
+                    fontFamily = FontFamily.SansSerif,
+                    modifier = Modifier.testTag("weather_display_txt")
+                )
+            }
+        }
+
+        if (showWeatherDetailsDialog) {
+            AlertDialog(
+                onDismissRequest = { showWeatherDetailsDialog = false },
+                title = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Cloud,
+                            contentDescription = "Cloud Icon",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Text(
+                            text = "Open-Meteo Weather Details",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                },
+                text = {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedTextField(
+                            value = searchCityQuery,
+                            onValueChange = { searchCityQuery = it },
+                            placeholder = { Text("Search city (e.g. London, Tokyo)") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            trailingIcon = {
+                                Row {
+                                    IconButton(onClick = {
+                                        if (searchCityQuery.isNotBlank()) {
+                                            viewModel.searchCityWeather(searchCityQuery)
+                                        }
+                                    }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Search,
+                                            contentDescription = "Search"
+                                        )
+                                    }
+                                    IconButton(onClick = {
+                                        viewModel.refreshWeather()
+                                    }) {
+                                        Icon(
+                                            imageVector = Icons.Default.MyLocation,
+                                            contentDescription = "Use GPS"
+                                        )
+                                    }
+                                }
+                            }
+                        )
+
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                openMeteoData?.let { data ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column {
+                                            Text(
+                                                text = if (data.country.isNotEmpty()) "${data.locationName}, ${data.country}" else data.locationName,
+                                                fontSize = 16.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            if (data.isGpsLocation) {
+                                                Text(
+                                                    text = "Exact GPS Location Active",
+                                                    fontSize = 11.sp,
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                            }
+                                        }
+                                        Text(
+                                            text = "${data.temperatureC.toInt()}°C",
+                                            fontSize = 28.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                                    Text("Condition: ${data.conditionDescription}", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                                    Text("Wind Speed: ${data.windSpeedKmH} km/h (Deg: ${data.windDirectionDeg}°)", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                                    Text("Coordinates: ${data.latitude}, ${data.longitude}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("Day/Night: ${if (data.isDaytime) "Daytime ☀️" else "Nighttime 🌙"}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                } ?: Text(
+                                    text = weatherData,
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = "Powered by Open-Meteo API (Free & Open)",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            fontFamily = FontFamily.SansSerif
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showWeatherDetailsDialog = false }) {
+                        Text("Close")
+                    }
+                }
+            )
         }
 
         var selectedArticleForDialog by remember { mutableStateOf<Pair<String, String>?>(null) }
@@ -223,16 +334,19 @@ fun ExtrasScreen(
             )
         }
 
-        // CARD 2: DIGITAL NEWS TRANSMISSION CORE
+        // CARD 2: DIGITAL NEWS TRANSMISSION CORE (WITH CATEGORIES & IMAGES)
+        val newsCategories = listOf("Education", "Finance", "Technology", "Sports", "Health", "Entertainment")
+        val selectedCategoryName by viewModel.selectedNewsCategory.collectAsState()
+
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), // Premium dark surface
-            shape = RoundedCornerShape(22.dp), // Corner Radius: 22dp
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp) // Very soft Material elevation
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            shape = RoundedCornerShape(22.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column(
-                modifier = Modifier.padding(20.dp), // Inside Cards: 20dp
-                verticalArrangement = Arrangement.spacedBy(16.dp) // Between Elements: 16dp
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -241,7 +355,7 @@ fun ExtrasScreen(
                 ) {
                     Text(
                         text = "Google News Feed",
-                        fontSize = 18.sp, // Card Title: 18sp Medium
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Medium,
                         fontFamily = FontFamily.SansSerif,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.87f)
@@ -251,13 +365,13 @@ fun ExtrasScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         IconButton(
-                            onClick = { viewModel.fetchNews() },
+                            onClick = { viewModel.fetchNews(selectedCategoryName) },
                             modifier = Modifier.size(28.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Refresh,
                                 contentDescription = "Refresh News",
-                                tint = Color(0xFF475569),
+                                tint = Color(0xFF6B7280),
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -265,17 +379,43 @@ fun ExtrasScreen(
                             imageVector = Icons.Default.Newspaper,
                             contentDescription = "News Icon",
                             tint = Color(0xFF2563EB),
-                            modifier = Modifier.size(24.dp) // Icons: 24dp
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
 
-                Text(
-                    text = "Live headlines & updates from Google News RSS (Tap card to read full story)",
-                    fontSize = 14.sp, // Caption: 14sp
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
-                    fontFamily = FontFamily.SansSerif
-                )
+                // 1. CATEGORIES: Horizontal scroll chips
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val allCategories = listOf("All") + newsCategories
+                    allCategories.forEach { cat ->
+                        val isSelected = cat.equals(selectedCategoryName, ignoreCase = true)
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { viewModel.fetchNews(cat) },
+                            label = {
+                                Text(
+                                    text = cat,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                labelColor = MaterialTheme.colorScheme.onSurface
+                            ),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.height(32.dp)
+                        )
+                    }
+                }
 
                 if (isNewsLoading) {
                     Row(
@@ -292,7 +432,7 @@ fun ExtrasScreen(
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = "Fetching Google News RSS feed...",
+                            text = "Fetching $selectedCategoryName news...",
                             fontSize = 14.sp,
                             fontFamily = FontFamily.SansSerif,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
@@ -307,21 +447,21 @@ fun ExtrasScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = newsError ?: "Failed to load Google News RSS feed",
+                            text = newsError ?: "Failed to load Google News feed",
                             fontSize = 14.sp,
                             fontFamily = FontFamily.SansSerif,
                             color = MaterialTheme.colorScheme.error
                         )
                         OutlinedButton(
-                            onClick = { viewModel.fetchNews() },
+                            onClick = { viewModel.fetchNews(selectedCategoryName) },
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text("Retry Loading RSS Feed", fontSize = 13.sp, fontFamily = FontFamily.SansSerif)
+                            Text("Retry Loading Feed", fontSize = 13.sp, fontFamily = FontFamily.SansSerif)
                         }
                     }
                 } else if (newsItems.isNotEmpty()) {
                     Column(
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         newsItems.forEachIndexed { i, item ->
                             val metaLabel = if (item.source.isNotEmpty()) {
@@ -334,46 +474,73 @@ fun ExtrasScreen(
                             } else {
                                 item.title
                             }
-                            Column(
+
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .minimumInteractiveComponentSize()
-                                    .defaultMinSize(minHeight = 64.dp)
-                                    .clip(RoundedCornerShape(14.dp))
+                                    .clip(RoundedCornerShape(12.dp))
                                     .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.03f))
                                     .clickable {
                                         selectedArticleForDialog = Pair(item.title, dialogDetail)
                                     }
-                                    .padding(16.dp),
-                                verticalArrangement = Arrangement.Center
+                                    .padding(10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = metaLabel,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
-                                    fontFamily = FontFamily.SansSerif,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(bottom = 4.dp)
-                                )
-                                Text(
-                                    text = item.title,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.87f),
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    fontFamily = FontFamily.SansSerif,
-                                    modifier = Modifier.testTag("news_article_$i")
-                                )
-                                if (item.description.isNotBlank()) {
-                                    Spacer(modifier = Modifier.height(4.dp))
+                                if (item.imageUrl.isNotBlank()) {
+                                    AsyncImage(
+                                        model = ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                                            .data(item.imageUrl)
+                                            .crossfade(true)
+                                            .build(),
+                                        contentDescription = "Article image",
+                                        modifier = Modifier
+                                            .size(54.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(54.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Newspaper,
+                                            contentDescription = "News placeholder",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                }
+
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
                                     Text(
-                                        text = item.description,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                                        fontSize = 13.sp,
+                                        text = metaLabel,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                                        fontFamily = FontFamily.SansSerif,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = item.title,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.87f),
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium,
                                         fontFamily = FontFamily.SansSerif,
                                         maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
+                                        overflow = TextOverflow.Ellipsis,
+                                        lineHeight = 18.sp,
+                                        modifier = Modifier.testTag("news_article_$i")
                                     )
                                 }
                             }
@@ -381,44 +548,66 @@ fun ExtrasScreen(
                     }
                 } else if (newsArticles.isNotEmpty()) {
                     Column(
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         newsArticles.forEachIndexed { i, article ->
-                            Column(
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .minimumInteractiveComponentSize()
-                                    .defaultMinSize(minHeight = 64.dp)
-                                    .clip(RoundedCornerShape(14.dp))
+                                    .clip(RoundedCornerShape(12.dp))
                                     .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.03f))
                                     .clickable {
-                                        selectedArticleForDialog = Pair("Google News Item #${i + 1}", article)
+                                        selectedArticleForDialog = Pair("Google News Update #${i + 1}", article)
                                     }
-                                    .padding(16.dp),
-                                verticalArrangement = Arrangement.Center
+                                    .padding(10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = "Google News Update #${i + 1}",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                                    fontFamily = FontFamily.SansSerif,
-                                    modifier = Modifier.padding(bottom = 4.dp)
-                                )
-                                Text(
-                                    text = article,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.87f),
-                                    fontSize = 16.sp,
-                                    fontFamily = FontFamily.SansSerif,
-                                    modifier = Modifier.testTag("news_article_$i")
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(54.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Newspaper,
+                                        contentDescription = "News icon",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Text(
+                                        text = "Google News Update #${i + 1}",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                                        fontFamily = FontFamily.SansSerif
+                                    )
+                                    Text(
+                                        text = article,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.87f),
+                                        fontSize = 14.sp,
+                                        fontFamily = FontFamily.SansSerif,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                        lineHeight = 18.sp,
+                                        modifier = Modifier.testTag("news_article_$i")
+                                    )
+                                }
                             }
                         }
                     }
                 } else {
                     Text(
                         text = "No news updates available at this moment.",
-                        fontSize = 16.sp,
+                        fontSize = 14.sp,
                         fontFamily = FontFamily.SansSerif,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                         modifier = Modifier.fillMaxWidth()

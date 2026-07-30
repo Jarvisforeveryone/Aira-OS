@@ -629,7 +629,8 @@ class VoiceCommandManager(private val context: Context) {
     suspend fun getRoutedAiResponse(
         userInput: String,
         systemInstruction: String,
-        history: List<Pair<String, String>> = emptyList()
+        history: List<Pair<String, String>> = emptyList(),
+        temperature: Double? = null
     ): Pair<String, String> {
         val isOnline = isInternetAvailable()
         val sharedPrefs = context.getSharedPreferences("aira_settings", Context.MODE_PRIVATE)
@@ -641,18 +642,18 @@ class VoiceCommandManager(private val context: Context) {
             try {
                 _currentEngineSource.value = onlineLabel
                 val apiBrain = com.example.models.AiBrain(context)
-                val response = apiBrain.getAiResponse(userInput, systemInstruction, history)
+                val response = apiBrain.getAiResponse(userInput, systemInstruction, history, temperature)
                 Pair(response, onlineLabel)
             } catch (e: Exception) {
                 Log.e("VoiceCommandManager", "Online AI model query failed, falling back to Local LLaMa Model", e)
                 _currentEngineSource.value = "Llama 3.2 (Offline Fallback)"
-                val response = llamaCppBrain.getResponse(userInput, systemInstruction, history)
+                val response = llamaCppBrain.getResponse(userInput, systemInstruction, history, temperature)
                 Pair(response, "Llama 3.2 (Offline Fallback)")
             }
         } else {
             Log.i("VoiceCommandManager", "No internet detected. Routing query automatically to Local LLaMa Model Instance...")
             _currentEngineSource.value = "Llama 3.2 (Offline)"
-            val response = llamaCppBrain.getResponse(userInput, systemInstruction, history)
+            val response = llamaCppBrain.getResponse(userInput, systemInstruction, history, temperature)
             Pair(response, "Llama 3.2 (Offline)")
         }
     }

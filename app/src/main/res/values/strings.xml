@@ -18,14 +18,14 @@
     <string name="ready_status">Ready to help</string>
 
     <!-- Memory Settings -->
-    <string name="memory_settings_title">Memory Settings</string>
-    <string name="edit_memory_title">EDIT MEMORY</string>
-    <string name="add_memory_title">ADD MEMORY</string>
-    <string name="add_memory">ADD MEMORY</string>
+    <string name="memory_settings_title">Saved Info</string>
+    <string name="edit_memory_title">Edit Memory</string>
+    <string name="add_memory_title">Add Memory</string>
+    <string name="add_memory">Add Memory</string>
     <string name="category_label">Category</string>
-    <string name="mark_important">Mark as Important</string>
-    <string name="search_memories">Search memories...</string>
-    <string name="memory_fact_label">Memory Fact</string>
+    <string name="mark_important">Important</string>
+    <string name="search_memories">Find a memory...</string>
+    <string name="memory_fact_label">Memory Note</string>
     <string name="save">SAVE</string>
     <string name="delete">DELETE</string>
     <string name="memory_engine_header">LONG-TERM MEMORY ENGINE</string>

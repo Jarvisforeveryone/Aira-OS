@@ -166,25 +166,20 @@ tasks.register("locateAndUnzipVoskModel") {
 
 tasks.register("downloadAssets") {
     doLast {
-        val ttsModelsDir = file("src/main/assets/tts_models")
-        if (!ttsModelsDir.exists()) {
-            ttsModelsDir.mkdirs()
+        val piperModelsDir = file("src/main/assets/piper/models")
+        if (!piperModelsDir.exists()) {
+            piperModelsDir.mkdirs()
         }
 
-        val dummyOnnx = file("src/main/assets/tts_models/amifemalevoicemodel.onnx")
-        val dummyJson = file("src/main/assets/tts_models/amifemalevoicemodel.json")
-        if (dummyOnnx.exists()) dummyOnnx.delete()
-        if (dummyJson.exists()) dummyJson.delete()
-
-        val finalOnnx = file("src/main/assets/tts_models/amymodel.onnx")
-        val finalJson = file("src/main/assets/tts_models/config.json")
+        val finalOnnx = file("src/main/assets/piper/models/en_US-amy-medium.onnx")
+        val finalJson = file("src/main/assets/piper/models/en_US-amy-medium.onnx.json")
 
         if (finalOnnx.exists() && finalOnnx.length() > 0 && finalJson.exists() && finalJson.length() > 0) {
             val onnxChecksum = calculateChecksum(finalOnnx, "SHA-256")
             val jsonChecksum = calculateChecksum(finalJson, "SHA-256")
-            println("TTS assets already exist and verified.")
-            println("amymodel.onnx SHA-256: $onnxChecksum")
-            println("config.json SHA-256: $jsonChecksum")
+            println("Piper TTS assets already exist and verified in piper/models.")
+            println("en_US-amy-medium.onnx SHA-256: $onnxChecksum")
+            println("en_US-amy-medium.onnx.json SHA-256: $jsonChecksum")
             return@doLast
         }
 
@@ -222,8 +217,8 @@ tasks.register("downloadAssets") {
             }
         }
 
-        val tempOnnxTxt = file("src/main/assets/tts_models/amymodel.onnx.txt")
-        val tempJsonTxt = file("src/main/assets/tts_models/config.json.txt")
+        val tempOnnxTxt = file("src/main/assets/piper/models/en_US-amy-medium.onnx.tmp")
+        val tempJsonTxt = file("src/main/assets/piper/models/en_US-amy-medium.onnx.json.tmp")
 
         downloadFile(onnxUrl, tempOnnxTxt)
         downloadFile(jsonUrl, tempJsonTxt)
@@ -231,24 +226,24 @@ tasks.register("downloadAssets") {
         // Checksum verification & moving
         if (tempOnnxTxt.exists() && tempOnnxTxt.length() > 0) {
             val sha256 = calculateChecksum(tempOnnxTxt, "SHA-256")
-            println("Verified amymodel.onnx.txt SHA-256 checksum: $sha256")
+            println("Verified en_US-amy-medium.onnx SHA-256 checksum: $sha256")
             if (sha256.isNotEmpty()) {
                 tempOnnxTxt.renameTo(finalOnnx)
-                println("Successfully verified and promoted amymodel.onnx")
+                println("Successfully verified and promoted en_US-amy-medium.onnx")
             }
         }
 
         if (tempJsonTxt.exists() && tempJsonTxt.length() > 0) {
             val sha256 = calculateChecksum(tempJsonTxt, "SHA-256")
-            println("Verified config.json.txt SHA-256 checksum: $sha256")
+            println("Verified en_US-amy-medium.onnx.json SHA-256 checksum: $sha256")
             if (sha256.isNotEmpty()) {
                 tempJsonTxt.renameTo(finalJson)
-                println("Successfully verified and promoted config.json")
+                println("Successfully verified and promoted en_US-amy-medium.onnx.json")
             }
         }
 
         println("=== ASSET VERIFICATION SUMMARY ===")
-        ttsModelsDir.listFiles()?.forEach { f ->
+        piperModelsDir.listFiles()?.forEach { f ->
             val sha256 = calculateChecksum(f, "SHA-256")
             println("- ${f.name}: Size=${f.length()} bytes (~${String.format("%.2f", f.length().toDouble() / (1024 * 1024))} MB) | SHA-256=$sha256")
         }

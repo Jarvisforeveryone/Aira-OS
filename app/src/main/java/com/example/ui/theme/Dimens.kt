@@ -3,6 +3,9 @@ package com.example.ui.theme
 import androidx.compose.ui.unit.dp
 
 object Dimens {
+    // Accessibility Touch Targets
+    val MinTouchTarget = 48.dp
+
     // Screen Padding
     val ScreenHorizontalPadding = 20.dp
     val ScreenVerticalPadding = 16.dp
@@ -45,4 +48,3 @@ object Dimens {
     val CornerRadiusMedium = 16.dp
     val CornerRadiusSmall = 12.dp
 }
-

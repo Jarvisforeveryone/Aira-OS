@@ -27,28 +27,30 @@ class PiperTtsEngine(private val context: Context) {
 
     suspend fun initialize() = withContext(Dispatchers.IO) {
         if (isModelLoaded) return@withContext
-        try {
-            if (!com.example.util.NativeLibraryLoader.isLoaded()) {
-                Log.w("PiperTtsEngine", "Native libraries not loaded, skipping JNI model load")
-                return@withContext
+        com.example.utils.MemoryManager.loadModelOnDemand(context, com.example.utils.NativeModelType.PIPER_TTS) {
+            try {
+                if (!com.example.util.NativeLibraryLoader.isLoaded()) {
+                    Log.w("PiperTtsEngine", "Native libraries not loaded, skipping JNI model load")
+                    return@loadModelOnDemand
+                }
+                if (piperNcnn == null) {
+                    piperNcnn = PiperNcnn()
+                }
+                Log.d("PiperTtsEngine", "Initializing JNI Piper model from assets...")
+                val modelPath = "piper/models/en_US-amy-medium.onnx"
+                val configPath = "piper/models/en_US-amy-medium.onnx.json"
+                
+                val success = piperNcnn?.loadModel(context.assets, modelPath, configPath) == true
+                if (success) {
+                    isModelLoaded = true
+                    isInitialized = true
+                    Log.d("PiperTtsEngine", "Piper model loaded successfully via JNI!")
+                } else {
+                    Log.e("PiperTtsEngine", "Failed to load Piper model via JNI")
+                }
+            } catch (e: Throwable) {
+                Log.e("PiperTtsEngine", "Throwable initializing Piper JNI engine", e)
             }
-            if (piperNcnn == null) {
-                piperNcnn = PiperNcnn()
-            }
-            Log.d("PiperTtsEngine", "Initializing JNI Piper model from assets...")
-            val modelPath = "piper/models/en_US-amy-medium.onnx"
-            val configPath = "piper/models/en_US-amy-medium.onnx.json"
-            
-            val success = piperNcnn?.loadModel(context.assets, modelPath, configPath) == true
-            if (success) {
-                isModelLoaded = true
-                isInitialized = true
-                Log.d("PiperTtsEngine", "Piper model loaded successfully via JNI!")
-            } else {
-                Log.e("PiperTtsEngine", "Failed to load Piper model via JNI")
-            }
-        } catch (e: Throwable) {
-            Log.e("PiperTtsEngine", "Throwable initializing Piper JNI engine", e)
         }
     }
 
@@ -175,9 +177,24 @@ class PiperTtsEngine(private val context: Context) {
         }
     }
 
+    fun release() {
+        Log.d("PiperTtsEngine", "Release requested")
+        com.example.utils.MemoryManager.releaseModel(com.example.utils.NativeModelType.PIPER_TTS) {
+            stop()
+            piperNcnn = null
+            isModelLoaded = false
+            isInitialized = false
+        }
+    }
+
+    fun close() {
+        release()
+        shutdown()
+    }
+
     fun shutdown() {
         Log.d("PiperTtsEngine", "Shutdown requested")
-        stop()
+        release()
         try {
             engineScope.cancel()
         } catch (e: Exception) {

@@ -23,10 +23,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.colorResource
 import com.example.R
+import com.example.ui.components.AiraCard
+import com.example.ui.components.AiraBadge
+import com.example.ui.theme.bounceClick
 import com.example.util.NativeLibraryLoader
 import kotlinx.coroutines.launch
 
@@ -76,7 +81,7 @@ fun OfflineStatusDashboardScreen(
                 title = {
                     Column {
                         Text(
-                            text = "Offline Status Dashboard",
+                            text = "Offline Status",
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 20.sp,
                             fontFamily = FontFamily.SansSerif,
@@ -126,56 +131,14 @@ fun OfflineStatusDashboardScreen(
                 val localLatency by viewModel.localProcessingLatencyMs.collectAsState()
                 val isTestingLocal by viewModel.isTestingLocalProcessing.collectAsState()
 
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("diagnostic_panel_card"),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    shape = RoundedCornerShape(22.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                AiraCard(
+                    modifier = Modifier.testTag("diagnostic_panel_card"),
+                    title = "System Diagnostic Panel",
+                    icon = Icons.Default.Analytics,
+                    headerTrailing = {
+                        AiraBadge(text = "LIVE DIAGNOSTICS", badgeColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f), textColor = MaterialTheme.colorScheme.primary)
+                    }
                 ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Analytics,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                                Text(
-                                    text = "System Diagnostic Panel",
-                                    fontSize = 17.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontFamily = FontFamily.SansSerif,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
-                            ) {
-                                Text(
-                                    text = "LIVE DIAGNOSTICS",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.SansSerif,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                )
-                            }
-                        }
 
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
@@ -201,9 +164,9 @@ fun OfflineStatusDashboardScreen(
                                     color = if (geminiStatus.contains("Connected") || geminiStatus.contains("200")) colorResource(R.color.aira_success_light) else colorResource(R.color.aira_warning_light)
                                 )
                             }
-                            InfoRow(label = "Endpoint Status", value = geminiStatus)
-                            InfoRow(label = "Target Model", value = "gemini-3.5-flash (v1beta API)")
-                            InfoRow(label = "Primary Network Protocol", value = "HTTPS / OkHttp TLS 1.3")
+                            InfoRow(label = "Connection", value = geminiStatus)
+                            InfoRow(label = "Target Model", value = "Online AI - Connected")
+                            InfoRow(label = "Primary Network Protocol", value = "Internet - Secure")
 
                             OutlinedButton(
                                 onClick = { viewModel.runGeminiDiagnosticCheck() },
@@ -249,9 +212,9 @@ fun OfflineStatusDashboardScreen(
                                     color = MaterialTheme.colorScheme.primary
                                 )
                             }
-                            InfoRow(label = "Local LLM Engine", value = "Llama 3.2 1B (Q4_K_M Quantized)")
-                            InfoRow(label = "Vosk STT Decoder", value = "16kHz Mono Stream Processor (Active)")
-                            InfoRow(label = "Piper TTS JNI Runtime", value = "libonnxruntime.so + libpiper.so Ready")
+                            InfoRow(label = "Local LLM Engine", value = "Offline AI - Ready")
+                            InfoRow(label = "Vosk STT Decoder", value = "Audio - Active")
+                            InfoRow(label = "Piper TTS JNI Runtime", value = "Voice Engine - Ready")
                             InfoRow(label = "Simulated Processing Speed", value = "%.1f tokens/sec (Latency %dms)".format(localTokSec, localLatency))
 
                             Button(
@@ -274,6 +237,93 @@ fun OfflineStatusDashboardScreen(
                                 }
                             }
                         }
+                }
+            }
+
+            // BACKGROUND SERVICES & ENGINE FALLBACKS CARD
+            item {
+                val isAccessibilityActive = viewModel.isAccessibilityServiceConnected()
+                val isDeviceAdminActive = viewModel.checkDeviceAdminActive()
+                val totalRamMb by viewModel.totalRamMb.collectAsState()
+                val isMemoryCapable by viewModel.isDeviceMemoryCapable.collectAsState()
+
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("background_services_card"),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    shape = RoundedCornerShape(22.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CloudSync,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "Background Services",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontFamily = FontFamily.SansSerif,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isMemoryCapable) colorResource(R.color.aira_success_light).copy(alpha = 0.15f) else colorResource(R.color.aira_warning_light).copy(alpha = 0.15f)
+                            ) {
+                                Text(
+                                    text = if (isMemoryCapable) "RAM OK (${totalRamMb}MB)" else "LOW RAM (${totalRamMb}MB)",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isMemoryCapable) colorResource(R.color.aira_success_light) else colorResource(R.color.aira_warning_light),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                        Text("Active Background System Services", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
+                        InfoRow(label = "Assistant Voice FGS", value = "Active (Foreground Type: Microphone)")
+                        InfoRow(label = "Accessibility Service", value = if (isAccessibilityActive) "Active & Connected" else "Disconnected")
+                        InfoRow(label = "Device Policy Admin", value = if (isDeviceAdminActive) "Active & Enforced" else "Inactive")
+
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                        Text("Current Mode", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
+                        InfoRow(
+                            label = "AI Reasoning Engine",
+                            value = if (isOfflineBrain) "Llama 3.2 1B (Local Offline)" else "Gemini 3.5 Flash (Cloud API)"
+                        )
+                        InfoRow(
+                            label = "Voice Output",
+                            value = when (selectedTtsEngine) {
+                                com.example.ui.AiraViewModel.TtsEngine.PIPER_OFFLINE -> "Amy Voice (Offline)"
+                                com.example.ui.AiraViewModel.TtsEngine.GOOGLE_TTS -> "Google Voice"
+                                else -> "Auto Switch"
+                            }
+                        )
+                        InfoRow(
+                            label = "Speech Input",
+                            value = if (selectedSttEngine.name.contains("VOSK")) "Offline Speech" else "Online Speech"
+                        )
                     }
                 }
             }
@@ -391,8 +441,8 @@ fun OfflineStatusDashboardScreen(
                     testTag = "piper_tts_engine_card"
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        InfoRow(label = "Active Voice Model", value = activeVoice)
-                        InfoRow(label = "Selected TTS Engine", value = selectedTtsEngine.name)
+                        InfoRow(label = "Current Voice", value = activeVoice)
+                        InfoRow(label = "Voice Output", value = selectedTtsEngine.name)
                         InfoRow(
                             label = "Amy JNI Model (en_US-amy-medium)",
                             value = if (isAmyDownloaded) "Downloaded & Verified (~45MB)" else "Not Downloaded"
@@ -525,13 +575,13 @@ fun OfflineStatusDashboardScreen(
                                 modifier = Modifier.testTag("dashboard_local_mode_switch")
                             )
                         }
-                        InfoRow(label = "STT Engine Mode", value = if (isLocalMode) "LOCAL VOSK MODE (FORCED)" else selectedSttEngine.name)
-                        InfoRow(label = "Model Identifier", value = "vosk-model-small-en-us-0.15")
+                        InfoRow(label = "Speech Input", value = if (isLocalMode) "LOCAL VOSK MODE (FORCED)" else selectedSttEngine.name)
+                        InfoRow(label = "Model Identifier", value = "Speech Model - Ready")
                         InfoRow(
                             label = "Model Memory Cache",
                             value = if (voskModelLoaded) "Loaded in RAM (Unpacked)" else "Not Loaded"
                         )
-                        InfoRow(label = "Audio Stream Processor", value = "16,000Hz 16-bit Mono PCM")
+                        InfoRow(label = "Audio Stream Processor", value = "Audio Quality - Good")
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -582,11 +632,11 @@ fun OfflineStatusDashboardScreen(
                     testTag = "llama_local_brain_card"
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        InfoRow(label = "Engine Status", value = llamaEngineStatus)
+                        InfoRow(label = "System Status", value = llamaEngineStatus)
                         InfoRow(label = "Model Quantization", value = "Llama-3.2 1B/3B Instruct (Q4_K_M)")
                         InfoRow(label = "Parallel CPU Threads", value = "$llamaThreads Threads Configured")
                         InfoRow(label = "Current Intelligence Source", value = currentEngineSource)
-                        InfoRow(label = "Local Persistence", value = "SQLite Room DB (Chat, Memory & Rules)")
+                        InfoRow(label = "Local Persistence", value = "Local Storage - Ready")
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -629,10 +679,10 @@ fun OfflineStatusDashboardScreen(
                     testTag = "hw_acceleration_card"
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        InfoRow(label = "JNI Native Runtime", value = if (isJniLoaded) "Loaded (libonnxruntime.so & libpiper.so)" else "UnsatisfiedLinkError / Missing JNI")
+                        InfoRow(label = "Native Engine - Ready", value = if (isJniLoaded) "Loaded (libonnxruntime.so & libpiper.so)" else "UnsatisfiedLinkError / Missing JNI")
                         InfoRow(label = "CPU Core Allocation", value = "$availableProcessors Hardware Processors")
                         InfoRow(label = "Heap Memory Usage", value = "$usedMemoryMb MB allocated of $maxMemoryMb MB max")
-                        InfoRow(label = "Audio Driver Latency", value = "Low Latency AudioTrack PCM Mode")
+                        InfoRow(label = "Audio Driver Latency", value = "Audio - Low Latency")
 
                         diagnosticMessage?.let { msg ->
                             Box(
@@ -821,14 +871,22 @@ private fun InfoRow(label: String, value: String) {
             text = label,
             fontSize = 13.sp,
             fontFamily = FontFamily.SansSerif,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(0.4f),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
         )
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = value,
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
             fontFamily = FontFamily.SansSerif,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(0.6f),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.End
         )
     }
 }

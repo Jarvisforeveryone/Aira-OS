@@ -11,7 +11,7 @@ class AiraDeviceAdminReceiver : DeviceAdminReceiver() {
     override fun onEnabled(context: Context, intent: Intent) {
         super.onEnabled(context, intent)
         Log.d("AiraDeviceAdmin", "Device Policy Administration Enabled for Aira Core")
-        Toast.makeText(context, "Aira Device Policy Admin Activated", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "Admin On ✅", Toast.LENGTH_SHORT).show()
     }
 
     override fun onDisabled(context: Context, intent: Intent) {

@@ -84,14 +84,42 @@ class MainActivity : ComponentActivity() {
         val permissions = mutableListOf(
             Manifest.permission.RECORD_AUDIO,
             Manifest.permission.CALL_PHONE,
-            Manifest.permission.CAMERA
+            Manifest.permission.CAMERA,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.READ_CONTACTS
         ).apply {
             if (android.os.Build.VERSION.SDK_INT >= 33) {
                 add("android.permission.POST_NOTIFICATIONS")
             }
         }.toTypedArray()
 
-        permissionLauncher.launch(permissions)
+        val micPermissionGranted = androidx.core.content.ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.RECORD_AUDIO
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+        val showMicRationale = androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale(
+            this,
+            Manifest.permission.RECORD_AUDIO
+        )
+
+        if (!micPermissionGranted && showMicRationale) {
+            android.app.AlertDialog.Builder(this)
+                .setTitle("Microphone Permission Required")
+                .setMessage("AIRA needs microphone access for wake-word detection and hands-free voice interaction.")
+                .setPositiveButton("Grant Access") { dialog, _ ->
+                    dialog.dismiss()
+                    permissionLauncher.launch(permissions)
+                }
+                .setNegativeButton("Continue Without Voice") { dialog, _ ->
+                    dialog.dismiss()
+                    permissionLauncher.launch(permissions.filter { it != Manifest.permission.RECORD_AUDIO }.toTypedArray())
+                }
+                .setCancelable(false)
+                .show()
+        } else {
+            permissionLauncher.launch(permissions)
+        }
 
         // Initialize notification channels
         com.example.service.AiraNotificationManager.initNotificationChannels(this)

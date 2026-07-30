@@ -895,6 +895,20 @@ class PiperTtsManager(private val context: Context) {
         }
     }
 
+    fun release() {
+        try {
+            Log.d("PiperTtsManager", "Releasing Piper TTS resources...")
+            piperTtsEngine.release()
+        } catch (e: Exception) {
+            Log.e("PiperTtsManager", "Error releasing Piper TTS", e)
+        }
+    }
+
+    fun close() {
+        release()
+        shutdown()
+    }
+
     fun shutdown() {
         try {
             Log.d("PiperTtsManager", "Shutting down TextToSpeech engine...")

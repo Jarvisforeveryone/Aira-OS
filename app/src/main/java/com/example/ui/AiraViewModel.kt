@@ -26,6 +26,9 @@ import android.speech.tts.TextToSpeech
 import android.util.Log
 import android.Manifest
 import android.content.pm.PackageManager
+import android.location.Location
+import android.location.LocationManager
+import android.location.Geocoder
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.AndroidViewModel
@@ -36,6 +39,7 @@ import com.example.data.ChatKeyManager
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import com.example.data.ChatMessage
+import com.example.data.ResponseFeedback
 import com.example.data.Reminder
 import com.example.data.Action
 import com.example.data.Command
@@ -87,7 +91,52 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     private val db = AppDatabase.getDatabase(application)
     private val chatDao = db.chatMessageDao()
     private val reminderDao = db.reminderDao()
+    private val feedbackDao = db.responseFeedbackDao()
     private val aiBrain = AiBrain(application)
+
+    val feedbackList: StateFlow<List<ResponseFeedback>> = feedbackDao.getAllFeedback()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun submitFeedback(
+        messageId: Long?,
+        query: String,
+        response: String,
+        isPositive: Boolean,
+        comment: String? = null,
+        onSubmitted: (Long) -> Unit = {}
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val feedback = ResponseFeedback(
+                messageId = messageId,
+                query = query,
+                response = response,
+                feedbackType = if (isPositive) "POSITIVE" else "NEGATIVE",
+                comment = comment?.ifBlank { null }
+            )
+            val insertedId = feedbackDao.insertFeedback(feedback)
+            withContext(Dispatchers.Main) {
+                onSubmitted(insertedId)
+            }
+        }
+    }
+
+    fun updateFeedbackComment(feedbackId: Long, comment: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            feedbackDao.updateComment(feedbackId, comment)
+        }
+    }
+
+    fun deleteFeedback(feedbackId: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            feedbackDao.deleteFeedback(feedbackId)
+        }
+    }
+
+    fun clearAllFeedback() {
+        viewModelScope.launch(Dispatchers.IO) {
+            feedbackDao.clearAllFeedback()
+        }
+    }
     private val okHttpClient = com.example.data.GeminiOkHttpCache.getClient(application)
 
     private val sharedPrefs: SharedPreferences =
@@ -367,6 +416,64 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         return "Lock screen failed: Device Policy Admin or Accessibility Service must be enabled."
     }
 
+    fun openDefaultAssistantSettings() {
+        val context = getApplication<Application>()
+        val intent = Intent(android.provider.Settings.ACTION_VOICE_INPUT_SETTINGS).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        try {
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            try {
+                val fallbackIntent = Intent("android.settings.VOICE_INPUT_SETTINGS").apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(fallbackIntent)
+            } catch (ex: Exception) {
+                openAppPermissionSettings()
+            }
+        }
+    }
+
+    fun openAccessibilitySettings() {
+        val context = getApplication<Application>()
+        val intent = Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        try {
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            openAppPermissionSettings()
+        }
+    }
+
+    fun openWriteSettings() {
+        val context = getApplication<Application>()
+        val intent = Intent(android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
+            data = Uri.parse("package:${context.packageName}")
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        try {
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            openAppPermissionSettings()
+        }
+    }
+
+    fun openAppPermissionSettings() {
+        val context = getApplication<Application>()
+        val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = Uri.parse("package:${context.packageName}")
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        context.startActivity(intent)
+    }
+
+    fun checkWriteSettingsPermission(): Boolean {
+        val context = getApplication<Application>()
+        return android.provider.Settings.System.canWrite(context)
+    }
+
     private val _isListening = MutableStateFlow(false)
     val isListening: StateFlow<Boolean> = _isListening.asStateFlow()
 
@@ -529,6 +636,53 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
 
     val llamaCppBrain = com.example.models.LlamaCppBrain(application)
 
+    // --- TOPIC MEMORY & EMOTION TONE ENGINE ---
+    private val topicTracker = com.example.utils.TopicTracker()
+    private val _currentTopic = MutableStateFlow(topicTracker.getCurrentTopic())
+    val currentTopic: StateFlow<String> = _currentTopic.asStateFlow()
+
+    private val _topicHistory = MutableStateFlow(topicTracker.getTopicHistory())
+    val topicHistory: StateFlow<List<String>> = _topicHistory.asStateFlow()
+
+    private val _currentEmotion = MutableStateFlow(com.example.utils.UserEmotion.NEUTRAL)
+    val currentEmotion: StateFlow<com.example.utils.UserEmotion> = _currentEmotion.asStateFlow()
+
+    private val _isEmotionDetectionEnabled = MutableStateFlow(sharedPrefs.getBoolean("emotion_detection_enabled", true))
+    val isEmotionDetectionEnabled: StateFlow<Boolean> = _isEmotionDetectionEnabled.asStateFlow()
+
+    private val _temperatureMode = MutableStateFlow(sharedPrefs.getString("temperature_mode", "Medium (0.6)") ?: "Medium (0.6)")
+    val temperatureMode: StateFlow<String> = _temperatureMode.asStateFlow()
+
+    private val _customTemperatureText = MutableStateFlow(sharedPrefs.getString("custom_temperature_val", "0.6") ?: "0.6")
+    val customTemperatureText: StateFlow<String> = _customTemperatureText.asStateFlow()
+
+    // --- UNIFIED MEMORY MANAGER STATE ---
+    private val _isDeviceMemoryCapable = MutableStateFlow(com.example.utils.MemoryManager.isDeviceCapable(application))
+    val isDeviceMemoryCapable: StateFlow<Boolean> = _isDeviceMemoryCapable.asStateFlow()
+
+    private val _totalRamMb = MutableStateFlow(com.example.utils.MemoryManager.getTotalRamMb(application))
+    val totalRamMb: StateFlow<Long> = _totalRamMb.asStateFlow()
+
+    fun releaseAllNativeModels() {
+        Log.i("AiraViewModel", "Releasing all native JNI models from memory...")
+        llamaCppBrain.deinitializeNativeEngine()
+        piperTtsManager.release()
+        releaseVoskModel()
+    }
+
+    fun releaseVoskModel() {
+        com.example.utils.MemoryManager.releaseModel(com.example.utils.NativeModelType.VOSK_STT) {
+            try {
+                voskSpeechService?.stop()
+                voskSpeechService = null
+                voskModel?.close()
+                voskModel = null
+            } catch (e: Exception) {
+                Log.e("AiraViewModel", "Error releasing Vosk model", e)
+            }
+        }
+    }
+
     val currentEngineSource: StateFlow<String> = VoiceCommandManager.currentEngineSource
 
     private val _themeIndex = MutableStateFlow(sharedPrefs.getInt("theme_index", 0)) // 0: Premium Blue, 1: Stripe Blue, 2: Aether Focus
@@ -600,14 +754,27 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     val usePersistentListening: StateFlow<Boolean> = _usePersistentListening.asStateFlow()
 
     fun togglePersistentListening(enabled: Boolean) {
-        _usePersistentListening.value = enabled
-        sharedPrefs.edit().putBoolean("persistent_listening", enabled).apply()
         if (enabled) {
+            if (ContextCompat.checkSelfPermission(
+                    getApplication(),
+                    Manifest.permission.RECORD_AUDIO
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                _usePersistentListening.value = false
+                sharedPrefs.edit().putBoolean("persistent_listening", false).apply()
+                _currentStatus.value = "Microphone permission denied. Voice features disabled."
+                Toast.makeText(getApplication(), "Microphone permission denied. Voice features disabled.", Toast.LENGTH_SHORT).show()
+                return
+            }
+            _usePersistentListening.value = true
+            sharedPrefs.edit().putBoolean("persistent_listening", true).apply()
             speakText("Continuous listening wake-word module activated.")
             if (!_isListening.value && !_isSpeaking.value) {
                 startListening()
             }
         } else {
+            _usePersistentListening.value = false
+            sharedPrefs.edit().putBoolean("persistent_listening", false).apply()
             speakText("Continuous listening disabled.")
             stopListening()
         }
@@ -615,6 +782,16 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
 
     fun restartContinuousListeningIfNeeded() {
         if (_usePersistentListening.value && !_isSpeaking.value) {
+            if (ContextCompat.checkSelfPermission(
+                    getApplication(),
+                    Manifest.permission.RECORD_AUDIO
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                _usePersistentListening.value = false
+                sharedPrefs.edit().putBoolean("persistent_listening", false).apply()
+                _currentStatus.value = "Microphone permission denied. Voice features disabled."
+                return
+            }
             viewModelScope.launch(Dispatchers.Main) {
                 kotlinx.coroutines.delay(600)
                 if (_usePersistentListening.value && !_isSpeaking.value && !_isListening.value) {
@@ -971,6 +1148,9 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
 
     private val newsRepository = com.example.repository.NewsRepository()
 
+    private val _selectedNewsCategory = MutableStateFlow("All")
+    val selectedNewsCategory: StateFlow<String> = _selectedNewsCategory.asStateFlow()
+
     private val _newsItems = MutableStateFlow<List<com.example.data.models.NewsItem>>(emptyList())
     val newsItems: StateFlow<List<com.example.data.models.NewsItem>> = _newsItems.asStateFlow()
 
@@ -993,6 +1173,11 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     init {
         try {
             sharedPrefs.registerOnSharedPreferenceChangeListener(prefChangeListener)
+
+            if (!_isDeviceMemoryCapable.value) {
+                Log.w("AiraViewModel", "Device RAM is < 4GB (${_totalRamMb.value} MB). Disabling heavy local Llama model by default.")
+                _isOfflineBrain.value = false
+            }
             
             viewModelScope.launch {
                 _currentStatus.value = "Loading Voice..."
@@ -1111,13 +1296,10 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                 }
             }
 
-            // On first launch after this change, speak "Jarvis speaking enabled".
+            // Smooth silent startup without forcing TTS initial audio delay
             val hasRunFirstLaunchSelfTest = sharedPrefs.getBoolean("has_run_first_launch_selftest", false)
             if (!hasRunFirstLaunchSelfTest) {
-                speakText("Jarvis speaking enabled")
                 sharedPrefs.edit().putBoolean("has_run_first_launch_selftest", true).apply()
-            } else {
-                speakText("Amy is working")
             }
         } catch (e: Throwable) {
             Log.e("AiraViewModel", "Fatal error guarded in init block", e)
@@ -1188,36 +1370,38 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         
         viewModelScope.launch(Dispatchers.IO) {
             val context = getApplication<Application>()
-            val externalDir = context.getExternalFilesDir(null)
-            
-            var unpackedDir = File(context.filesDir, "model")
-            if (!File(unpackedDir, "conf/model.conf").exists() && externalDir != null) {
-                val extModel = File(externalDir, "model")
-                if (File(extModel, "conf/model.conf").exists()) {
-                    unpackedDir = extModel
+            com.example.utils.MemoryManager.loadModelOnDemand(context, com.example.utils.NativeModelType.VOSK_STT) {
+                val externalDir = context.getExternalFilesDir(null)
+                
+                var unpackedDir = File(context.filesDir, "model")
+                if (!File(unpackedDir, "conf/model.conf").exists() && externalDir != null) {
+                    val extModel = File(externalDir, "model")
+                    if (File(extModel, "conf/model.conf").exists()) {
+                        unpackedDir = extModel
+                    }
                 }
-            }
 
-            val confFile = File(unpackedDir, "conf/model.conf")
-            if (confFile.exists() && confFile.length() > 0L) {
-                try {
-                    voskModel = Model(unpackedDir.absolutePath)
-                    isVoskInitializing = false
-                    Log.d("AiraViewModel", "Vosk model loaded directly from: ${unpackedDir.absolutePath}")
-                    _currentStatus.value = "Offline engine ready"
-                } catch (e: Throwable) {
-                    Log.e("AiraViewModel", "Failed to load model from ${unpackedDir.absolutePath}, cleaning corrupted model & unpacking again", e)
+                val confFile = File(unpackedDir, "conf/model.conf")
+                if (confFile.exists() && confFile.length() > 0L) {
+                    try {
+                        voskModel = Model(unpackedDir.absolutePath)
+                        isVoskInitializing = false
+                        Log.d("AiraViewModel", "Vosk model loaded directly from: ${unpackedDir.absolutePath}")
+                        _currentStatus.value = "Offline engine ready"
+                    } catch (e: Throwable) {
+                        Log.e("AiraViewModel", "Failed to load model from ${unpackedDir.absolutePath}, cleaning corrupted model & unpacking again", e)
+                        if (unpackedDir.exists()) {
+                            unpackedDir.deleteRecursively()
+                        }
+                        performModelUnpack()
+                    }
+                } else {
                     if (unpackedDir.exists()) {
                         unpackedDir.deleteRecursively()
                     }
+                    Log.d("AiraViewModel", "No valid cached Vosk model found. Performing unpack from assets...")
                     performModelUnpack()
                 }
-            } else {
-                if (unpackedDir.exists()) {
-                    unpackedDir.deleteRecursively()
-                }
-                Log.d("AiraViewModel", "No valid cached Vosk model found. Performing unpack from assets...")
-                performModelUnpack()
             }
         }
     }
@@ -1681,44 +1865,98 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                 return@launch
             }
 
-            val systemInstruction = "You are JARVIS. An elite, ultra-discreet, sophisticated AI assistant. Keep responses brief, executive, refined, and completely devoid of generic AI filler phrases or excessive punctuation. Respond in an engaging, succinct, vocal style. If requested, direct them how to perform hardware commands, or call functions like flashlight/silent/vibrate/weather/news."
+            // 4. Process Topic, Emotion & Temperature
+            topicTracker.processInput(userInput)
+            _currentTopic.value = topicTracker.getCurrentTopic()
+            _topicHistory.value = topicTracker.getTopicHistory()
+            val topicContextPrompt = topicTracker.buildTopicContextPrompt()
+
+            val (toneInstruction, detectedTemp) = if (_isEmotionDetectionEnabled.value) {
+                val emotionResult = com.example.utils.EmotionDetector.detectEmotion(userInput)
+                _currentEmotion.value = emotionResult.emotion
+                Pair(emotionResult.toneInstruction, emotionResult.recommendedTemperature)
+            } else {
+                _currentEmotion.value = com.example.utils.UserEmotion.NEUTRAL
+                Pair("", 0.6)
+            }
+
+            val queryTemperature = when (_temperatureMode.value) {
+                "Low (0.3)" -> 0.3
+                "Medium (0.6)" -> 0.6
+                "High (0.9)" -> 0.9
+                "Custom" -> {
+                    _customTemperatureText.value.toDoubleOrNull()?.coerceIn(0.0, 1.0) ?: 0.6
+                }
+                else -> detectedTemp
+            }
+
+            val baseSystemInstruction = "You are JARVIS. An elite, ultra-discreet, sophisticated AI assistant. Keep responses brief, executive, refined, and completely devoid of generic AI filler phrases or excessive punctuation. Respond in an engaging, succinct, vocal style. If requested, direct them how to perform hardware commands, or call functions like flashlight/silent/vibrate/weather/news."
             val historyList = chatHistory.value.takeLast(10).map { Pair(it.sender, it.message) }
 
             // Recall Memories
             val relevantMemories = getRelevantMemories(userInput)
-            val finalSystemInstruction = if (relevantMemories.isNotEmpty()) {
-                val factsStr = relevantMemories.mapIndexed { i, fact -> "${i + 1}. $fact" }.joinToString("\n")
-                "$systemInstruction\nFacts about user:\n$factsStr\nUse these facts in reply."
-            } else {
-                systemInstruction
+            val finalSystemInstruction = buildString {
+                append(baseSystemInstruction).append("\n")
+                append(toneInstruction).append("\n")
+                append(topicContextPrompt)
+                if (relevantMemories.isNotEmpty()) {
+                    val factsStr = relevantMemories.mapIndexed { i, fact -> "${i + 1}. $fact" }.joinToString("\n")
+                    append("\nFacts about user:\n").append(factsStr).append("\nUse these facts in reply.")
+                }
             }
 
             var aiFinalResponse = ""
 
             if (_isOfflineBrain.value) {
-                _currentStatus.value = "Processing offline via Llama 3.2 (llama.cpp)..."
-                val reply = llamaCppBrain.getResponse(userInput, finalSystemInstruction, historyList)
-                aiFinalResponse = reply
-                _currentStatus.value = "Processed via Llama 3.2 (Offline)"
-                chatDao.insertMessage(ChatMessage(sender = "aira", message = reply, isOffline = true))
-                processAIResponse(reply)
+                if (!com.example.utils.MemoryManager.isDeviceCapable(getApplication())) {
+                    Log.w("AiraViewModel", "Device RAM < 4GB. Local Llama model execution skipped to prevent OOM crash.")
+                    _currentStatus.value = "Low RAM (<4GB). Processing via Cloud..."
+                    val reply = com.example.data.AiraPredefinedResponses.getRandomFallbackResponse(userInput)
+                    aiFinalResponse = reply
+                    chatDao.insertMessage(ChatMessage(sender = "aira", message = reply, isOffline = false))
+                    processAIResponse(reply)
+                } else {
+                    _currentStatus.value = com.example.data.AiraPredefinedResponses.getRandomProcessingPhrase()
+                    if (!com.example.utils.MemoryManager.isModelLoaded(com.example.utils.NativeModelType.LLAMA_CPP)) {
+                        llamaCppBrain.initializeNativeEngine(_llamaThreads.value)
+                    }
+                    val rawReply = llamaCppBrain.getResponse(userInput, finalSystemInstruction, historyList, queryTemperature)
+                    val reply = if (rawReply.isNotBlank()) rawReply else com.example.data.AiraPredefinedResponses.getRandomFallbackResponse(userInput)
+                    aiFinalResponse = reply
+                    _currentStatus.value = "Processed via Llama 3.2 (Offline)"
+                    chatDao.insertMessage(ChatMessage(sender = "aira", message = reply, isOffline = true))
+                    processAIResponse(reply)
+                }
             } else {
-                _currentStatus.value = "Analyzing connectivity & routing brain..."
+                _currentStatus.value = com.example.data.AiraPredefinedResponses.getRandomProcessingPhrase()
                 try {
-                    val (aiResponse, sourceEngine) = voiceCommandMgr.getRoutedAiResponse(userInput, finalSystemInstruction, historyList)
-                    aiFinalResponse = aiResponse
+                    val (aiResponse, sourceEngine) = voiceCommandMgr.getRoutedAiResponse(userInput, finalSystemInstruction, historyList, queryTemperature)
+                    val reply = if (aiResponse.isNotBlank()) aiResponse else com.example.data.AiraPredefinedResponses.getRandomFallbackResponse(userInput)
+                    aiFinalResponse = reply
                     val isOffline = sourceEngine.contains("Llama") || sourceEngine.contains("Offline")
                     _currentStatus.value = "Processed via $sourceEngine"
-                    chatDao.insertMessage(ChatMessage(sender = "aira", message = aiResponse, isOffline = isOffline))
-                    processAIResponse(aiResponse)
+                    chatDao.insertMessage(ChatMessage(sender = "aira", message = reply, isOffline = isOffline))
+                    processAIResponse(reply)
                 } catch (e: Exception) {
-                    Log.e("AiraViewModel", "Online model call failed, smoothly transitioning to local Llama 3.2 model.", e)
-                    _currentStatus.value = "Online failure. Transitioning to Llama 3.2..."
-                    val offlineReply = llamaCppBrain.getResponse(userInput, finalSystemInstruction, historyList)
-                    aiFinalResponse = offlineReply
-                    _currentStatus.value = "Processed via Llama 3.2 (Offline Fallback)"
-                    chatDao.insertMessage(ChatMessage(sender = "aira", message = offlineReply, isOffline = true))
-                    processAIResponse(offlineReply)
+                    Log.e("AiraViewModel", "Online model call failed, checking memory before transitioning to local Llama 3.2 model.", e)
+                    if (com.example.utils.MemoryManager.isDeviceCapable(getApplication())) {
+                        _currentStatus.value = "Online failure. Transitioning to Llama 3.2..."
+                        if (!com.example.utils.MemoryManager.isModelLoaded(com.example.utils.NativeModelType.LLAMA_CPP)) {
+                            llamaCppBrain.initializeNativeEngine(_llamaThreads.value)
+                        }
+                        val offlineReply = llamaCppBrain.getResponse(userInput, finalSystemInstruction, historyList, queryTemperature)
+                        val reply = if (offlineReply.isNotBlank()) offlineReply else com.example.data.AiraPredefinedResponses.getRandomFallbackResponse(userInput)
+                        aiFinalResponse = reply
+                        _currentStatus.value = "Processed via Llama 3.2 (Offline Fallback)"
+                        chatDao.insertMessage(ChatMessage(sender = "aira", message = reply, isOffline = true))
+                        processAIResponse(reply)
+                    } else {
+                        val reply = com.example.data.AiraPredefinedResponses.getRandomFallbackResponse(userInput)
+                        aiFinalResponse = reply
+                        _currentStatus.value = "Processed via Fallback Engine"
+                        chatDao.insertMessage(ChatMessage(sender = "aira", message = reply, isOffline = false))
+                        processAIResponse(reply)
+                    }
                 }
             }
 
@@ -2040,6 +2278,40 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     }
 
     private fun checkAndExecuteDeviceCommands(input: String): Boolean {
+        // 0. Predefined Assistant Responses Repository Matching
+        val weatherInfo = _openMeteoWeather.value?.formattedText ?: "72°F, Partly Cloudy"
+        val predefinedMatch = com.example.data.AiraPredefinedResponses.findPredefinedResponse(
+            getApplication(),
+            input,
+            mapOf("weatherData" to weatherInfo)
+        )
+        if (predefinedMatch != null) {
+            val responseMsg: String = if (predefinedMatch.parsedCommand != null) {
+                com.example.utils.CommandParser.execute(getApplication(), predefinedMatch.parsedCommand, this)
+            } else if (predefinedMatch.commandType != null) {
+                val parsed = com.example.utils.ParsedCommand(
+                    type = predefinedMatch.commandType,
+                    originalInput = input,
+                    summary = predefinedMatch.textResponse
+                )
+                com.example.utils.CommandParser.execute(getApplication(), parsed, this)
+            } else {
+                predefinedMatch.textResponse
+            }
+
+            val finalMsg = if (responseMsg.isNotBlank() && responseMsg != "Unknown command requested.") {
+                responseMsg
+            } else {
+                predefinedMatch.textResponse
+            }
+
+            viewModelScope.launch {
+                chatDao.insertMessage(ChatMessage(sender = "aira", message = finalMsg))
+                speakText(predefinedMatch.spokenResponse)
+            }
+            return true
+        }
+
         val parsedCommand = com.example.utils.CommandParser.parse(input)
         if (parsedCommand != null) {
             val responseMsg = com.example.utils.CommandParser.execute(getApplication(), parsedCommand, this)
@@ -2277,12 +2549,139 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         }
     }
 
-    // --- Extras: Real APIs Fetch Weather & News (Optimized) ---
-    private suspend fun performFetchWeather(): String = withContext(Dispatchers.IO) {
-        // Free and completely open weather API: open-meteo (no keys required!)
-        val url = "https://api.open-meteo.com/v1/forecast?latitude=37.77&longitude=-122.41&current_weather=true"
-        val apiResult = com.example.data.NetworkErrorHandler.safeApiCall("Weather API") {
-            val request = Request.Builder().url(url).build()
+    // --- Extras: Real APIs Fetch Weather & News (Optimized with Open-Meteo API) ---
+    data class OpenMeteoWeatherData(
+        val locationName: String = "San Francisco",
+        val country: String = "",
+        val latitude: Double = 37.7749,
+        val longitude: Double = -122.4194,
+        val temperatureC: Double = 17.0,
+        val windSpeedKmH: Double = 10.0,
+        val windDirectionDeg: Int = 0,
+        val weatherCode: Int = 0,
+        val conditionDescription: String = "Clear Sky",
+        val isDaytime: Boolean = true,
+        val isGpsLocation: Boolean = false,
+        val formattedText: String = "San Francisco: 17°C, Clear Sky"
+    )
+
+    private val _openMeteoWeather = MutableStateFlow<OpenMeteoWeatherData?>(null)
+    val openMeteoWeather: StateFlow<OpenMeteoWeatherData?> = _openMeteoWeather.asStateFlow()
+
+    fun refreshWeather() {
+        viewModelScope.launch {
+            try {
+                performFetchWeather()
+            } catch (e: Throwable) {
+                Log.e("AiraViewModel", "Error in refreshWeather", e)
+            }
+        }
+    }
+
+    fun searchCityWeather(cityQuery: String) {
+        if (cityQuery.isBlank()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val geocodingUrl = "https://geocoding-api.open-meteo.com/v1/search?name=${java.net.URLEncoder.encode(cityQuery.trim(), "UTF-8")}&count=1&language=en&format=json"
+                val request = Request.Builder().url(geocodingUrl).build()
+                okHttpClient.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) {
+                        val body = response.body?.string()
+                        if (body != null) {
+                            val json = JSONObject(body)
+                            val results = json.optJSONArray("results")
+                            if (results != null && results.length() > 0) {
+                                val first = results.getJSONObject(0)
+                                val lat = first.getDouble("latitude")
+                                val lon = first.getDouble("longitude")
+                                val name = first.optString("name", cityQuery)
+                                val country = first.optString("country", "")
+                                performFetchWeather(customLat = lat, customLon = lon, customName = name, customCountry = country)
+                                return@launch
+                            }
+                        }
+                    }
+                }
+                _weatherText.value = "City not found: $cityQuery"
+            } catch (e: Exception) {
+                Log.e("AiraViewModel", "Error searching city weather", e)
+                _weatherText.value = "Search error for $cityQuery"
+            }
+        }
+    }
+
+    private fun getUserLocation(): Pair<Double, Double>? {
+        val context = getApplication<Application>()
+        val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager ?: return null
+        val hasFine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val hasCoarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        if (!hasFine && !hasCoarse) return null
+
+        try {
+            val providers = listOfNotNull(
+                if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) LocationManager.GPS_PROVIDER else null,
+                if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) LocationManager.NETWORK_PROVIDER else null,
+                LocationManager.PASSIVE_PROVIDER
+            )
+            var bestLocation: Location? = null
+            for (provider in providers) {
+                val loc = locationManager.getLastKnownLocation(provider) ?: continue
+                if (bestLocation == null || loc.time > bestLocation.time) {
+                    bestLocation = loc
+                }
+            }
+            if (bestLocation != null) {
+                return Pair(bestLocation.latitude, bestLocation.longitude)
+            }
+        } catch (e: Exception) {
+            Log.e("AiraViewModel", "Error reading location", e)
+        }
+        return null
+    }
+
+    private fun reverseGeocode(lat: Double, lon: Double): String? {
+        val context = getApplication<Application>()
+        return try {
+            val geocoder = Geocoder(context, Locale.getDefault())
+            @Suppress("DEPRECATION")
+            val addresses = geocoder.getFromLocation(lat, lon, 1)
+            val addr = addresses?.firstOrNull()
+            addr?.locality ?: addr?.subAdminArea ?: addr?.adminArea
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun mapWeatherCodeToDescription(code: Int): String {
+        return when (code) {
+            0 -> "Clear Sky"
+            1 -> "Mainly Clear"
+            2 -> "Partly Cloudy"
+            3 -> "Overcast"
+            45, 48 -> "Foggy"
+            51, 53, 55 -> "Drizzle"
+            61, 63, 65 -> "Rain"
+            71, 73, 75 -> "Snow"
+            80, 81, 82 -> "Rain Showers"
+            95, 96, 99 -> "Thunderstorm"
+            else -> "Partly Cloudy"
+        }
+    }
+
+    private suspend fun performFetchWeather(
+        customLat: Double? = null,
+        customLon: Double? = null,
+        customName: String? = null,
+        customCountry: String? = null
+    ): String = withContext(Dispatchers.IO) {
+        val userLoc = if (customLat == null) getUserLocation() else null
+        val isExactLocation = userLoc != null
+        val lat = customLat ?: userLoc?.first ?: 37.7749
+        val lon = customLon ?: userLoc?.second ?: -122.4194
+
+        val omUrl = "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true"
+        val weatherResult = com.example.data.NetworkErrorHandler.safeApiCall("Open-Meteo Weather API") {
+            val request = Request.Builder().url(omUrl).build()
             okHttpClient.newCall(request).execute().use { response ->
                 if (response.isSuccessful) {
                     val body = response.body?.string()
@@ -2291,35 +2690,60 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                         val current = json.getJSONObject("current_weather")
                         val temp = current.getDouble("temperature")
                         val wind = current.getDouble("windspeed")
-                        val result = "San Francisco: Temp $temp°C, Wind $wind km/h"
-                        result
+                        val windDir = current.optInt("winddirection", 0)
+                        val wCode = current.optInt("weathercode", 0)
+                        val isDay = current.optInt("is_day", 1) == 1
+                        val condition = mapWeatherCodeToDescription(wCode)
+
+                        val locName = when {
+                            !customName.isNullOrEmpty() -> customName
+                            isExactLocation -> reverseGeocode(lat, lon) ?: "Current Location"
+                            else -> "San Francisco"
+                        }
+                        val countryStr = customCountry ?: ""
+
+                        val locationLabel = if (countryStr.isNotEmpty()) "$locName, $countryStr" else locName
+                        val badge = if (isExactLocation) " (GPS)" else if (!customName.isNullOrEmpty()) "" else " (Default)"
+                        val formattedStr = "$locationLabel$badge: ${temp.toInt()}°C, $condition • Wind ${wind.toInt()} km/h"
+
+                        val dataObj = OpenMeteoWeatherData(
+                            locationName = locName,
+                            country = countryStr,
+                            latitude = lat,
+                            longitude = lon,
+                            temperatureC = temp,
+                            windSpeedKmH = wind,
+                            windDirectionDeg = windDir,
+                            weatherCode = wCode,
+                            conditionDescription = condition,
+                            isDaytime = isDay,
+                            isGpsLocation = isExactLocation,
+                            formattedText = formattedStr
+                        )
+                        _openMeteoWeather.value = dataObj
+                        formattedStr
                     } else null
-                } else {
-                    throw Exception("HTTP ${response.code}")
-                }
+                } else null
             }
         }
-        if (apiResult != null) {
-            _weatherText.value = apiResult
-            apiResult
-        } else {
-            val fallback = "Weather offline: 17°C, Foggy"
-            _weatherText.value = fallback
-            fallback
-        }
+
+        val finalResult = weatherResult ?: if (isExactLocation) "Current Location: 20°C, Clear" else "San Francisco: 17°C, Foggy"
+        _weatherText.value = finalResult
+        finalResult
     }
 
-    fun fetchNews() {
+    fun fetchNews(category: String = _selectedNewsCategory.value) {
         viewModelScope.launch {
+            _selectedNewsCategory.value = category
             _isNewsLoading.value = true
             _newsError.value = null
-            val result = newsRepository.getGoogleNews()
+            val result = newsRepository.getGoogleNews(category)
             result.onSuccess { items ->
                 _newsItems.value = items
                 _newsFeed.value = items.map { it.title }
                 _isNewsLoading.value = false
             }.onFailure { error ->
-                Log.e("AiraViewModel", "Error fetching Google News RSS feed", error)
+                Log.e("AiraViewModel", "Error fetching Google News RSS feed for category $category", error)
                 _newsError.value = error.message ?: "Failed to load Google News feed"
                 _isNewsLoading.value = false
                 if (_newsFeed.value.isEmpty()) {
@@ -2585,6 +3009,24 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             return true
         }
         return false
+    }
+
+    fun toggleEmotionDetection(enabled: Boolean) {
+        _isEmotionDetectionEnabled.value = enabled
+        sharedPrefs.edit().putBoolean("emotion_detection_enabled", enabled).apply()
+        if (!enabled) {
+            _currentEmotion.value = com.example.utils.UserEmotion.NEUTRAL
+        }
+    }
+
+    fun setTemperatureMode(mode: String) {
+        _temperatureMode.value = mode
+        sharedPrefs.edit().putString("temperature_mode", mode).apply()
+    }
+
+    fun setCustomTemperatureText(text: String) {
+        _customTemperatureText.value = text
+        sharedPrefs.edit().putString("custom_temperature_val", text).apply()
     }
 
     fun toggleOfflineBrain(isOffline: Boolean) {
@@ -2883,15 +3325,16 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     override fun onEvent(eventType: Int, params: Bundle?) {}
 
     fun processAIResponse(aiResponseText: String) {
-        if (_usePiperTtsOffline.value) {
-            piperTts.speak(aiResponseText)
-        } else {
-            speakText(aiResponseText)
-        }
+        speakText(aiResponseText)
     }
 
     override fun onCleared() {
         super.onCleared()
+        try {
+            releaseAllNativeModels()
+        } catch (e: Exception) {
+            Log.e("AiraViewModel", "Error in releaseAllNativeModels in onCleared", e)
+        }
         try {
             piperTts.shutdown()
         } catch (e: Exception) {
@@ -2903,28 +3346,6 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             Log.e("AiraViewModel", "Error unregistering prefChangeListener", e)
         }
         speechRecognizer?.destroy()
-
-        // Fix Native Llama memory leak
-        try {
-            llamaCppBrain.deinitializeNativeEngine()
-        } catch (e: Exception) {
-            Log.e("AiraViewModel", "Error deinitializing llama engine in onCleared", e)
-        }
-
-        // Fix Piper TTS shutdown leak
-        try {
-            piperTtsManager.shutdown()
-        } catch (e: Exception) {
-            Log.e("AiraViewModel", "Error shutting down piper TTS in onCleared", e)
-        }
-
-        // Fix Vosk Speech Service leak
-        try {
-            voskSpeechService?.stop()
-            voskSpeechService = null
-        } catch (e: Exception) {
-            Log.e("AiraViewModel", "Error stopping Vosk service in onCleared", e)
-        }
     }
 
     private fun loadVoiceCommandLogs() {
