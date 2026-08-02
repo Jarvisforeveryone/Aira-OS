@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -2122,6 +2123,7 @@ fun SystemSettingsScreen(
     val isOffline by viewModel.isOfflineBrain.collectAsState()
     val onlineModel by viewModel.onlineModel.collectAsState()
     val llamaThreads by viewModel.llamaThreads.collectAsState()
+    val isDeviceMemoryCapable by viewModel.isDeviceMemoryCapable.collectAsState()
 
     var isExpanded by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
@@ -2370,6 +2372,34 @@ fun SystemSettingsScreen(
                         color = MaterialTheme.colorScheme.onSurface
                     )
 
+                    if (!isDeviceMemoryCapable) {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = "Warning",
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Text(
+                                    text = "Disabled for your device (RAM < 3GB). Local Llama 3.2 engine is disabled to prevent native memory crashes. Online AI will be used.",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    fontFamily = FontFamily.SansSerif,
+                                    lineHeight = 16.sp
+                                )
+                            }
+                        }
+                    }
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -2377,14 +2407,15 @@ fun SystemSettingsScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
-                                text = "Offline AI Assistant",
+                                text = "Offline AI Assistant (Llama 3.2)",
                                 fontSize = 16.sp, // Body
                                 fontWeight = FontWeight.Medium,
                                 fontFamily = FontFamily.SansSerif,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = if (isDeviceMemoryCapable) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                             )
                             Text(
-                                text = "Execute on-device deep language graph predictions instead of external servers.",
+                                text = if (isDeviceMemoryCapable) "Execute on-device deep language graph predictions instead of external servers."
+                                       else "Not recommended for your device (<3GB RAM). Switch disabled for memory stability.",
                                 fontSize = 14.sp, // Caption
                                 fontWeight = FontWeight.Normal,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -2394,7 +2425,8 @@ fun SystemSettingsScreen(
                         }
 
                         Switch(
-                            checked = isOffline,
+                            checked = isOffline && isDeviceMemoryCapable,
+                            enabled = isDeviceMemoryCapable,
                             onCheckedChange = { viewModel.toggleOfflineBrain(it) },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = MaterialTheme.colorScheme.primary,

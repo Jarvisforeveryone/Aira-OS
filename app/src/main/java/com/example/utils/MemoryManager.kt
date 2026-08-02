@@ -12,31 +12,38 @@ enum class NativeModelType {
 
 /**
  * UNIFIED MEMORY MANAGER FOR JNI NATIVE MEMORY
- * Dynamically manages RAM allocations, prevents crashes on low-RAM devices (< 4GB),
+ * Dynamically manages RAM allocations, prevents crashes on low-RAM devices (< 3GB),
  * enforces lazy model loading on demand, and ensures immediate native memory release.
  */
 object MemoryManager {
     private const val TAG = "MemoryManager"
-    private const val MIN_RAM_BYTES_FOR_HEAVY_MODELS = 4L * 1024L * 1024L * 1024L // 4 GB RAM Threshold
+    private const val MIN_RAM_BYTES_FOR_LLAMA = 3L * 1024L * 1024L * 1024L // 3 GB RAM Threshold
 
     private val loadedModels = mutableSetOf<NativeModelType>()
 
     /**
-     * Checks if the device has sufficient total RAM (>= 4GB) to run heavy JNI models like local Llama 3.2.
+     * Checks if the device has sufficient total RAM (>= 3GB) to run heavy JNI models like local Llama 3.2.
+     * On devices with < 3GB RAM (e.g. 2GB RAM devices), Llama 3.2 is disabled to prevent native OOM crashes.
      */
-    fun isDeviceCapable(context: Context): Boolean {
+    fun isLlamaSupported(context: Context): Boolean {
         return try {
             val actManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
             val memInfo = ActivityManager.MemoryInfo()
             actManager.getMemoryInfo(memInfo)
             val totalRam = memInfo.totalMem
-            Log.d(TAG, "Device total RAM: ${totalRam / (1024 * 1024)} MB")
-            totalRam >= MIN_RAM_BYTES_FOR_HEAVY_MODELS
+            val isLowRam = actManager.isLowRamDevice
+            Log.d(TAG, "Device total RAM: ${totalRam / (1024 * 1024)} MB, isLowRamDevice: $isLowRam")
+            !isLowRam && totalRam >= MIN_RAM_BYTES_FOR_LLAMA
         } catch (e: Exception) {
-            Log.e(TAG, "Error checking system RAM, defaulting to capable", e)
-            true
+            Log.e(TAG, "Error checking system RAM, defaulting to false for safety", e)
+            false
         }
     }
+
+    /**
+     * Checks if the device has sufficient total RAM (>= 3GB) to run heavy JNI models.
+     */
+    fun isDeviceCapable(context: Context): Boolean = isLlamaSupported(context)
 
     /**
      * Returns total RAM in megabytes.
@@ -73,7 +80,7 @@ object MemoryManager {
     @Synchronized
     fun loadModelOnDemand(context: Context, type: NativeModelType, onLoadAction: () -> Unit): Boolean {
         if (type == NativeModelType.LLAMA_CPP && !isDeviceCapable(context)) {
-            Log.w(TAG, "Device RAM < 4GB. Skipping heavy Llama 3.2 local model to prevent native memory crash.")
+            Log.w(TAG, "Device RAM < 3GB. Skipping heavy Llama 3.2 local model to prevent native memory crash.")
             return false
         }
 

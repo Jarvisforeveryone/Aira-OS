@@ -56,6 +56,7 @@ fun OfflineStatusDashboardScreen(
     val isOfflineBrain by viewModel.isOfflineBrain.collectAsState()
     val llamaThreads by viewModel.llamaThreads.collectAsState()
     val currentEngineSource by viewModel.currentEngineSource.collectAsState()
+    val isDeviceMemoryCapable by viewModel.isDeviceMemoryCapable.collectAsState()
 
     // Diagnostic log & verification trigger
     var diagnosticMessage by remember { mutableStateOf<String?>(null) }
@@ -627,11 +628,21 @@ fun OfflineStatusDashboardScreen(
                     title = "Llama 3.2 Local Brain & Storage",
                     subtitle = "On-Device Neural Reasoning & SQLite Memory",
                     icon = Icons.Default.Psychology,
-                    statusBadgeText = if (isOfflineBrain) "OFFLINE BRAIN ACTIVE" else "ONLINE HYBRID",
-                    statusBadgeColor = if (isOfflineBrain) colorResource(R.color.aira_success_light) else MaterialTheme.colorScheme.primary,
+                    statusBadgeText = if (!isDeviceMemoryCapable) "DISABLED (<3GB RAM)" else if (isOfflineBrain) "OFFLINE BRAIN ACTIVE" else "ONLINE HYBRID",
+                    statusBadgeColor = if (!isDeviceMemoryCapable) MaterialTheme.colorScheme.error else if (isOfflineBrain) colorResource(R.color.aira_success_light) else MaterialTheme.colorScheme.primary,
                     testTag = "llama_local_brain_card"
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (!isDeviceMemoryCapable) {
+                            Text(
+                                text = "⚠️ Disabled on devices with < 3GB RAM. Llama 3.2 is skipped to prevent OOM memory crashes. Cloud AI (Gemini), Vosk STT, and Piper ONNX TTS remain active.",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.error,
+                                fontFamily = FontFamily.SansSerif,
+                                lineHeight = 16.sp
+                            )
+                        }
                         InfoRow(label = "System Status", value = llamaEngineStatus)
                         InfoRow(label = "Model Quantization", value = "Llama-3.2 1B/3B Instruct (Q4_K_M)")
                         InfoRow(label = "Parallel CPU Threads", value = "$llamaThreads Threads Configured")
@@ -643,23 +654,25 @@ fun OfflineStatusDashboardScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = "Force Offline Brain Mode",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Medium,
                                     fontFamily = FontFamily.SansSerif,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    color = if (isDeviceMemoryCapable) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                                 )
                                 Text(
-                                    text = "Process all AI queries strictly on-device without cloud calls",
+                                    text = if (isDeviceMemoryCapable) "Process all AI queries strictly on-device without cloud calls"
+                                           else "Not supported on 2GB RAM devices",
                                     fontSize = 12.sp,
                                     fontFamily = FontFamily.SansSerif,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             Switch(
-                                checked = isOfflineBrain,
+                                checked = isOfflineBrain && isDeviceMemoryCapable,
+                                enabled = isDeviceMemoryCapable,
                                 onCheckedChange = { viewModel.toggleOfflineBrain(it) },
                                 modifier = Modifier.testTag("toggle_offline_brain_switch")
                             )

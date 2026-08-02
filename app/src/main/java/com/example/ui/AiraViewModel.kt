@@ -1141,6 +1141,24 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), VoiceAssistantState.NOT_DOWNLOADED)
 
     private var amplitudeJob: Job? = null
+    private var voskWaveJob: Job? = null
+
+    private fun startVoskWaveLoop() {
+        voskWaveJob?.cancel()
+        voskWaveJob = viewModelScope.launch(Dispatchers.Default) {
+            var tick = 0f
+            while (_isListening.value && !_isSpeaking.value && !isUsingGoogleSTT) {
+                val base = Math.abs(Math.sin(tick.toDouble())).toFloat() * 0.5f
+                val noise = (Math.random().toFloat() * 0.35f)
+                _audioAmplitude.value = (base + noise).coerceIn(0.1f, 1f)
+                tick += 0.25f
+                kotlinx.coroutines.delay(40)
+            }
+            if (!_isSpeaking.value) {
+                _audioAmplitude.value = 0f
+            }
+        }
+    }
 
     // --- Extras Live Data States ---
     private val _weatherText = MutableStateFlow("Offline / Not Loaded")
@@ -1175,7 +1193,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             sharedPrefs.registerOnSharedPreferenceChangeListener(prefChangeListener)
 
             if (!_isDeviceMemoryCapable.value) {
-                Log.w("AiraViewModel", "Device RAM is < 4GB (${_totalRamMb.value} MB). Disabling heavy local Llama model by default.")
+                Log.w("AiraViewModel", "Device RAM is < 3GB (${_totalRamMb.value} MB). Disabling heavy local Llama model by default.")
                 _isOfflineBrain.value = false
             }
             
@@ -1574,6 +1592,8 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     fun stopListening() {
         handler.removeCallbacks(timeoutRunnable)
         _isListening.value = false
+        voskWaveJob?.cancel()
+        _audioAmplitude.value = 0f
 
         try {
             speechRecognizer?.stopListening()
@@ -1642,6 +1662,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
 
         try {
             _currentStatus.value = "Listening (Offline)..."
+            startVoskWaveLoop()
             val recognizer = Recognizer(model, 16000.0f)
             voskSpeechService = SpeechService(recognizer, 16000.0f)
             voskSpeechService?.startListening(object : org.vosk.android.RecognitionListener {
@@ -1909,12 +1930,23 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
 
             if (_isOfflineBrain.value) {
                 if (!com.example.utils.MemoryManager.isDeviceCapable(getApplication())) {
-                    Log.w("AiraViewModel", "Device RAM < 4GB. Local Llama model execution skipped to prevent OOM crash.")
-                    _currentStatus.value = "Low RAM (<4GB). Processing via Cloud..."
-                    val reply = com.example.data.AiraPredefinedResponses.getRandomFallbackResponse(userInput)
-                    aiFinalResponse = reply
-                    chatDao.insertMessage(ChatMessage(sender = "aira", message = reply, isOffline = false))
-                    processAIResponse(reply)
+                    Log.w("AiraViewModel", "Device RAM < 3GB. Local Llama model execution skipped to prevent OOM crash.")
+                    _currentStatus.value = "Low RAM (<3GB): Using Online AI..."
+                    try {
+                        val (aiResponse, sourceEngine) = voiceCommandMgr.getRoutedAiResponse(userInput, finalSystemInstruction, historyList, queryTemperature)
+                        val reply = if (aiResponse.isNotBlank()) aiResponse else com.example.data.AiraPredefinedResponses.getRandomFallbackResponse(userInput)
+                        aiFinalResponse = reply
+                        _currentStatus.value = "Processed via $sourceEngine (Online Fallback)"
+                        chatDao.insertMessage(ChatMessage(sender = "aira", message = reply, isOffline = false))
+                        processAIResponse(reply)
+                    } catch (e: Exception) {
+                        Log.e("AiraViewModel", "Online AI call failed, using offline predefined fallback response.", e)
+                        val reply = com.example.data.AiraPredefinedResponses.getRandomFallbackResponse(userInput)
+                        aiFinalResponse = reply
+                        _currentStatus.value = "Processed via Predefined Offline Fallback"
+                        chatDao.insertMessage(ChatMessage(sender = "aira", message = reply, isOffline = true))
+                        processAIResponse(reply)
+                    }
                 } else {
                     _currentStatus.value = com.example.data.AiraPredefinedResponses.getRandomProcessingPhrase()
                     if (!com.example.utils.MemoryManager.isModelLoaded(com.example.utils.NativeModelType.LLAMA_CPP)) {
@@ -3030,6 +3062,12 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     }
 
     fun toggleOfflineBrain(isOffline: Boolean) {
+        if (isOffline && !com.example.utils.MemoryManager.isDeviceCapable(getApplication())) {
+            _isOfflineBrain.value = false
+            sharedPrefs.edit().putBoolean("offline_brain", false).apply()
+            speakText("Llama 3.2 local AI model is disabled on devices with less than 3GB RAM to prevent memory crash. Cloud AI will be used.")
+            return
+        }
         _isOfflineBrain.value = isOffline
         sharedPrefs.edit().putBoolean("offline_brain", isOffline).apply()
         val suffix = if (isOffline) "Active (Llama 3.2 local engine active)" else "Inactive (Online Brain active)"
@@ -3049,6 +3087,9 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     }
 
     fun getLlamaEngineStatus(): String {
+        if (!com.example.utils.MemoryManager.isDeviceCapable(getApplication())) {
+            return "Disabled (Device RAM < 3GB - Low Memory Protection)"
+        }
         return llamaCppBrain.getEngineStatus()
     }
 

@@ -513,6 +513,7 @@ private fun OnboardingBrainModeStep(
     isOfflineBrain: Boolean
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
+    val isDeviceMemoryCapable by viewModel.isDeviceMemoryCapable.collectAsState()
 
     // Canvas Vector Illustration for AI Modes
     Box(
@@ -608,11 +609,12 @@ private fun OnboardingBrainModeStep(
 
     // Selectable Option 2: Offline Local LLaMA
     SelectableBrainCard(
-        title = "100% Offline Local AI Mode",
-        subtitle = "Runs LLaMA 3.2 local model directly on your device CPU/NPU. Complete privacy with zero data leaving phone.",
+        title = if (isDeviceMemoryCapable) "100% Offline Local AI Mode" else "100% Offline Local AI (Disabled)",
+        subtitle = if (isDeviceMemoryCapable) "Runs LLaMA 3.2 local model directly on your device CPU/NPU. Complete privacy with zero data leaving phone."
+                  else "Not recommended for your device (< 3GB RAM). Disabled to prevent memory crashes.",
         icon = Icons.Default.PhonelinkRing,
-        accentColor = colorResource(R.color.aira_success_light),
-        isSelected = isOfflineBrain,
+        accentColor = if (isDeviceMemoryCapable) colorResource(R.color.aira_success_light) else MaterialTheme.colorScheme.onSurfaceVariant,
+        isSelected = isOfflineBrain && isDeviceMemoryCapable,
         tag = "onboarding_select_offline_brain",
         onClick = { viewModel.toggleOfflineBrain(true) }
     )
