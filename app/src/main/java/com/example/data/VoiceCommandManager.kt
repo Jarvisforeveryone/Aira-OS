@@ -644,7 +644,19 @@ class VoiceCommandManager(private val context: Context) {
             try {
                 _currentEngineSource.value = onlineLabel
                 val response = apiBrain.getAiResponse(userInput, combinedInstruction, history, temperature)
-                Pair(response, onlineLabel)
+                if (response.contains("All chat keys are down") || response.contains("API key is missing") || response.startsWith("Error:")) {
+                    Log.w("VoiceCommandManager", "Online AI key missing/down, falling back to Local LLaMa / Rules Model")
+                    _currentEngineSource.value = "Llama 3.2 + Local Rules (Offline Fallback)"
+                    val offlineResp = try {
+                        val res = llamaCppBrain.getResponse(userInput, combinedInstruction, history, temperature)
+                        if (res.isBlank() || res.contains("Error")) apiBrain.getOfflineLocalResponse(userInput) else res
+                    } catch (e: Exception) {
+                        apiBrain.getOfflineLocalResponse(userInput)
+                    }
+                    Pair(offlineResp, "Jarvis Local Brain (Offline Fallback)")
+                } else {
+                    Pair(response, onlineLabel)
+                }
             } catch (e: Exception) {
                 Log.e("VoiceCommandManager", "Online AI model query failed, falling back to Local LLaMa / Rules Model", e)
                 _currentEngineSource.value = "Llama 3.2 + Local Rules (Offline Fallback)"

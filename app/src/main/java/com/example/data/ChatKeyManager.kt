@@ -34,6 +34,10 @@ class ChatKeyManager private constructor(context: Context) {
                 }
             }
         }
+        val envKey = com.example.BuildConfig.GEMINI_API_KEY
+        if (envKey.isNotBlank() && !envKey.startsWith("MY_") && (cooldowns[envKey] ?: 0L) <= currentTime) {
+            return envKey
+        }
         return null
     }
 
