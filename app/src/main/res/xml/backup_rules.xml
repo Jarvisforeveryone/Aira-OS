@@ -6,8 +6,10 @@
    See https://developer.android.com/about/versions/12/backup-restore
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <include domain="sharedpref" path="." />
+    <include domain="database" path="." />
+    <exclude domain="sharedpref" path="sec_aira_secure_api_keys.xml" />
+    <exclude domain="sharedpref" path="aira_secure_api_keys.xml" />
+    <exclude domain="sharedpref" path="aira_api_keys_fallback.xml" />
+    <exclude domain="sharedpref" path="__androidx_security_crypto_encrypted_file_pref__.xml" />
 </full-backup-content>

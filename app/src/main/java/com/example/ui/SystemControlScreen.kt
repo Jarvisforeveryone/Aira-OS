@@ -1492,7 +1492,7 @@ fun VoiceCommandScreen(
                                     .background(if (isLocalMode) colorResource(id = R.color.aira_success_light) else MaterialTheme.colorScheme.outline, CircleShape)
                             )
                             Text(
-                                text = "Local Mode (Vosk Library)",
+                                text = "Offline Speech Mode",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface,
@@ -1500,7 +1500,7 @@ fun VoiceCommandScreen(
                             )
                         }
                         Text(
-                            text = if (isLocalMode) "Processing all voice commands locally on-device using Vosk STT." else "Auto: Uses Vosk locally when internet is offline.",
+                            text = if (isLocalMode) "Processes voice commands privately on your device without internet." else "Auto: Uses private offline recognition when disconnected.",
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontFamily = FontFamily.SansSerif
@@ -1745,7 +1745,7 @@ fun VoiceCommandScreen(
                             tint = MaterialTheme.colorScheme.onPrimary
                         )
                         Text(
-                            text = "Accessibility & Device Policy Framework",
+                            text = "System Controls & Voice Actions",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Medium,
                             fontFamily = FontFamily.SansSerif,
@@ -1754,7 +1754,7 @@ fun VoiceCommandScreen(
                     }
 
                     Text(
-                        text = "Automates deep Android system actions and security policies via natural language commands.",
+                        text = "Control system settings and perform quick actions using voice.",
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -2448,14 +2448,14 @@ fun AssistantGoogleControlCard(
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Google Assistant Mode",
+                        text = "Default Voice Assistant Mode",
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
                         color = MaterialTheme.colorScheme.onSurface,
                         fontFamily = FontFamily.SansSerif
                     )
                     Text(
-                        text = "Full system assistant capability with voice & permissions",
+                        text = "Use AIRA as your phone's main voice assistant",
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontFamily = FontFamily.SansSerif

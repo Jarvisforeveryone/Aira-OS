@@ -38,10 +38,12 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.theme.AiraMotion
 import com.example.ui.theme.Dimens
 import com.example.ui.theme.bounceClick
+import com.example.utils.ScreenUtils
 
 /**
  * AIRA UNIFIED CARD COMPONENT (LOOP 1)
  * Standardizes card structures, headers, margins, borders, and micro-interactions across all screens.
+ * Automatically adjusts padding, elevation, and corner radius based on ScreenUtils responsive layout scale.
  */
 @Composable
 fun AiraCard(
@@ -52,13 +54,18 @@ fun AiraCard(
     icon: ImageVector? = null,
     iconTint: Color = MaterialTheme.colorScheme.primary,
     headerTrailing: (@Composable RowScope.() -> Unit)? = null,
-    cornerShape: RoundedCornerShape = RoundedCornerShape(20.dp),
+    cornerShape: RoundedCornerShape? = null,
     containerColor: Color = MaterialTheme.colorScheme.surface,
     borderColor: Color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
-    contentPadding: Dp = Dimens.InsideCardPadding,
+    contentPadding: Dp? = null,
     verticalSpacing: Dp = Dimens.ListVerticalSpacing,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val adaptive = ScreenUtils.adaptiveValues()
+    val effectivePadding = contentPadding ?: adaptive.cardPadding
+    val effectiveShape = cornerShape ?: RoundedCornerShape(adaptive.cornerRadius)
+    val effectiveElevation = adaptive.elevation
+
     val cardModifier = if (onClick != null) {
         modifier
             .fillMaxWidth()
@@ -69,15 +76,15 @@ fun AiraCard(
 
     Card(
         modifier = cardModifier,
-        shape = cornerShape,
+        shape = effectiveShape,
         colors = CardDefaults.cardColors(containerColor = containerColor),
         border = BorderStroke(1.dp, borderColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = effectiveElevation)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(contentPadding),
+                .padding(effectivePadding),
             verticalArrangement = Arrangement.spacedBy(verticalSpacing)
         ) {
             if (title != null || icon != null || headerTrailing != null) {

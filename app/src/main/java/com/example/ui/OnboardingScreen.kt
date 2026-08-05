@@ -342,7 +342,7 @@ private fun OnboardingWelcomeStep(viewModel: AiraViewModel) {
     FeatureHighlightCard(
         icon = Icons.Default.Mic,
         title = "Conversational Voice Chat",
-        description = "Natural speech synthesis & continuous voice listening with custom Piper TTS and Vosk engine.",
+        description = "Natural speech synthesis & continuous voice listening for smooth hands-free control.",
         tag = "voice_chat_card",
         onClick = { viewModel.speakText("Conversational Voice Chat provides natural offline and online speech interaction.") }
     )
@@ -596,8 +596,8 @@ private fun OnboardingBrainModeStep(
 
     // Selectable Option 1: Online Gemini API
     SelectableBrainCard(
-        title = "Online Gemini AI Mode",
-        subtitle = "Uses Gemini API for maximum knowledge, news synthesis, complex reasoning, and smart chat.",
+        title = "Online AI Mode",
+        subtitle = "Fast cloud-powered AI for wide knowledge, news, and complex conversations.",
         icon = Icons.Default.AutoAwesome,
         accentColor = primaryColor,
         isSelected = !isOfflineBrain,
@@ -609,8 +609,8 @@ private fun OnboardingBrainModeStep(
 
     // Selectable Option 2: Offline Local LLaMA
     SelectableBrainCard(
-        title = if (isDeviceMemoryCapable) "100% Offline Local AI Mode" else "100% Offline Local AI (Disabled)",
-        subtitle = if (isDeviceMemoryCapable) "Runs LLaMA 3.2 local model directly on your device CPU/NPU. Complete privacy with zero data leaving phone."
+        title = if (isDeviceMemoryCapable) "100% Private Offline AI Mode" else "100% Private Offline AI (Disabled)",
+        subtitle = if (isDeviceMemoryCapable) "Runs AI directly on your phone with zero internet required for total privacy."
                   else "Not recommended for your device (< 3GB RAM). Disabled to prevent memory crashes.",
         icon = Icons.Default.PhonelinkRing,
         accentColor = if (isDeviceMemoryCapable) colorResource(R.color.aira_success_light) else MaterialTheme.colorScheme.onSurfaceVariant,

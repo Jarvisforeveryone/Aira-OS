@@ -14,19 +14,7 @@ import java.util.concurrent.ConcurrentHashMap
  */
 class ChatKeyManager private constructor(context: Context) {
 
-    private val sharedPreferences: SharedPreferences = try {
-        val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
-        EncryptedSharedPreferences.create(
-            "aira_secure_api_keys",
-            masterKeyAlias,
-            context.applicationContext,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        )
-    } catch (e: Throwable) {
-        Log.e("ChatKeyManager", "EncryptedSharedPreferences fail, fallback to cleartext settings", e)
-        context.applicationContext.getSharedPreferences("aira_api_keys_fallback", Context.MODE_PRIVATE)
-    }
+    private val sharedPreferences: SharedPreferences = com.example.utils.SecurePrefs.getEncryptedSharedPreferences(context, "aira_secure_api_keys")
 
     // Stores timestamps when keys will emerge from cooldown state (one hour limits)
     private val cooldowns = ConcurrentHashMap<String, Long>()

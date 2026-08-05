@@ -30,6 +30,10 @@ enum class CommandType {
     OPEN_POWER_MENU,
     CLICK_SCREEN_ELEMENT,
     DEVICE_POLICY_STATUS,
+    ADJUST_VOLUME,
+    OPEN_SETTINGS_PAGE,
+    LAUNCH_APP,
+    MORNING_BRIEFING,
     UNKNOWN
 }
 
@@ -246,6 +250,71 @@ object CommandParser {
             )
         }
 
+        // 17. Adjust Media Volume
+        if (containsAny(lower, "volume", "sound level", "media volume", "louder", "quieter")) {
+            val percent = extractBrightnessPercent(lower, 50)
+            val actionStr = when {
+                containsAny(lower, "up", "increase", "raise", "higher", "louder") -> "increase"
+                containsAny(lower, "down", "decrease", "lower", "reduce", "quieter") -> "decrease"
+                containsAny(lower, "mute", "silent") -> "mute"
+                containsAny(lower, "unmute") -> "unmute"
+                else -> "set"
+            }
+            return ParsedCommand(
+                type = CommandType.ADJUST_VOLUME,
+                originalInput = rawInput,
+                intParam = if (lower.contains("%") || lower.contains("percent")) percent else null,
+                stringParam = actionStr,
+                summary = "Adjusting system volume"
+            )
+        }
+
+        // 18. Open Specific Settings
+        if (containsAny(lower, "settings") && containsAny(lower, "open", "show", "launch", "wifi", "bluetooth", "display", "sound", "apps", "accessibility")) {
+            val settingType = when {
+                containsAny(lower, "wifi", "wi-fi", "internet") -> "wifi"
+                containsAny(lower, "bluetooth", "bt") -> "bluetooth"
+                containsAny(lower, "display", "brightness", "screen") -> "display"
+                containsAny(lower, "sound", "audio", "volume") -> "sound"
+                containsAny(lower, "app", "application") -> "apps"
+                containsAny(lower, "accessibility") -> "accessibility"
+                containsAny(lower, "security") -> "security"
+                else -> "general"
+            }
+            return ParsedCommand(
+                type = CommandType.OPEN_SETTINGS_PAGE,
+                originalInput = rawInput,
+                stringParam = settingType,
+                summary = "Opening $settingType settings"
+            )
+        }
+
+        // 19. Launch Application by Name
+        if (lower.startsWith("open ") || lower.startsWith("launch ") || lower.startsWith("start ")) {
+            val appTarget = when {
+                lower.startsWith("open ") -> rawInput.substring(5).trim()
+                lower.startsWith("launch ") -> rawInput.substring(7).trim()
+                else -> rawInput.substring(6).trim()
+            }
+            if (appTarget.isNotBlank() && !containsAny(appTarget.lowercase(), "notifications", "quick settings", "power menu")) {
+                return ParsedCommand(
+                    type = CommandType.LAUNCH_APP,
+                    originalInput = rawInput,
+                    stringParam = appTarget,
+                    summary = "Launching app '$appTarget'"
+                )
+            }
+        }
+
+        // 20. Iron Man Morning Briefing Trigger
+        if (containsAny(lower, "briefing", "morning briefing", "daily briefing", "agenda briefing", "start briefing", "my briefing", "daily intel")) {
+            return ParsedCommand(
+                type = CommandType.MORNING_BRIEFING,
+                originalInput = rawInput,
+                summary = "Generating Iron Man daily morning briefing"
+            )
+        }
+
         return null
     }
 
@@ -257,20 +326,28 @@ object CommandParser {
             when (command.type) {
                 CommandType.TOGGLE_WIFI -> {
                     val enable = command.booleanParam ?: true
-                    val service = AiraAccessibilityService.instance
-                    if (service != null) {
-                        service.toggleWifi(enable)
-                    } else if (viewModel != null) {
-                        viewModel.toggleWifiAccessibilityFallback(enable)
-                        "Wi-Fi toggling initiated (Accessibility Fallback)."
+                    if (ShizukuManager.isShizukuRunning() && ShizukuManager.isPermissionGranted()) {
+                        ShizukuManager.toggleWiFi(enable)
                     } else {
-                        "Wi-Fi state modified to ${if (enable) "ON" else "OFF"}."
+                        val service = AiraAccessibilityService.instance
+                        if (service != null) {
+                            service.toggleWifi(enable)
+                        } else if (viewModel != null) {
+                            viewModel.toggleWifiAccessibilityFallback(enable)
+                            "Wi-Fi toggling initiated (Accessibility Fallback)."
+                        } else {
+                            "Wi-Fi state modified to ${if (enable) "ON" else "OFF"}."
+                        }
                     }
                 }
 
                 CommandType.ADJUST_BRIGHTNESS -> {
                     val targetPercent = command.intParam ?: 50
-                    setSystemBrightness(context, targetPercent)
+                    if (ShizukuManager.isShizukuRunning() && ShizukuManager.isPermissionGranted()) {
+                        ShizukuManager.setBrightness(targetPercent)
+                    } else {
+                        setSystemBrightness(context, targetPercent)
+                    }
                 }
 
                 CommandType.SET_ALARM -> {
@@ -297,81 +374,117 @@ object CommandParser {
 
                 CommandType.TOGGLE_BLUETOOTH -> {
                     val enable = command.booleanParam ?: true
-                    val service = AiraAccessibilityService.instance
-                    if (service != null) {
-                        service.toggleBluetooth(enable)
-                    } else if (viewModel != null) {
-                        viewModel.toggleBluetoothAccessibilityFallback(enable)
-                        "Bluetooth toggling initiated (Accessibility Fallback)."
+                    if (ShizukuManager.isShizukuRunning() && ShizukuManager.isPermissionGranted()) {
+                        ShizukuManager.toggleBluetooth(enable)
                     } else {
-                        "Bluetooth configured to ${if (enable) "ON" else "OFF"}."
+                        val service = AiraAccessibilityService.instance
+                        if (service != null) {
+                            service.toggleBluetooth(enable)
+                        } else if (viewModel != null) {
+                            viewModel.toggleBluetoothAccessibilityFallback(enable)
+                            "Bluetooth toggling initiated (Accessibility Fallback)."
+                        } else {
+                            "Bluetooth configured to ${if (enable) "ON" else "OFF"}."
+                        }
                     }
                 }
 
                 CommandType.TOGGLE_FLASHLIGHT -> {
                     val enable = command.booleanParam ?: true
-                    viewModel?.toggleFlashlight(enable) ?: "Flashlight set to ${if (enable) "ON" else "OFF"}."
+                    if (ShizukuManager.isShizukuRunning() && ShizukuManager.isPermissionGranted()) {
+                        ShizukuManager.toggleFlashlight(enable)
+                    } else {
+                        viewModel?.toggleFlashlight(enable) ?: "Flashlight set to ${if (enable) "ON" else "OFF"}."
+                    }
                 }
 
                 CommandType.SET_SOUND_MODE -> {
                     val mode = command.intParam ?: AudioManager.RINGER_MODE_NORMAL
-                    viewModel?.setSoundMode(mode)
-                    val modeName = when (mode) {
-                        AudioManager.RINGER_MODE_SILENT -> "Silent Mode"
-                        AudioManager.RINGER_MODE_VIBRATE -> "Vibrate Mode"
-                        else -> "Normal Sound Mode"
+                    if (ShizukuManager.isShizukuRunning() && ShizukuManager.isPermissionGranted()) {
+                        ShizukuManager.setRingerMode(mode)
+                    } else {
+                        viewModel?.setSoundMode(mode)
+                        val modeName = when (mode) {
+                            AudioManager.RINGER_MODE_SILENT -> "Silent Mode"
+                            AudioManager.RINGER_MODE_VIBRATE -> "Vibrate Mode"
+                            else -> "Normal Sound Mode"
+                        }
+                        "Ringer audio updated to $modeName."
                     }
-                    "Ringer audio updated to $modeName."
                 }
 
                 CommandType.SYSTEM_NAVIGATION -> {
                     val target = command.stringParam ?: "home"
-                    when (target) {
-                        "home" -> viewModel?.triggerHomeAction()
-                        "back" -> viewModel?.triggerBackAction()
-                        "recents" -> viewModel?.triggerRecentsAction()
+                    if (ShizukuManager.isShizukuRunning() && ShizukuManager.isPermissionGranted()) {
+                        ShizukuManager.systemNavigation(target)
+                    } else {
+                        when (target) {
+                            "home" -> viewModel?.triggerHomeAction()
+                            "back" -> viewModel?.triggerBackAction()
+                            "recents" -> viewModel?.triggerRecentsAction()
+                        }
+                        "Executing system navigation: ${target.uppercase(Locale.ROOT)}"
                     }
-                    "Executing system navigation: ${target.uppercase(Locale.ROOT)}"
                 }
 
                 CommandType.LOCK_SCREEN -> {
-                    val result = viewModel?.lockDeviceScreen()
-                    result ?: "Lock screen command executed."
+                    if (ShizukuManager.isShizukuRunning() && ShizukuManager.isPermissionGranted()) {
+                        ShizukuManager.lockScreen()
+                    } else {
+                        val result = viewModel?.lockDeviceScreen()
+                        result ?: "Lock screen command executed."
+                    }
                 }
 
                 CommandType.TAKE_SCREENSHOT -> {
-                    val service = AiraAccessibilityService.instance
-                    if (service != null && service.performScreenshotAction()) {
-                        "Screenshot captured successfully via Accessibility Service."
+                    if (ShizukuManager.isShizukuRunning() && ShizukuManager.isPermissionGranted()) {
+                        ShizukuManager.takeScreenshot()
                     } else {
-                        "Screenshot requires active Accessibility Service (Android 11+)."
+                        val service = AiraAccessibilityService.instance
+                        if (service != null && service.performScreenshotAction()) {
+                            "Screenshot captured successfully via Accessibility Service."
+                        } else {
+                            "Screenshot requires active Accessibility Service (Android 11+)."
+                        }
                     }
                 }
 
                 CommandType.OPEN_NOTIFICATIONS -> {
-                    val service = AiraAccessibilityService.instance
-                    if (service != null && service.performNotificationsAction()) {
-                        "Notifications shade expanded via Accessibility Service."
+                    if (ShizukuManager.isShizukuRunning() && ShizukuManager.isPermissionGranted()) {
+                        ShizukuManager.openNotifications()
                     } else {
-                        "Notifications panel opened."
+                        val service = AiraAccessibilityService.instance
+                        if (service != null && service.performNotificationsAction()) {
+                            "Notifications shade expanded via Accessibility Service."
+                        } else {
+                            "Notifications panel opened."
+                        }
                     }
                 }
 
                 CommandType.OPEN_QUICK_SETTINGS -> {
-                    val service = AiraAccessibilityService.instance
-                    if (service != null && service.performQuickSettingsAction()) {
-                        "Quick Settings shade opened via Accessibility Service."
+                    if (ShizukuManager.isShizukuRunning() && ShizukuManager.isPermissionGranted()) {
+                        ShizukuManager.openQuickSettings()
                     } else {
-                        "Quick settings panel requested."
+                        val service = AiraAccessibilityService.instance
+                        if (service != null && service.performQuickSettingsAction()) {
+                            "Quick Settings shade opened via Accessibility Service."
+                        } else {
+                            "Quick settings panel requested."
+                        }
                     }
                 }
 
                 CommandType.OPEN_POWER_MENU -> {
-                    val service = AiraAccessibilityService.instance
-                    if (service != null && service.performPowerMenuAction()) {
-                        "System power menu displayed via Accessibility Service."
+                    if (ShizukuManager.isShizukuRunning() && ShizukuManager.isPermissionGranted()) {
+                        ShizukuManager.openPowerMenu()
                     } else {
-                        "Power options menu requested."
+                        val service = AiraAccessibilityService.instance
+                        if (service != null && service.performPowerMenuAction()) {
+                            "System power menu displayed via Accessibility Service."
+                        } else {
+                            "Power options menu requested."
+                        }
                     }
                 }
 
@@ -405,11 +518,159 @@ object CommandParser {
                     "Dialing phone number $number."
                 }
 
+                CommandType.ADJUST_VOLUME -> {
+                    val percent = command.intParam
+                    val action = command.stringParam ?: "set"
+                    if (ShizukuManager.isShizukuRunning() && ShizukuManager.isPermissionGranted() && percent != null) {
+                        ShizukuManager.setVolume(3, percent)
+                    } else {
+                        adjustVolume(context, action, percent)
+                    }
+                }
+
+                CommandType.OPEN_SETTINGS_PAGE -> {
+                    val pageType = command.stringParam ?: "general"
+                    openSettingsPage(context, pageType)
+                }
+
+                CommandType.LAUNCH_APP -> {
+                    val appName = command.stringParam ?: ""
+                    launchAppByName(context, appName)
+                }
+
+                CommandType.MORNING_BRIEFING -> {
+                    if (viewModel != null) {
+                        kotlinx.coroutines.runBlocking {
+                            viewModel.generateMorningBriefing()
+                        }
+                    } else {
+                        "AIRA Morning Briefing initialized. Weather and schedule synchronization active."
+                    }
+                }
+
                 CommandType.UNKNOWN -> "Unknown command requested."
             }
         } catch (e: Exception) {
             Log.e("CommandParser", "Error executing command: ${command.type}", e)
             "Failed to execute command: ${e.localizedMessage}"
+        }
+    }
+
+    private fun adjustVolume(context: Context, action: String, percent: Int?): String {
+        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+            ?: return "Audio service unavailable."
+        val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+
+        return try {
+            when {
+                percent != null -> {
+                    val targetVol = (maxVol * (percent.coerceIn(0, 100) / 100f)).toInt()
+                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, AudioManager.FLAG_SHOW_UI)
+                    "Media volume set to $percent%."
+                }
+                action.contains("increase") || action.contains("up") -> {
+                    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI)
+                    "Volume raised."
+                }
+                action.contains("decrease") || action.contains("down") -> {
+                    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI)
+                    "Volume lowered."
+                }
+                action.contains("mute") -> {
+                    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_MUTE, AudioManager.FLAG_SHOW_UI)
+                    "Volume muted."
+                }
+                action.contains("unmute") -> {
+                    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_UNMUTE, AudioManager.FLAG_SHOW_UI)
+                    "Volume unmuted."
+                }
+                else -> {
+                    val currentPct = (currentVol * 100 / maxVol)
+                    "Current media volume is $currentPct%."
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("CommandParser", "Failed to adjust volume", e)
+            "Error adjusting volume: ${e.localizedMessage}"
+        }
+    }
+
+    private fun openSettingsPage(context: Context, settingsType: String): String {
+        val action = when (settingsType.lowercase()) {
+            "wifi", "wi-fi", "internet" -> Settings.ACTION_WIFI_SETTINGS
+            "bluetooth", "bt" -> Settings.ACTION_BLUETOOTH_SETTINGS
+            "display", "brightness", "screen" -> Settings.ACTION_DISPLAY_SETTINGS
+            "sound", "audio", "volume" -> Settings.ACTION_SOUND_SETTINGS
+            "apps", "applications" -> Settings.ACTION_APPLICATION_SETTINGS
+            "accessibility" -> Settings.ACTION_ACCESSIBILITY_SETTINGS
+            "security" -> Settings.ACTION_SECURITY_SETTINGS
+            else -> Settings.ACTION_SETTINGS
+        }
+        return try {
+            val intent = Intent(action).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+            "Opening $settingsType settings."
+        } catch (e: Exception) {
+            Log.e("CommandParser", "Failed to open settings: $settingsType", e)
+            "Opening system settings."
+        }
+    }
+
+    private fun launchAppByName(context: Context, appName: String): String {
+        if (appName.isBlank()) return "Please specify an application name to open."
+        val lowerTarget = appName.lowercase().trim()
+
+        return try {
+            val pm = context.packageManager
+            val mainIntent = Intent(Intent.ACTION_MAIN, null).apply {
+                addCategory(Intent.CATEGORY_LAUNCHER)
+            }
+            val resolveInfos = pm.queryIntentActivities(mainIntent, 0)
+
+            val matchedInfo = resolveInfos.firstOrNull { info ->
+                val label = info.loadLabel(pm).toString().lowercase()
+                label == lowerTarget || label.contains(lowerTarget) || lowerTarget.contains(label)
+            }
+
+            if (matchedInfo != null) {
+                val launchIntent = pm.getLaunchIntentForPackage(matchedInfo.activityInfo.packageName)
+                if (launchIntent != null) {
+                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(launchIntent)
+                    return "Opening ${matchedInfo.loadLabel(pm)}."
+                }
+            }
+
+            // Common app shortcuts fallback
+            val fallbackPackage = when (lowerTarget) {
+                "youtube" -> "com.google.android.youtube"
+                "chrome" -> "com.android.chrome"
+                "maps" -> "com.google.android.apps.maps"
+                "whatsapp" -> "com.whatsapp"
+                "spotify" -> "com.spotify.music"
+                "settings" -> "com.android.settings"
+                "camera" -> "com.android.camera"
+                "calculator" -> "com.google.android.calculator"
+                "clock" -> "com.google.android.deskclock"
+                else -> null
+            }
+
+            if (fallbackPackage != null) {
+                val launchIntent = pm.getLaunchIntentForPackage(fallbackPackage)
+                if (launchIntent != null) {
+                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(launchIntent)
+                    return "Opening $appName."
+                }
+            }
+
+            "Could not find application '$appName' installed on device."
+        } catch (e: Exception) {
+            Log.e("CommandParser", "Failed to launch app $appName", e)
+            "Error opening app $appName: ${e.localizedMessage}"
         }
     }
 

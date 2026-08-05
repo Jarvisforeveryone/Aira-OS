@@ -6,14 +6,20 @@ object Dimens {
     // Accessibility Touch Targets
     val MinTouchTarget = 48.dp
 
-    // Screen Padding
-    val ScreenHorizontalPadding = 20.dp
-    val ScreenVerticalPadding = 16.dp
-    val ScreenPadding = 20.dp
+    // Screen Padding (Standard 24dp)
+    val ScreenHorizontalPadding = 24.dp
+    val ScreenVerticalPadding = 24.dp
+    val ScreenPadding = 24.dp
 
-    // Cards
+    // Cards (Standard 16dp inside padding)
     val InsideCardPadding = 16.dp
     val CardGap = 16.dp
+
+    // Gaps & Spacing (Standard 8dp, 12dp, 16dp, 24dp)
+    val GapSmall = 8.dp
+    val GapMedium = 12.dp
+    val GapLarge = 16.dp
+    val GapExtraLarge = 24.dp
 
     // Lists
     val ListVerticalSpacing = 12.dp
@@ -48,3 +54,4 @@ object Dimens {
     val CornerRadiusMedium = 16.dp
     val CornerRadiusSmall = 12.dp
 }
+

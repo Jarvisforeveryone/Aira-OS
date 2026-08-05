@@ -19,6 +19,12 @@ import android.media.MediaRecorder
 import android.net.Uri
 import android.os.Bundle
 import android.provider.AlarmClock
+import android.provider.CalendarContract
+import android.content.ContentUris
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import kotlinx.coroutines.flow.first
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -140,7 +146,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     private val okHttpClient = com.example.data.GeminiOkHttpCache.getClient(application)
 
     private val sharedPrefs: SharedPreferences =
-        application.getSharedPreferences("aira_settings", Context.MODE_PRIVATE)
+        com.example.utils.SecurePrefs.getEncryptedSharedPreferences(application, "aira_settings")
 
     // Support for Urdu offline translation & synthesis
     var offlineToggle: Boolean = true
@@ -375,6 +381,24 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
 
     fun isAccessibilityServiceConnected(): Boolean {
         return com.example.service.AiraAccessibilityService.instance != null
+    }
+
+    private val _isShizukuRunning = MutableStateFlow<Boolean>(false)
+    val isShizukuRunning: StateFlow<Boolean> = _isShizukuRunning.asStateFlow()
+
+    private val _isShizukuGranted = MutableStateFlow<Boolean>(false)
+    val isShizukuGranted: StateFlow<Boolean> = _isShizukuGranted.asStateFlow()
+
+    fun refreshShizukuStatus() {
+        _isShizukuRunning.value = com.example.utils.ShizukuManager.isShizukuRunning()
+        _isShizukuGranted.value = com.example.utils.ShizukuManager.isPermissionGranted()
+    }
+
+    fun requestShizukuPermission() {
+        com.example.utils.ShizukuManager.requestPermission { granted ->
+            _isShizukuGranted.value = granted
+            _isShizukuRunning.value = com.example.utils.ShizukuManager.isShizukuRunning()
+        }
     }
 
     fun checkDeviceAdminActive(): Boolean {
@@ -754,6 +778,13 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     val usePersistentListening: StateFlow<Boolean> = _usePersistentListening.asStateFlow()
 
     fun togglePersistentListening(enabled: Boolean) {
+        if (enabled && !_isDeviceMemoryCapable.value) {
+            _usePersistentListening.value = false
+            sharedPrefs.edit().putBoolean("persistent_listening", false).apply()
+            speakText("Continuous listening is disabled on 2GB RAM devices to conserve memory.")
+            Toast.makeText(getApplication(), "Continuous listening disabled for 2GB RAM devices", Toast.LENGTH_SHORT).show()
+            return
+        }
         if (enabled) {
             if (ContextCompat.checkSelfPermission(
                     getApplication(),
@@ -901,6 +932,12 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         }
     }
 
+    fun handleInterruption() {
+        stopAllSpeech()
+        _currentStatus.value = "Interrupted, sir."
+        speakText("Yes, sir? Go ahead.")
+    }
+
     fun stopAllSpeech() {
         while (speechQueue.tryReceive().isSuccess) { }
         currentSpeechJob?.cancel()
@@ -950,7 +987,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         return normalParams
     }
 
-    private val voicePrefs = application.getSharedPreferences("voice_prefs", Context.MODE_PRIVATE)
+    private val voicePrefs = com.example.utils.SecurePrefs.getEncryptedSharedPreferences(application, "voice_prefs")
 
     private val _voiceVibe = MutableStateFlow(voicePrefs.getFloat("voice_vibe", 8.0f))
     val voiceVibe: StateFlow<Float> = _voiceVibe.asStateFlow()
@@ -1083,9 +1120,9 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
 
     private val _selectedTtsEngine = MutableStateFlow(
         try {
-            TtsEngine.valueOf(sharedPrefs.getString("selected_tts_engine", TtsEngine.AUTO.name) ?: TtsEngine.AUTO.name)
+            TtsEngine.valueOf(sharedPrefs.getString("selected_tts_engine", TtsEngine.GOOGLE_TTS.name) ?: TtsEngine.GOOGLE_TTS.name)
         } catch (e: Exception) {
-            TtsEngine.AUTO
+            TtsEngine.GOOGLE_TTS
         }
     )
     val selectedTtsEngine: StateFlow<TtsEngine> = _selectedTtsEngine.asStateFlow()
@@ -1193,8 +1230,10 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             sharedPrefs.registerOnSharedPreferenceChangeListener(prefChangeListener)
 
             if (!_isDeviceMemoryCapable.value) {
-                Log.w("AiraViewModel", "Device RAM is < 3GB (${_totalRamMb.value} MB). Disabling heavy local Llama model by default.")
+                Log.w("AiraViewModel", "Device RAM is < 3GB (${_totalRamMb.value} MB). Disabling heavy local Llama model and persistent listening by default.")
                 _isOfflineBrain.value = false
+                _usePersistentListening.value = false
+                sharedPrefs.edit().putBoolean("persistent_listening", false).apply()
             }
             
             viewModelScope.launch {
@@ -1276,13 +1315,15 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                     Log.e("AiraViewModel", "Failed to clear expired local caches or seed Room DB", e)
                 }
             }
+            refreshShizukuStatus()
             initSpeechRecognizer()
             initVoskModel()
             viewModelScope.launch {
                 try {
                     performFetchWeather()
+                    generateMorningBriefing()
                 } catch (e: Throwable) {
-                    Log.e("AiraViewModel", "Error in performFetchWeather", e)
+                    Log.e("AiraViewModel", "Error in performFetchWeather/generateMorningBriefing", e)
                 }
             }
             try {
@@ -1911,7 +1952,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                 else -> detectedTemp
             }
 
-            val baseSystemInstruction = "You are JARVIS. An elite, ultra-discreet, sophisticated AI assistant. Keep responses brief, executive, refined, and completely devoid of generic AI filler phrases or excessive punctuation. Respond in an engaging, succinct, vocal style. If requested, direct them how to perform hardware commands, or call functions like flashlight/silent/vibrate/weather/news."
+            val baseSystemInstruction = com.example.models.AiBrain.JARVIS_SYSTEM_INSTRUCTION + "\nYou possess full phone control capabilities including Wi-Fi, Bluetooth, volume, brightness, flashlight, alarms, launching apps, settings, camera, screenshot, and screen locking."
             val historyList = chatHistory.value.takeLast(10).map { Pair(it.sender, it.message) }
 
             // Recall Memories
@@ -2600,13 +2641,141 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     private val _openMeteoWeather = MutableStateFlow<OpenMeteoWeatherData?>(null)
     val openMeteoWeather: StateFlow<OpenMeteoWeatherData?> = _openMeteoWeather.asStateFlow()
 
+    data class CalendarEventInfo(
+        val title: String,
+        val timeFormatted: String,
+        val isAllDay: Boolean
+    )
+
+    private val _morningBriefing = MutableStateFlow<String?>(null)
+    val morningBriefing: StateFlow<String?> = _morningBriefing.asStateFlow()
+
+    private val _isBriefingLoading = MutableStateFlow<Boolean>(false)
+    val isBriefingLoading: StateFlow<Boolean> = _isBriefingLoading.asStateFlow()
+
     fun refreshWeather() {
         viewModelScope.launch {
             try {
                 performFetchWeather()
+                generateMorningBriefing()
             } catch (e: Throwable) {
                 Log.e("AiraViewModel", "Error in refreshWeather", e)
             }
+        }
+    }
+
+    suspend fun fetchCalendarEventsForToday(): List<CalendarEventInfo> = withContext(Dispatchers.IO) {
+        val events = mutableListOf<CalendarEventInfo>()
+        val context = getApplication<Application>()
+
+        // 1. Query Android System Calendar Contract if permission granted
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED) {
+            try {
+                val startOfDay = Calendar.getInstance().apply {
+                    set(Calendar.HOUR_OF_DAY, 0)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }.timeInMillis
+
+                val endOfDay = Calendar.getInstance().apply {
+                    set(Calendar.HOUR_OF_DAY, 23)
+                    set(Calendar.MINUTE, 59)
+                    set(Calendar.SECOND, 59)
+                    set(Calendar.MILLISECOND, 999)
+                }.timeInMillis
+
+                val builder = CalendarContract.Instances.CONTENT_URI.buildUpon()
+                ContentUris.appendId(builder, startOfDay)
+                ContentUris.appendId(builder, endOfDay)
+
+                val projection = arrayOf(
+                    CalendarContract.Instances.TITLE,
+                    CalendarContract.Instances.BEGIN,
+                    CalendarContract.Instances.ALL_DAY
+                )
+
+                context.contentResolver.query(
+                    builder.build(),
+                    projection,
+                    null,
+                    null,
+                    "${CalendarContract.Instances.BEGIN} ASC"
+                )?.use { cursor ->
+                    val titleIdx = cursor.getColumnIndex(CalendarContract.Instances.TITLE)
+                    val beginIdx = cursor.getColumnIndex(CalendarContract.Instances.BEGIN)
+                    val allDayIdx = cursor.getColumnIndex(CalendarContract.Instances.ALL_DAY)
+
+                    val timeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
+
+                    while (cursor.moveToNext()) {
+                        val title = if (titleIdx >= 0) cursor.getString(titleIdx) ?: "Calendar Event" else "Calendar Event"
+                        val beginTime = if (beginIdx >= 0) cursor.getLong(beginIdx) else 0L
+                        val isAllDay = if (allDayIdx >= 0) cursor.getInt(allDayIdx) == 1 else false
+                        val timeStr = if (isAllDay) "All Day" else timeFormat.format(Date(beginTime))
+
+                        events.add(CalendarEventInfo(title, timeStr, isAllDay))
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("AiraViewModel", "Error fetching system calendar events", e)
+            }
+        }
+
+        // 2. Query Room DB reminders for pending schedule items
+        try {
+            val reminders = db.reminderDao().getAllReminders().first()
+            reminders.filter { !it.isCompleted }.forEach { r ->
+                events.add(CalendarEventInfo(r.title, r.timeLabel, false))
+            }
+        } catch (e: Exception) {
+            Log.e("AiraViewModel", "Error fetching DB reminders", e)
+        }
+
+        events
+    }
+
+    suspend fun generateMorningBriefing(): String = withContext(Dispatchers.IO) {
+        _isBriefingLoading.value = true
+        try {
+            val weatherStr = if (_weatherText.value.isNotBlank()) _weatherText.value else performFetchWeather()
+            val events = fetchCalendarEventsForToday()
+
+            val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+            val greeting = when {
+                hour in 0..11 -> "Good morning"
+                hour in 12..16 -> "Good afternoon"
+                else -> "Good evening"
+            }
+
+            val scheduleSummary = if (events.isEmpty()) {
+                "No pending calendar events or active reminders scheduled for today."
+            } else {
+                val items = events.take(5).joinToString("\n") { "• ${it.timeFormatted}: ${it.title}" }
+                "Today's Schedule & Agenda:\n$items"
+            }
+
+            val briefingText = """
+                $greeting, Boss. AIRA daily briefing protocol initiated.
+
+                Local Weather: $weatherStr.
+
+                $scheduleSummary
+
+                Priority Count: ${events.size} active agenda item${if (events.size == 1) "" else "s"}. All tactical systems operational and standing by.
+            """.trimIndent()
+
+            _morningBriefing.value = briefingText
+            briefingText
+        } finally {
+            _isBriefingLoading.value = false
+        }
+    }
+
+    fun playMorningBriefing() {
+        viewModelScope.launch {
+            val briefing = _morningBriefing.value ?: generateMorningBriefing()
+            speakText(briefing)
         }
     }
 

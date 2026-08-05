@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.theme.Dimens
 import com.example.ui.theme.IconColors
 import com.example.ui.theme.bounceClick
+import com.example.utils.ScreenUtils
 
 enum class AiraButtonVariant {
     PRIMARY,
@@ -40,6 +41,7 @@ enum class AiraButtonVariant {
  * AIRA UNIFIED BUTTON COMPONENT
  * Single source of truth for action buttons across AIRA.
  * Standardizes typography, colors, padding, loading states, and bounce micro-interactions.
+ * Automatically adapts size, elevation, and font size using ScreenUtils responsive system.
  */
 @Composable
 fun AiraButton(
@@ -52,16 +54,20 @@ fun AiraButton(
     isLoading: Boolean = false,
     containerColor: Color = MaterialTheme.colorScheme.primary,
     contentColor: Color = MaterialTheme.colorScheme.onPrimary,
-    shape: RoundedCornerShape = RoundedCornerShape(14.dp),
-    height: Dp = Dimens.MinTouchTarget,
+    shape: RoundedCornerShape? = null,
+    height: Dp? = null,
     fullWidth: Boolean = false
 ) {
+    val adaptive = ScreenUtils.adaptiveValues()
+    val effectiveHeight = height ?: adaptive.buttonHeight
+    val effectiveShape = shape ?: RoundedCornerShape(adaptive.cornerRadius)
+
     val buttonModifier = modifier
         .then(if (fullWidth) Modifier.fillMaxWidth() else Modifier)
-        .height(height)
+        .height(effectiveHeight)
         .bounceClick(onClick = if (enabled && !isLoading) onClick else { {} })
 
-    val contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp)
+    val contentPadding = PaddingValues(horizontal = adaptive.padding, vertical = 8.dp)
 
     when (variant) {
         AiraButtonVariant.PRIMARY -> {
@@ -69,7 +75,7 @@ fun AiraButton(
                 onClick = onClick,
                 enabled = enabled && !isLoading,
                 modifier = buttonModifier,
-                shape = shape,
+                shape = effectiveShape,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = containerColor,
                     contentColor = contentColor,
@@ -78,7 +84,13 @@ fun AiraButton(
                 ),
                 contentPadding = contentPadding
             ) {
-                AiraButtonContent(text = text, icon = icon, isLoading = isLoading, contentColor = contentColor)
+                AiraButtonContent(
+                    text = text,
+                    icon = icon,
+                    isLoading = isLoading,
+                    contentColor = contentColor,
+                    fontSize = adaptive.buttonFontSize
+                )
             }
         }
         AiraButtonVariant.OUTLINED -> {
@@ -86,13 +98,19 @@ fun AiraButton(
                 onClick = onClick,
                 enabled = enabled && !isLoading,
                 modifier = buttonModifier,
-                shape = shape,
+                shape = effectiveShape,
                 colors = ButtonDefaults.outlinedButtonColors(
                     contentColor = containerColor
                 ),
                 contentPadding = contentPadding
             ) {
-                AiraButtonContent(text = text, icon = icon, isLoading = isLoading, contentColor = containerColor)
+                AiraButtonContent(
+                    text = text,
+                    icon = icon,
+                    isLoading = isLoading,
+                    contentColor = containerColor,
+                    fontSize = adaptive.buttonFontSize
+                )
             }
         }
         AiraButtonVariant.TEXT -> {
@@ -100,13 +118,19 @@ fun AiraButton(
                 onClick = onClick,
                 enabled = enabled && !isLoading,
                 modifier = buttonModifier,
-                shape = shape,
+                shape = effectiveShape,
                 colors = ButtonDefaults.textButtonColors(
                     contentColor = containerColor
                 ),
                 contentPadding = contentPadding
             ) {
-                AiraButtonContent(text = text, icon = icon, isLoading = isLoading, contentColor = containerColor)
+                AiraButtonContent(
+                    text = text,
+                    icon = icon,
+                    isLoading = isLoading,
+                    contentColor = containerColor,
+                    fontSize = adaptive.buttonFontSize
+                )
             }
         }
     }
@@ -117,7 +141,8 @@ private fun AiraButtonContent(
     text: String,
     icon: ImageVector?,
     isLoading: Boolean,
-    contentColor: Color
+    contentColor: Color,
+    fontSize: androidx.compose.ui.unit.TextUnit
 ) {
     Row(
         horizontalArrangement = Arrangement.Center,
@@ -141,7 +166,7 @@ private fun AiraButtonContent(
         }
         Text(
             text = text,
-            fontSize = 14.sp,
+            fontSize = fontSize,
             fontWeight = FontWeight.SemiBold
         )
     }

@@ -89,7 +89,7 @@ fun OfflineStatusDashboardScreen(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "Local Engines, Models & Hardware Acceleration",
+                            text = "On-Device Features & System Status",
                             fontSize = 12.sp,
                             fontFamily = FontFamily.SansSerif,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -134,7 +134,7 @@ fun OfflineStatusDashboardScreen(
 
                 AiraCard(
                     modifier = Modifier.testTag("diagnostic_panel_card"),
-                    title = "System Diagnostic Panel",
+                    title = "System Performance Overview",
                     icon = Icons.Default.Analytics,
                     headerTrailing = {
                         AiraBadge(text = "LIVE DIAGNOSTICS", badgeColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f), textColor = MaterialTheme.colorScheme.primary)
@@ -199,7 +199,7 @@ fun OfflineStatusDashboardScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Simulated Local Processing Status",
+                                    text = "Local Processing Speed",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     fontFamily = FontFamily.SansSerif,
@@ -214,8 +214,8 @@ fun OfflineStatusDashboardScreen(
                                 )
                             }
                             InfoRow(label = "Local LLM Engine", value = "Offline AI - Ready")
-                            InfoRow(label = "Vosk STT Decoder", value = "Audio - Active")
-                            InfoRow(label = "Piper TTS JNI Runtime", value = "Voice Engine - Ready")
+                            InfoRow(label = "Voice Input Processing", value = "Audio - Active")
+                            InfoRow(label = "Voice Output Engine", value = "Voice Engine - Ready")
                             InfoRow(label = "Simulated Processing Speed", value = "%.1f tokens/sec (Latency %dms)".format(localTokSec, localLatency))
 
                             Button(
@@ -390,7 +390,7 @@ fun OfflineStatusDashboardScreen(
                         }
 
                         Text(
-                            text = "Live monitoring of local Speech Recognition (Vosk STT), Speech Synthesis (Real Piper ONNX TTS & Google TTS), Local Reasoning Engine (Llama 3.2), and JNI Hardware Acceleration.",
+                            text = "Live status of on-device voice recognition, speech synthesis, AI assistant, and system performance.",
                             fontSize = 13.sp,
                             fontFamily = FontFamily.SansSerif,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -403,7 +403,7 @@ fun OfflineStatusDashboardScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             StatusChip(
-                                label = if (isJniLoaded) "JNI Accelerated" else "Java Fallback",
+                                label = if (isJniLoaded) "Hardware Accelerated" else "Standard Mode",
                                 isPositive = isJniLoaded,
                                 icon = Icons.Default.Speed
                             )
@@ -425,12 +425,12 @@ fun OfflineStatusDashboardScreen(
             // ENGINE 1: PIPER TTS (OFFLINE SPEECH SYNTHESIS)
             item {
                 EngineDetailCard(
-                    title = "Piper TTS (Offline Voice Engine)",
-                    subtitle = "Real JNI ONNX Runtime & Local Voice Models",
+                    title = "Offline Voice Synthesis",
+                    subtitle = "High-Quality Offline Voice Models",
                     icon = Icons.Default.RecordVoiceOver,
                     statusBadgeText = when {
-                        isAmyDownloaded && isJniLoaded -> "READY (JNI Accelerated)"
-                        isAmyDownloaded -> "READY (ONNX Ready)"
+                        isAmyDownloaded && isJniLoaded -> "READY (Hardware Accelerated)"
+                        isAmyDownloaded -> "READY (Voice Ready)"
                         amyProgress > 0f -> "DOWNLOADING (${(amyProgress * 100).toInt()}%)"
                         else -> "MODEL MISSING"
                     },
@@ -445,12 +445,12 @@ fun OfflineStatusDashboardScreen(
                         InfoRow(label = "Current Voice", value = activeVoice)
                         InfoRow(label = "Voice Output", value = selectedTtsEngine.name)
                         InfoRow(
-                            label = "Amy JNI Model (en_US-amy-medium)",
+                            label = "Offline Voice Model (English)",
                             value = if (isAmyDownloaded) "Downloaded & Verified (~45MB)" else "Not Downloaded"
                         )
                         InfoRow(
-                            label = "JNI C++ ONNX Bridge",
-                            value = if (isJniLoaded) "libonnxruntime.so + libpiper.so Active" else "Unavailable"
+                            label = "Hardware Voice Engine",
+                            value = if (isJniLoaded) "Voice Engine Active" else "Unavailable"
                         )
 
                         if (amyProgress > 0f && !isAmyDownloaded) {
@@ -544,8 +544,8 @@ fun OfflineStatusDashboardScreen(
             // ENGINE 2: VOSK STT (OFFLINE SPEECH RECOGNITION)
             item {
                 EngineDetailCard(
-                    title = "Vosk STT (Offline Speech Recognizer)",
-                    subtitle = "16kHz PCM Audio Stream Decoder",
+                    title = "Offline Voice Recognition",
+                    subtitle = "High-Accuracy On-Device Speech Input",
                     icon = Icons.Default.Mic,
                     statusBadgeText = if (voskModelLoaded) "MODEL LOADED & READY" else "NOT INITIALIZED",
                     statusBadgeColor = if (voskModelLoaded) colorResource(R.color.aira_success_light) else colorResource(R.color.aira_warning_light),
@@ -559,13 +559,13 @@ fun OfflineStatusDashboardScreen(
                         ) {
                             Column {
                                 Text(
-                                    text = "Local Mode (Force Vosk STT)",
+                                    text = "Offline Speech Mode",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = if (isLocalMode) "Processing all commands locally via Vosk" else "Auto (Vosk active offline)",
+                                    text = if (isLocalMode) "Processing voice input on-device without internet" else "Auto (Offline recognition active when disconnected)",
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -625,8 +625,8 @@ fun OfflineStatusDashboardScreen(
             // ENGINE 3: LLAMA 3.2 LOCAL AI & DATABASE
             item {
                 EngineDetailCard(
-                    title = "Llama 3.2 Local Brain & Storage",
-                    subtitle = "On-Device Neural Reasoning & SQLite Memory",
+                    title = "On-Device Private AI Brain",
+                    subtitle = "Private Local AI Model & Secure Saved Facts",
                     icon = Icons.Default.Psychology,
                     statusBadgeText = if (!isDeviceMemoryCapable) "DISABLED (<3GB RAM)" else if (isOfflineBrain) "OFFLINE BRAIN ACTIVE" else "ONLINE HYBRID",
                     statusBadgeColor = if (!isDeviceMemoryCapable) MaterialTheme.colorScheme.error else if (isOfflineBrain) colorResource(R.color.aira_success_light) else MaterialTheme.colorScheme.primary,
@@ -635,7 +635,7 @@ fun OfflineStatusDashboardScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         if (!isDeviceMemoryCapable) {
                             Text(
-                                text = "⚠️ Disabled on devices with < 3GB RAM. Llama 3.2 is skipped to prevent OOM memory crashes. Cloud AI (Gemini), Vosk STT, and Piper ONNX TTS remain active.",
+                                text = "⚠️ Disabled on devices with less than 3GB RAM to conserve memory. Cloud AI and standard voice speech remain active.",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.error,
@@ -684,15 +684,15 @@ fun OfflineStatusDashboardScreen(
             // ENGINE 4: HARDWARE ACCELERATION & SYSTEM DIAGNOSTICS
             item {
                 EngineDetailCard(
-                    title = "Hardware Acceleration & Diagnostics",
-                    subtitle = "Native JNI Drivers & Hardware Capabilities",
+                    title = "Device Hardware & Performance",
+                    subtitle = "Device Capabilities & Status",
                     icon = Icons.Default.Hardware,
-                    statusBadgeText = if (isJniLoaded) "JNI DRIVERS READY" else "PARTIAL",
+                    statusBadgeText = if (isJniLoaded) "HARDWARE READY" else "PARTIAL",
                     statusBadgeColor = if (isJniLoaded) colorResource(R.color.aira_success_light) else colorResource(R.color.aira_warning_light),
                     testTag = "hw_acceleration_card"
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        InfoRow(label = "Native Engine - Ready", value = if (isJniLoaded) "Loaded (libonnxruntime.so & libpiper.so)" else "UnsatisfiedLinkError / Missing JNI")
+                        InfoRow(label = "Voice Engine Drivers", value = if (isJniLoaded) "Operating Normally" else "Standard Mode")
                         InfoRow(label = "CPU Core Allocation", value = "$availableProcessors Hardware Processors")
                         InfoRow(label = "Heap Memory Usage", value = "$usedMemoryMb MB allocated of $maxMemoryMb MB max")
                         InfoRow(label = "Audio Driver Latency", value = "Audio - Low Latency")

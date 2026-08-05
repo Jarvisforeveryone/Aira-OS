@@ -38,6 +38,8 @@ import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Feedback
 import androidx.compose.material.icons.outlined.RateReview
+import androidx.compose.material.icons.outlined.VolumeUp
+import androidx.compose.material.icons.outlined.Refresh
 import com.example.data.ResponseFeedback
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -48,6 +50,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -108,6 +111,8 @@ fun HomeScreen(
     val piperDownloadStatusMessage by viewModel.piperDownloadStatusMessage.collectAsState()
     val piperAvailableVoices = viewModel.piperAvailableVoices
     val modelReadyState by viewModel.modelReadyState.collectAsState()
+    val morningBriefing by viewModel.morningBriefing.collectAsState()
+    val isBriefingLoading by viewModel.isBriefingLoading.collectAsState()
 
     val listState = rememberLazyListState()
 
@@ -285,7 +290,7 @@ fun HomeScreen(
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Text(
-                                text = "Llama 3.2 • Amy ONNX • Vosk STT",
+                                text = "Private On-Device AI • Voice Ready",
                                 fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.primary,
                                 fontFamily = FontFamily.SansSerif,
@@ -387,7 +392,7 @@ fun HomeScreen(
             // Instruction Text
             Spacer(modifier = Modifier.height(20.dp)) // Top spacing: 20dp
             Text(
-                text = "Tap the orb or type a message",
+                text = "Tap to speak or type a message",
                 fontSize = 14.sp, // Caption: 14sp
                 fontFamily = FontFamily.SansSerif,
                 fontWeight = FontWeight.Normal,
@@ -473,6 +478,66 @@ fun HomeScreen(
             }
 
             Spacer(modifier = Modifier.weight(1f)) // Adaptive spacing
+
+            // Iron Man Morning Briefing Card
+            AiraCard(
+                modifier = Modifier.padding(top = 16.dp).testTag("morning_briefing_card"),
+                title = "Iron Man Morning Briefing",
+                headerTrailing = {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = { viewModel.playMorningBriefing() },
+                            modifier = Modifier.size(32.dp).testTag("play_briefing_btn")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.VolumeUp,
+                                contentDescription = "Play Briefing Voice",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        IconButton(
+                            onClick = { viewModel.refreshWeather() },
+                            modifier = Modifier.size(32.dp).testTag("refresh_briefing_btn")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Refresh,
+                                contentDescription = "Refresh Briefing",
+                                tint = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
+            ) {
+                if (isBriefingLoading) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        Text(
+                            text = "AIRA compiling weather & schedule agenda...",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    val briefingContent = morningBriefing ?: "Tap refresh to compile your Iron Man morning briefing."
+                    Text(
+                        text = briefingContent,
+                        fontSize = 13.sp,
+                        fontFamily = FontFamily.SansSerif,
+                        lineHeight = 18.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
+            }
 
             // Recent Conversations Card
             AiraCard(
@@ -1325,108 +1390,45 @@ fun AudioReactiveHeroOrb(
     onOrbClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // 1. Continuous breathing phase for idle ambient state
-    val infiniteTransition = rememberInfiniteTransition(label = "orb_breath_transition")
-    val idleBreathScale by infiniteTransition.animateFloat(
-        initialValue = 0.97f,
-        targetValue = 1.03f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "idle_breath"
-    )
-    val idleGlowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.12f,
-        targetValue = 0.25f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "idle_glow"
-    )
-    val rotatePhase by infiniteTransition.animateFloat(
+    // Smooth continuous phase animation for fluid wave motion
+    val infiniteTransition = rememberInfiniteTransition(label = "wave_phase_transition")
+    val wavePhase by infiniteTransition.animateFloat(
         initialValue = 0f,
-        targetValue = 360f,
+        targetValue = (2 * Math.PI).toFloat(),
         animationSpec = infiniteRepeatable(
-            animation = tween(8000, easing = LinearEasing),
+            animation = tween(if (reduceAnimations) 6000 else 2500, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
-        label = "rotate_phase"
+        label = "wave_phase"
     )
 
-    // 2. Dynamic Audio Reactive Scale & Alpha Springs
-    val targetCoreScale = when {
-        reduceAnimations -> 1.0f
-        isListening -> 1.08f + (audioAmp * 0.42f)
-        isSpeaking -> 1.04f + (audioAmp * 0.25f)
-        else -> idleBreathScale
-    }
-
-    val coreScale by animateFloatAsState(
-        targetValue = targetCoreScale,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioLowBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "core_orb_scale"
-    )
-
-    val targetOuterScale = when {
-        reduceAnimations -> 1.0f
-        isListening -> 1.15f + (audioAmp * 0.65f)
-        isSpeaking -> 1.08f + (audioAmp * 0.35f)
-        else -> 1.0f
-    }
-    val outerScale by animateFloatAsState(
-        targetValue = targetOuterScale,
+    // Smooth transition for audio amplitude sensitivity without scaling boxes
+    val animatedAmp by animateFloatAsState(
+        targetValue = when {
+            isListening -> (audioAmp * 1.2f + 0.25f).coerceIn(0.25f, 1.0f)
+            isSpeaking -> (audioAmp * 0.9f + 0.20f).coerceIn(0.20f, 0.85f)
+            else -> 0.10f
+        },
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioLowBouncy,
             stiffness = Spring.StiffnessLow
         ),
-        label = "outer_ring_scale"
-    )
-
-    val targetMidScale = when {
-        reduceAnimations -> 1.0f
-        isListening -> 1.10f + (audioAmp * 0.45f)
-        isSpeaking -> 1.05f + (audioAmp * 0.20f)
-        else -> 1.0f
-    }
-    val midScale by animateFloatAsState(
-        targetValue = targetMidScale,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioLowBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "mid_ring_scale"
+        label = "animated_audio_amp"
     )
 
     val primaryColor = MaterialTheme.colorScheme.primary
     val secondaryColor = MaterialTheme.colorScheme.secondary
     val tertiaryColor = MaterialTheme.colorScheme.tertiary
-    val primaryContainer = MaterialTheme.colorScheme.primaryContainer
-    val onPrimary = MaterialTheme.colorScheme.onPrimary
-
-    val orbColor1 = when {
-        isListening -> tertiaryColor
-        isSpeaking -> secondaryColor
-        else -> primaryContainer
-    }
-    val orbColor2 = when {
-        isListening -> primaryColor
-        isSpeaking -> primaryColor
-        else -> primaryColor
-    }
 
     Box(
         modifier = modifier
-            .size(220.dp)
+            .fillMaxWidth()
+            .height(150.dp)
             .semantics {
                 contentDescription = if (isListening) {
-                    "Aira Voice Assistant Orb, listening to microphone input. Tap to stop."
+                    "Voice Assistant Visualizer, listening to microphone input. Tap to stop."
                 } else {
-                    "Aira Voice Assistant Orb, idle. Tap to start talking."
+                    "Voice Assistant Visualizer, idle. Tap to start talking."
                 }
                 role = Role.Button
                 stateDescription = derivedStatus
@@ -1443,132 +1445,88 @@ fun AudioReactiveHeroOrb(
             },
         contentAlignment = Alignment.Center
     ) {
-        // --- 1. Outer Audio Reactive Wave Shockwave (Pulse Aura) ---
-        Box(
+        Canvas(
             modifier = Modifier
-                .size(210.dp)
-                .graphicsLayer {
-                    scaleX = outerScale
-                    scaleY = outerScale
-                    alpha = if (isListening) (0.25f + audioAmp * 0.5f).coerceIn(0f, 0.85f)
-                            else if (isSpeaking) (0.20f + audioAmp * 0.3f).coerceIn(0f, 0.6f)
-                            else idleGlowAlpha
-                }
-                .border(
-                    width = (1.5 + audioAmp * 3.0).dp,
-                    color = primaryColor.copy(alpha = 0.4f),
-                    shape = CircleShape
-                )
-                .background(
-                    brush = Brush.radialGradient(
-                        colors = listOf(primaryColor.copy(alpha = 0.18f), Color.Transparent)
-                    ),
-                    shape = CircleShape
-                )
-        )
-
-        // --- 2. Middle Dynamic Ripple Ring ---
-        Box(
-            modifier = Modifier
-                .size(165.dp)
-                .graphicsLayer {
-                    scaleX = midScale
-                    scaleY = midScale
-                    alpha = if (isListening) (0.35f + audioAmp * 0.45f).coerceIn(0f, 0.9f)
-                            else if (isSpeaking) (0.30f + audioAmp * 0.30f).coerceIn(0f, 0.7f)
-                            else 0.15f
-                }
-                .border(
-                    width = 1.dp,
-                    color = orbColor1.copy(alpha = 0.5f),
-                    shape = CircleShape
-                )
-                .background(
-                    brush = Brush.radialGradient(
-                        colors = listOf(primaryContainer.copy(alpha = 0.25f), Color.Transparent)
-                    ),
-                    shape = CircleShape
-                )
-        )
-
-        // --- 3. Core Reactive Sphere Orb ---
-        Box(
-            modifier = Modifier
-                .size(125.dp)
-                .graphicsLayer {
-                    scaleX = coreScale
-                    scaleY = coreScale
-                    shadowElevation = (16f + audioAmp * 20f)
-                }
-                .shadow(
-                    elevation = (16 + audioAmp * 16).dp,
-                    shape = CircleShape,
-                    ambientColor = primaryColor.copy(alpha = 0.5f),
-                    spotColor = tertiaryColor.copy(alpha = 0.6f)
-                )
-                .background(
-                    brush = Brush.radialGradient(
-                        colors = listOf(orbColor1, orbColor2),
-                        center = Offset(0.35f, 0.35f),
-                        radius = 80f
-                    ),
-                    shape = CircleShape
-                ),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .height(140.dp)
+                .testTag("waveform_visualizer_canvas")
         ) {
-            // Real-time Audio Waveform Equalizer Canvas
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val canvasWidth = size.width
-                val canvasHeight = size.height
-                val barCount = 7
-                val barWidth = 4.dp.toPx()
-                val spacing = 6.dp.toPx()
-                val totalWidth = barCount * barWidth + (barCount - 1) * spacing
-                val startX = (canvasWidth - totalWidth) / 2f
-                val centerY = canvasHeight / 2f
+            val width = size.width
+            val height = size.height
+            val midY = height / 2f
 
-                // Individual height multipliers for dynamic wave movement
-                val barMultipliers = listOf(0.45f, 0.75f, 1.0f, 0.85f, 0.95f, 0.65f, 0.40f)
+            if (width <= 0 || height <= 0) return@Canvas
 
-                for (i in 0 until barCount) {
-                    val x = startX + i * (barWidth + spacing)
-                    val mult = barMultipliers[i]
+            // Define wave specs (3 overlapping organic fluid sine/bezier waves)
+            data class WaveSpec(
+                val color: Color,
+                val strokeWidth: Float,
+                val frequency: Float,
+                val phaseOffset: Float,
+                val ampMultiplier: Float,
+                val alpha: Float
+            )
 
-                    val dynamicHeight = if (isListening) {
-                        // Real-time microphone audio amplitude reactivity
-                        val phaseSine = kotlin.math.sin(Math.toRadians((rotatePhase * 3.0 + i * 45).toDouble())).toFloat()
-                        val ampFactor = (audioAmp * 1.2f + 0.15f * phaseSine).coerceIn(0.12f, 1.0f)
-                        (32.dp.toPx() * mult * ampFactor).coerceAtLeast(6.dp.toPx())
-                    } else if (isSpeaking) {
-                        val phaseSine = kotlin.math.sin(Math.toRadians((rotatePhase * 4.0 + i * 50).toDouble())).toFloat()
-                        val ampFactor = (audioAmp * 0.9f + 0.20f * phaseSine).coerceIn(0.15f, 1.0f)
-                        (28.dp.toPx() * mult * ampFactor).coerceAtLeast(6.dp.toPx())
+            val waves = listOf(
+                WaveSpec(
+                    color = primaryColor,
+                    strokeWidth = 3.5.dp.toPx(),
+                    frequency = 2.2f,
+                    phaseOffset = 0f,
+                    ampMultiplier = 1.0f,
+                    alpha = if (isListening) 0.95f else if (isSpeaking) 0.90f else 0.70f
+                ),
+                WaveSpec(
+                    color = secondaryColor,
+                    strokeWidth = 2.5.dp.toPx(),
+                    frequency = 3.1f,
+                    phaseOffset = 1.2f,
+                    ampMultiplier = 0.75f,
+                    alpha = if (isListening) 0.85f else if (isSpeaking) 0.80f else 0.55f
+                ),
+                WaveSpec(
+                    color = tertiaryColor,
+                    strokeWidth = 2.0.dp.toPx(),
+                    frequency = 1.5f,
+                    phaseOffset = 2.4f,
+                    ampMultiplier = 0.55f,
+                    alpha = if (isListening) 0.75f else if (isSpeaking) 0.70f else 0.45f
+                )
+            )
+
+            val maxWaveAmp = (height / 2.2f) * animatedAmp
+
+            waves.forEach { wave ->
+                val path = Path()
+                val stepCount = 80
+                val dx = width / stepCount
+
+                for (i in 0..stepCount) {
+                    val x = i * dx
+                    val normalizedX = x / width
+
+                    // Envelope function: sin(PI * x / width) keeps wave centered and smoothly tapers to zero at left & right edges
+                    val envelope = kotlin.math.sin(Math.PI * normalizedX).toFloat()
+
+                    val currentPhase = wavePhase + wave.phaseOffset
+                    val sineVal = kotlin.math.sin((normalizedX * wave.frequency * 2 * Math.PI) + currentPhase).toFloat()
+
+                    val y = midY + (sineVal * maxWaveAmp * wave.ampMultiplier * envelope)
+
+                    if (i == 0) {
+                        path.moveTo(x, y)
                     } else {
-                        // Gentle resting wave bars
-                        (8.dp.toPx() * mult).coerceAtLeast(4.dp.toPx())
+                        path.lineTo(x, y)
                     }
-
-                    val top = centerY - (dynamicHeight / 2f)
-                    val bottom = centerY + (dynamicHeight / 2f)
-
-                    val barAlpha = if (isListening) 0.95f else if (isSpeaking) 0.85f else 0.5f
-
-                    drawRoundRect(
-                        color = onPrimary.copy(alpha = barAlpha),
-                        topLeft = Offset(x, top),
-                        size = androidx.compose.ui.geometry.Size(barWidth, dynamicHeight),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(barWidth / 2f)
-                    )
                 }
-            }
 
-            // Central Icon Indicator when listening/idle
-            if (!isListening && !isSpeaking) {
-                Icon(
-                    imageVector = Icons.Outlined.Mic,
-                    contentDescription = "Voice Assistant Ready",
-                    tint = onPrimary.copy(alpha = 0.9f),
-                    modifier = Modifier.size(36.dp)
+                drawPath(
+                    path = path,
+                    color = wave.color.copy(alpha = wave.alpha),
+                    style = Stroke(
+                        width = wave.strokeWidth,
+                        cap = StrokeCap.Round
+                    )
                 )
             }
         }

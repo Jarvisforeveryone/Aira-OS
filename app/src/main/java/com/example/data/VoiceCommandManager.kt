@@ -633,28 +633,45 @@ class VoiceCommandManager(private val context: Context) {
         temperature: Double? = null
     ): Pair<String, String> {
         val isOnline = isInternetAvailable()
-        val sharedPrefs = context.getSharedPreferences("aira_settings", Context.MODE_PRIVATE)
+        val sharedPrefs = com.example.utils.SecurePrefs.getEncryptedSharedPreferences(context, "aira_settings")
         val selectedOnlineModel = sharedPrefs.getString("online_model", "Gemini API") ?: "Gemini API"
         val onlineLabel = if (selectedOnlineModel.equals("Groq API", ignoreCase = true)) "Groq API (Online)" else "Gemini API (Online)"
+        val apiBrain = com.example.models.AiBrain(context)
+        val combinedInstruction = if (systemInstruction.contains("Jarvis")) systemInstruction else "${com.example.models.AiBrain.JARVIS_SYSTEM_INSTRUCTION}\n$systemInstruction"
 
         return if (isOnline) {
             Log.i("VoiceCommandManager", "Internet detected. Routing query successfully to $onlineLabel...")
             try {
                 _currentEngineSource.value = onlineLabel
-                val apiBrain = com.example.models.AiBrain(context)
-                val response = apiBrain.getAiResponse(userInput, systemInstruction, history, temperature)
+                val response = apiBrain.getAiResponse(userInput, combinedInstruction, history, temperature)
                 Pair(response, onlineLabel)
             } catch (e: Exception) {
-                Log.e("VoiceCommandManager", "Online AI model query failed, falling back to Local LLaMa Model", e)
-                _currentEngineSource.value = "Llama 3.2 (Offline Fallback)"
-                val response = llamaCppBrain.getResponse(userInput, systemInstruction, history, temperature)
-                Pair(response, "Llama 3.2 (Offline Fallback)")
+                Log.e("VoiceCommandManager", "Online AI model query failed, falling back to Local LLaMa / Rules Model", e)
+                _currentEngineSource.value = "Llama 3.2 + Local Rules (Offline Fallback)"
+                try {
+                    val response = llamaCppBrain.getResponse(userInput, combinedInstruction, history, temperature)
+                    if (response.isBlank() || response.contains("Error")) {
+                        Pair(apiBrain.getOfflineLocalResponse(userInput), "Jarvis Local Brain (Offline)")
+                    } else {
+                        Pair(response, "Llama 3.2 (Offline Fallback)")
+                    }
+                } catch (ex: Exception) {
+                    Pair(apiBrain.getOfflineLocalResponse(userInput), "Jarvis Local Brain (Offline)")
+                }
             }
         } else {
-            Log.i("VoiceCommandManager", "No internet detected. Routing query automatically to Local LLaMa Model Instance...")
-            _currentEngineSource.value = "Llama 3.2 (Offline)"
-            val response = llamaCppBrain.getResponse(userInput, systemInstruction, history, temperature)
-            Pair(response, "Llama 3.2 (Offline)")
+            Log.i("VoiceCommandManager", "No internet detected. Routing query automatically to Local LLaMa / Rules Engine...")
+            _currentEngineSource.value = "Jarvis Local Brain (Offline)"
+            try {
+                val response = llamaCppBrain.getResponse(userInput, combinedInstruction, history, temperature)
+                if (response.isBlank() || response.contains("Error")) {
+                    Pair(apiBrain.getOfflineLocalResponse(userInput), "Jarvis Local Brain (Offline)")
+                } else {
+                    Pair(response, "Llama 3.2 (Offline)")
+                }
+            } catch (e: Exception) {
+                Pair(apiBrain.getOfflineLocalResponse(userInput), "Jarvis Local Brain (Offline)")
+            }
         }
     }
 

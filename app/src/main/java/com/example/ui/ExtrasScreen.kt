@@ -109,7 +109,7 @@ fun ExtrasScreen(
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(
-                            text = "Llama 3.2 • Amy ONNX • Vosk STT",
+                            text = "Private On-Device AI • Voice Ready",
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.primary,
                             fontFamily = FontFamily.SansSerif,
@@ -131,10 +131,10 @@ fun ExtrasScreen(
         AiraCard(
             onClick = { showWeatherDetailsDialog = true },
             title = "Weather",
-            subtitle = "Updating environmental metrics...",
+            subtitle = "Checking local weather...",
             icon = Icons.Outlined.Cloud,
             headerTrailing = {
-                AiraBadge(text = "LIVE METRICS", badgeColor = MaterialTheme.colorScheme.primaryContainer, textColor = MaterialTheme.colorScheme.primary)
+                AiraBadge(text = "LIVE WEATHER", badgeColor = MaterialTheme.colorScheme.primaryContainer, textColor = MaterialTheme.colorScheme.primary)
             }
         ) {
             Box(
@@ -652,7 +652,7 @@ fun ExtrasScreen(
                 }
 
                 Text(
-                    text = "Broadcast live intelligence alerts directly to your device notifications tray to test the high-tech voice alert systems.",
+                    text = "Send sample notification alerts to your phone to test AIRA's alert sounds and voice reminders.",
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
                     fontFamily = FontFamily.SansSerif,

@@ -1,68 +1,39 @@
 package com.example.service
 
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.content.Context
 import android.content.Intent
-import android.content.pm.ServiceInfo
-import android.os.Build
 import android.service.voice.VoiceInteractionService
 import android.util.Log
-import androidx.core.app.NotificationCompat
 
+/**
+ * System VoiceInteractionService bound by Android when AIRA is selected as the
+ * Default Digital Assistant App in Android Settings.
+ *
+ * CRITICAL STABILITY FIX:
+ * VoiceInteractionService is a system-managed binder service bound directly by Android's
+ * VoiceInteractionManagerService in system_server.
+ * It MUST NOT call startForeground() inside onReady() or onStartCommand().
+ * On Android 12/13/14+, calling startForeground with microphone type from background
+ * (which happens when the user is inside System Settings picking default assistant)
+ * throws ForegroundServiceStartNotAllowedException / SecurityException.
+ * Re-binding by system_server then caused an infinite CPU crash loop that froze the UI,
+ * turned off the screen, and caused device watchdog reboots.
+ */
 class AssistantService : VoiceInteractionService() {
 
     override fun onReady() {
         super.onReady()
-        Log.d("AssistantService", "AssistantService onReady called")
-        startForegroundNotification()
+        Log.d("AssistantService", "AIRA AssistantService onReady called successfully as Default Digital Assistant.")
+    }
+
+    override fun onShutdown() {
+        super.onShutdown()
+        Log.d("AssistantService", "AIRA AssistantService onShutdown called.")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForegroundNotification()
-        return super.onStartCommand(intent, flags, startId)
-    }
-
-    private fun startForegroundNotification() {
-        val channelId = "aira_voice_assistant_channel"
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                "AIRA Voice Assistant",
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "Background microphone processing for AIRA assistant"
-            }
-            notificationManager?.createNotificationChannel(channel)
-        }
-
-        val notification: Notification = NotificationCompat.Builder(this, channelId)
-            .setContentTitle("AIRA Voice Service")
-            .setContentText("Listening for wake-word and hands-free voice commands...")
-            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setOngoing(true)
-            .build()
-
-        val notificationId = 1001
-
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                startForeground(
-                    notificationId,
-                    notification,
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
-                )
-            } else {
-                startForeground(notificationId, notification)
-            }
-            Log.d("AssistantService", "Foreground service started with MICROPHONE type")
-        } catch (e: Exception) {
-            Log.e("AssistantService", "Error starting foreground service", e)
-        }
+        Log.d("AssistantService", "AIRA AssistantService onStartCommand called.")
+        return START_STICKY
     }
 }
+
 

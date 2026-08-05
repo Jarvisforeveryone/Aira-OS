@@ -118,7 +118,6 @@ dependencies {
   implementation(libs.logging.interceptor)
   implementation(libs.moshi.kotlin)
   implementation(libs.okhttp)
-  implementation("com.squareup.okhttp3:okhttp:4.12.0")
   implementation("com.squareup.retrofit2:converter-simplexml:2.9.0")
   // implementation(libs.play.services.location)
   implementation(libs.retrofit)
@@ -146,6 +145,11 @@ dependencies {
   implementation("com.alphacephei:vosk-android:0.3.75@aar")
   implementation("net.java.dev.jna:jna:5.18.1@aar")
   implementation("com.google.code.gson:gson:2.11.0")
+  
+  // Shizuku system API integration
+  val shizukuVersion = "13.1.5"
+  implementation("dev.rikka.shizuku:api:$shizukuVersion")
+  implementation("dev.rikka.shizuku:provider:$shizukuVersion")
 }
 
 apply(from = "$rootDir/gradle/scripts/assets.gradle.kts")

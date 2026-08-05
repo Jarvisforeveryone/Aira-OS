@@ -95,7 +95,7 @@ object TtsEngineFactory {
      * Sets the user's preferred TTS engine.
      */
     fun setEnginePreference(context: Context, engineType: TtsEngineType) {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val prefs = com.example.utils.SecurePrefs.getEncryptedSharedPreferences(context, PREFS_NAME)
         prefs.edit().putString(PREF_KEY_TTS_ENGINE, engineType.name).apply()
         Log.i(TAG, "TTS preferred engine set to: ${engineType.name}")
     }
@@ -104,7 +104,7 @@ object TtsEngineFactory {
      * Gets the user's preferred TTS engine.
      */
     fun getEnginePreference(context: Context): TtsEngineType {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val prefs = com.example.utils.SecurePrefs.getEncryptedSharedPreferences(context, PREFS_NAME)
         val engineName = prefs.getString(PREF_KEY_TTS_ENGINE, TtsEngineType.AUTO_FALLBACK.name)
         return try {
             TtsEngineType.valueOf(engineName ?: TtsEngineType.AUTO_FALLBACK.name)

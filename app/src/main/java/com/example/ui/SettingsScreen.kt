@@ -124,6 +124,9 @@ fun SettingsScreen(
         composable("offline_status_dashboard") {
             OfflineStatusDashboardScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
+        composable("settings_shizuku") {
+            ShizukuSettingsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
     }
 }
 
@@ -198,7 +201,7 @@ fun SettingsHomeScreen(navController: NavController, viewModel: AiraViewModel) {
                                 shape = RoundedCornerShape(8.dp)
                             ) {
                                 Text(
-                                    text = "Llama 3.2 • Amy ONNX • Vosk STT",
+                                    text = "Private On-Device AI • Voice Ready",
                                     fontSize = 11.sp,
                                     color = MaterialTheme.colorScheme.primary,
                                     fontFamily = FontFamily.SansSerif,
@@ -291,6 +294,16 @@ fun SettingsHomeScreen(navController: NavController, viewModel: AiraViewModel) {
                     icon = Icons.Default.Palette,
                     testTag = "settings_tab_accessibility",
                     onClick = { navController.navigate("settings_accessibility") }
+                )
+            }
+
+            item {
+                SettingsCategoryItem(
+                    title = "Shizuku ADB Integration",
+                    subtitle = "System privileged control, status & setup guide",
+                    icon = Icons.Default.Lock,
+                    testTag = "settings_tab_shizuku",
+                    onClick = { navController.navigate("settings_shizuku") }
                 )
             }
         }
@@ -1270,14 +1283,14 @@ fun VoiceSettingsScreen(
                             )
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Amy Offline",
+                                    text = "Piper ONNX (Amy)",
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Medium,
                                     color = if (isAmyDownloaded) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
                                     fontFamily = FontFamily.SansSerif
                                 )
                                 Text(
-                                    text = "Always use local Piper TTS with amymodel.onnx",
+                                    text = "Always use offline high-quality natural voice",
                                     fontSize = 13.sp,
                                     color = if (isAmyDownloaded) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
                                     fontFamily = FontFamily.SansSerif,
@@ -1363,7 +1376,7 @@ fun VoiceSettingsScreen(
                         ) {
                             Icon(imageVector = androidx.compose.material.icons.Icons.Default.PlayArrow, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = "Run JNI Diagnostics & TTS Test", fontFamily = FontFamily.SansSerif)
+                            Text(text = "Run System Voice Diagnostic Test", fontFamily = FontFamily.SansSerif)
                         }
                     }
 
@@ -1513,14 +1526,14 @@ fun VoiceSettingsScreen(
                             )
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Auto-routing (Hybrid)",
+                                    text = "Automatic (Online & Offline)",
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Medium,
                                     color = MaterialTheme.colorScheme.onSurface,
                                     fontFamily = FontFamily.SansSerif
                                 )
                                 Text(
-                                    text = "Use online recognition when internet is active, fallback to offline Vosk automatically if offline.",
+                                    text = "Uses fast cloud recognition when connected, and automatically switches to private offline recognition when offline.",
                                     fontSize = 13.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontFamily = FontFamily.SansSerif,
@@ -1552,14 +1565,14 @@ fun VoiceSettingsScreen(
                             )
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Always Offline (Vosk)",
+                                    text = "Always Private Offline",
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Medium,
                                     color = MaterialTheme.colorScheme.onSurface,
                                     fontFamily = FontFamily.SansSerif
                                 )
                                 Text(
-                                    text = "Process all speech entirely on-device offline using the local Vosk model, guaranteeing zero network latency or remote data transmission.",
+                                    text = "Processes all voice commands on your phone without sending any voice data over the internet.",
                                     fontSize = 13.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontFamily = FontFamily.SansSerif,
@@ -1580,7 +1593,7 @@ fun VoiceSettingsScreen(
             ) {
                 Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text(
-                        text = "Google TTS Customization",
+                        text = "Google Voice Customization",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Medium,
                         fontFamily = FontFamily.SansSerif,
@@ -1588,7 +1601,7 @@ fun VoiceSettingsScreen(
                     )
 
                     Text(
-                        text = "Configure preferred online/cloud language models and distinctive voice types for Google speech synthesis.",
+                        text = "Choose preferred language and voice style for speech responses.",
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontFamily = FontFamily.SansSerif,
@@ -1625,7 +1638,7 @@ fun VoiceSettingsScreen(
                             Spacer(modifier = Modifier.width(16.dp))
                             Column {
                                 Text(
-                                    text = "Language Model",
+                                    text = "Language",
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Medium,
                                     color = MaterialTheme.colorScheme.onSurface,
@@ -1680,7 +1693,7 @@ fun VoiceSettingsScreen(
                             Spacer(modifier = Modifier.width(16.dp))
                             Column {
                                 Text(
-                                    text = "Voice Model",
+                                    text = "Voice Style",
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Medium,
                                     color = MaterialTheme.colorScheme.onSurface,
@@ -1799,7 +1812,7 @@ fun VoiceSettingsScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
-                                text = "Use Piper TTS Offline",
+                                text = "Use Natural Offline Voice",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium,
                                 fontFamily = FontFamily.SansSerif,
@@ -2196,14 +2209,14 @@ fun SystemSettingsScreen(
                             )
                             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Text(
-                                    text = "API Keys Encryption Vault",
+                                    text = "Secure API Keys",
                                     fontSize = 18.sp, // Card Title
                                     fontWeight = FontWeight.Medium,
                                     fontFamily = FontFamily.SansSerif,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = if (isExpanded) "Tap to hide rotation vault" else "Tap to expand rotation vault",
+                                    text = if (isExpanded) "Tap to hide API keys" else "Tap to view API keys",
                                     fontSize = 14.sp, // Caption
                                     fontWeight = FontWeight.Normal,
                                     fontFamily = FontFamily.SansSerif,
@@ -2237,7 +2250,7 @@ fun SystemSettingsScreen(
                             )
 
                             Text(
-                                text = "Keys rotation allows fallback logic to execute. All credential records are stored safely in dynamic SharedPreferences sandbox space.",
+                                text = "Multiple keys help keep online AI services connected smoothly. All keys are encrypted and saved securely on your device.",
                                 fontSize = 14.sp, // Caption
                                 fontWeight = FontWeight.Normal,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -2365,7 +2378,7 @@ fun SystemSettingsScreen(
             ) {
                 Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text(
-                        text = "AI Orchestration Brain",
+                        text = "AI Intelligence Mode",
                         fontSize = 18.sp, // Card Title
                         fontWeight = FontWeight.Medium,
                         fontFamily = FontFamily.SansSerif,
@@ -2390,7 +2403,7 @@ fun SystemSettingsScreen(
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Text(
-                                    text = "Disabled for your device (RAM < 3GB). Local Llama 3.2 engine is disabled to prevent native memory crashes. Online AI will be used.",
+                                    text = "Disabled on devices with less than 3GB RAM to keep performance fast and stable. Online AI will be used instead.",
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onErrorContainer,
                                     fontFamily = FontFamily.SansSerif,
@@ -2407,14 +2420,14 @@ fun SystemSettingsScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
-                                text = "Offline AI Assistant (Llama 3.2)",
+                                text = "Offline Private AI Mode",
                                 fontSize = 16.sp, // Body
                                 fontWeight = FontWeight.Medium,
                                 fontFamily = FontFamily.SansSerif,
                                 color = if (isDeviceMemoryCapable) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                             )
                             Text(
-                                text = if (isDeviceMemoryCapable) "Execute on-device deep language graph predictions instead of external servers."
+                                text = if (isDeviceMemoryCapable) "Process conversations directly on your phone for complete privacy without using external servers."
                                        else "Not recommended for your device (<3GB RAM). Switch disabled for memory stability.",
                                 fontSize = 14.sp, // Caption
                                 fontWeight = FontWeight.Normal,
@@ -2513,7 +2526,7 @@ fun SystemSettingsScreen(
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Text(
-                                text = "Embedded Models State",
+                                text = "Offline AI Status",
                                 fontSize = 16.sp, // Body
                                 fontWeight = FontWeight.Medium,
                                 fontFamily = FontFamily.SansSerif,
@@ -2526,7 +2539,7 @@ fun SystemSettingsScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Model Driver status",
+                                    text = "Offline Model Status",
                                     fontFamily = FontFamily.SansSerif,
                                     fontSize = 14.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -2546,13 +2559,13 @@ fun SystemSettingsScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Active Graph",
+                                    text = "Active AI Model",
                                     fontFamily = FontFamily.SansSerif,
                                     fontSize = 14.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
-                                    text = "Llama-3.2 1B (Embedded fallback)",
+                                    text = "On-Device Private Model",
                                     fontFamily = FontFamily.SansSerif,
                                     fontSize = 14.sp,
                                     color = MaterialTheme.colorScheme.onSurface,
@@ -2565,7 +2578,7 @@ fun SystemSettingsScreen(
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(
-                                    text = "Hardware Configuration Threads",
+                                    text = "Processing Cores",
                                     fontSize = 13.sp, // Labels
                                     fontWeight = FontWeight.Medium,
                                     fontFamily = FontFamily.SansSerif,
@@ -2654,14 +2667,14 @@ fun SystemSettingsScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
-                            text = "Emotion & Tone Engine",
+                            text = "Emotion & Tone Adaptive AI",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Medium,
                             fontFamily = FontFamily.SansSerif,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "Detect user emotion (Happy, Sad, Angry, Neutral) and dynamically adjust AI response tone.",
+                            text = "Detect user tone and mood to dynamically adjust AI voice responses.",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Normal,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -2699,14 +2712,14 @@ fun SystemSettingsScreen(
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
-                            text = "Model Temperature",
+                            text = "AI Creativity Level",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Medium,
                             fontFamily = FontFamily.SansSerif,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "Set response randomness and creativity level. Low (0.3) for factual precision, High (0.9) for creative responses.",
+                            text = "Adjust how creative or precise AIRA's answers are. Lower values are more factual, higher values are more creative.",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Normal,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -3614,6 +3627,311 @@ fun AccessibilitySettingsScreen(
                     ) {
                         Text("Replay", fontSize = 13.sp)
                     }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ShizukuSettingsScreen(
+    viewModel: AiraViewModel,
+    onBack: () -> Unit
+) {
+    val isShizukuRunning by viewModel.isShizukuRunning.collectAsState()
+    val isShizukuGranted by viewModel.isShizukuGranted.collectAsState()
+    val context = LocalContext.current
+    var testResultText by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        viewModel.refreshShizukuStatus()
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "Shizuku ADB Setup",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 20.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontFamily = FontFamily.SansSerif
+                    )
+                },
+                navigationIcon = {
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier.testTag("shizuku_back_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
+        ) {
+            // Status Card
+            Card(
+                modifier = Modifier.fillMaxWidth().testTag("shizuku_status_card"),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isShizukuRunning && isShizukuGranted) {
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
+                    } else {
+                        MaterialTheme.colorScheme.surface
+                    }
+                ),
+                shape = RoundedCornerShape(22.dp),
+                border = BorderStroke(
+                    1.dp,
+                    if (isShizukuRunning && isShizukuGranted) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                    else MaterialTheme.colorScheme.outlineVariant
+                )
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(12.dp)
+                                .background(
+                                    if (isShizukuRunning && isShizukuGranted) colorResource(id = R.color.aira_success_light)
+                                    else colorResource(id = R.color.aira_warning_light),
+                                    CircleShape
+                                )
+                        )
+                        Text(
+                            text = when {
+                                isShizukuRunning && isShizukuGranted -> "Shizuku Connected & Authorized"
+                                isShizukuRunning -> "Shizuku Running (Permission Required)"
+                                else -> "Shizuku Service Not Running"
+                            },
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 16.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = when {
+                            isShizukuRunning && isShizukuGranted -> "AIRA can execute direct privileged system shell commands without requiring accessibility overlays."
+                            isShizukuRunning -> "Shizuku service is running in background. Click below to grant ADB permission to AIRA."
+                            else -> "Shizuku is not running. AIRA will automatically fall back to AccessibilityService and system dialogs seamlessly."
+                        },
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 18.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Button(
+                            onClick = { viewModel.refreshShizukuStatus() },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                            modifier = Modifier.testTag("refresh_shizuku_btn")
+                        ) {
+                            Text("Refresh Status", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+
+                        if (isShizukuRunning && !isShizukuGranted) {
+                            Button(
+                                onClick = { viewModel.requestShizukuPermission() },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                modifier = Modifier.testTag("request_shizuku_perm_btn")
+                            ) {
+                                Text("Request Permission", fontSize = 13.sp)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Quick Test Controls Card
+            if (isShizukuRunning && isShizukuGranted) {
+                Card(
+                    modifier = Modifier.fillMaxWidth().testTag("shizuku_test_card"),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    shape = RoundedCornerShape(22.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Text(
+                            text = "Shizuku Quick Action Test",
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 16.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    testResultText = com.example.utils.ShizukuManager.toggleWiFi(true)
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Wi-Fi ON", fontSize = 11.sp)
+                            }
+                            OutlinedButton(
+                                onClick = {
+                                    testResultText = com.example.utils.ShizukuManager.toggleBluetooth(true)
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("BT ON", fontSize = 11.sp)
+                            }
+                            OutlinedButton(
+                                onClick = {
+                                    testResultText = com.example.utils.ShizukuManager.setBrightness(80)
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Bright 80%", fontSize = 11.sp)
+                            }
+                        }
+
+                        testResultText?.let { res ->
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = res,
+                                    fontSize = 12.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier.padding(10.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Setup Guide Card
+            Card(
+                modifier = Modifier.fillMaxWidth().testTag("shizuku_guide_card"),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                shape = RoundedCornerShape(22.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text(
+                        text = "Shizuku Step-by-Step Setup Guide",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Follow these instructions when you are ready to enable ADB level system actions:",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    val steps = listOf(
+                        "1. Download Shizuku" to "Install Shizuku from Google Play Store or GitHub releases.",
+                        "2. Enable Developer Options" to "Go to Phone Settings > About Phone > Tap 'Build Number' 7 times until Developer Mode is unlocked.",
+                        "3. Turn On Wireless Debugging" to "Go to System > Developer Options > Enable 'Wireless Debugging'.",
+                        "4. Pair with Shizuku Code" to "Open Shizuku app > Select 'Pairing' > Enter the Wireless Debugging pairing code.",
+                        "5. Start Service & Authorize AIRA" to "Start Shizuku service, then return to AIRA settings and tap 'Request Permission'."
+                    )
+
+                    steps.forEachIndexed { idx, (title, desc) ->
+                        Row(
+                            verticalAlignment = Alignment.Top,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.padding(vertical = 6.dp)
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = "${idx + 1}",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                }
+                            }
+                            Column {
+                                Text(
+                                    text = title,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = desc,
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    lineHeight = 16.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Fallback Info Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = "Notice",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "Shizuku is completely optional. If not installed or enabled, AIRA operates normally using AccessibilityService and System Settings intents with zero friction.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 16.sp
+                    )
                 }
             }
         }

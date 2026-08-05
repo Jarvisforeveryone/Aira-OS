@@ -23,11 +23,13 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.IconColors
+import com.example.utils.ScreenUtils
 
 /**
  * AIRA UNIFIED INPUT COMPONENT
  * Single source of truth for text fields, query inputs, and settings controls across AIRA.
  * Integrates global typography, color scheme, error handling, clear buttons, and icons.
+ * Automatically scales height and corner radius via ScreenUtils adaptive values.
  */
 @Composable
 fun AiraInput(
@@ -51,6 +53,7 @@ fun AiraInput(
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     containerColor: Color = MaterialTheme.colorScheme.surface
 ) {
+    val adaptive = ScreenUtils.adaptiveValues()
     val isError = !errorMessage.isNullOrBlank()
 
     Column(modifier = modifier.fillMaxWidth()) {
@@ -62,8 +65,8 @@ fun AiraInput(
             readOnly = isReadOnly,
             singleLine = singleLine,
             maxLines = maxLines,
-            label = if (label != null) { { Text(label) } } else null,
-            placeholder = if (placeholder != null) { { Text(placeholder) } } else null,
+            label = if (label != null) { { Text(label, fontSize = adaptive.fontSize) } } else null,
+            placeholder = if (placeholder != null) { { Text(placeholder, fontSize = adaptive.fontSize) } } else null,
             leadingIcon = if (leadingIcon != null) {
                 {
                     Icon(
@@ -99,7 +102,7 @@ fun AiraInput(
             visualTransformation = visualTransformation,
             keyboardOptions = keyboardOptions,
             keyboardActions = keyboardActions,
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(adaptive.cornerRadius),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = containerColor,
                 unfocusedContainerColor = containerColor,
