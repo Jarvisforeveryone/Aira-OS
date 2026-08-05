@@ -152,6 +152,49 @@ object JarvisDialoguePlanner {
     }
 }
 
+enum class JarvisIntent {
+    NEWS,
+    WEATHER,
+    DEVICE_COMMAND,
+    QUESTION_OPINION,
+    GENERAL_CONVERSATION
+}
+
+data class DispatchedIntentResult(
+    val intent: JarvisIntent,
+    val sentiment: com.example.utils.SentimentResult,
+    val formattedResponse: String
+)
+
+object JarvisIntentDispatcher {
+
+    fun dispatchAndFormat(
+        userInput: String,
+        rawResponse: String,
+        userName: String = "sir"
+    ): DispatchedIntentResult {
+        val sentiment = com.example.utils.SentimentAnalysisUtility.analyzeSentiment(userInput)
+        val lower = userInput.lowercase().trim()
+
+        val detectedIntent = when {
+            lower.contains("news") || lower.contains("headline") || lower.contains("article") || lower.contains("bulletin") -> JarvisIntent.NEWS
+            lower.contains("weather") || lower.contains("temperature") || lower.contains("forecast") || lower.contains("rain") || lower.contains("sunny") -> JarvisIntent.WEATHER
+            lower.startsWith("turn ") || lower.startsWith("toggle ") || lower.startsWith("set ") || lower.startsWith("open ") || lower.startsWith("lock ") || lower.contains("brightness") || lower.contains("bluetooth") || lower.contains("wifi") || lower.contains("flashlight") -> JarvisIntent.DEVICE_COMMAND
+            lower.contains("what do you think") || lower.contains("opinion") || lower.contains("should i") || lower.startsWith("why") || lower.startsWith("how come") -> JarvisIntent.QUESTION_OPINION
+            else -> JarvisIntent.GENERAL_CONVERSATION
+        }
+
+        val emotionState = EmotionState(sentiment.emotion, sentiment.intensity)
+        val formatted = JarvisDialoguePlanner.formatResponse(rawResponse, emotionState, userInput, userName)
+
+        return DispatchedIntentResult(
+            intent = detectedIntent,
+            sentiment = sentiment,
+            formattedResponse = formatted
+        )
+    }
+}
+
 class AiBrain(private val context: Context) {
 
     companion object {
@@ -284,7 +327,7 @@ Strict Response Rules:
                                 if (messageObj != null) {
                                     val responseText = messageObj.optString("content", "No response text")
 
-                                    val jarvisFormatted = JarvisDialoguePlanner.formatResponse(responseText, emotionState, query)
+                                    val jarvisFormatted = JarvisIntentDispatcher.dispatchAndFormat(query, responseText).formattedResponse
 
                                     // Save successful response in Room cache
                                     try {
@@ -388,7 +431,7 @@ Strict Response Rules:
                                         val parts = content.optJSONArray("parts")
                                         if (parts != null && parts.length() > 0) {
                                             val responseText = parts.getJSONObject(0).optString("text", "No response text")
-                                            val jarvisFormatted = JarvisDialoguePlanner.formatResponse(responseText, emotionState, query)
+                                            val jarvisFormatted = JarvisIntentDispatcher.dispatchAndFormat(query, responseText).formattedResponse
                                             
                                             // Step 3: Save successful response in Room cache
                                             try {
@@ -464,7 +507,7 @@ Strict Response Rules:
             }
         }
 
-        return JarvisDialoguePlanner.formatResponse(rawAnswer, emotionState, prompt)
+        return JarvisIntentDispatcher.dispatchAndFormat(prompt, rawAnswer).formattedResponse
     }
 }
 
