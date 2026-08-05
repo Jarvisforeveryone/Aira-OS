@@ -1970,9 +1970,9 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             var aiFinalResponse = ""
 
             if (_isOfflineBrain.value) {
-                if (!com.example.utils.MemoryManager.isDeviceCapable(getApplication())) {
-                    Log.w("AiraViewModel", "Device RAM < 3GB. Local Llama model execution skipped to prevent OOM crash.")
-                    _currentStatus.value = "Low RAM (<3GB): Using Online AI..."
+                if (com.example.utils.MemoryManager.isSafeMode(getApplication())) {
+                    Log.w("AiraViewModel", "Safe Mode / RAM < 3GB active. Local Llama model execution skipped to prevent OOM crash.")
+                    _currentStatus.value = "Safe Mode Active: Using Cloud / Local Rules..."
                     try {
                         val (aiResponse, sourceEngine) = voiceCommandMgr.getRoutedAiResponse(userInput, finalSystemInstruction, historyList, queryTemperature)
                         val reply = if (aiResponse.isNotBlank()) aiResponse else com.example.data.AiraPredefinedResponses.getRandomFallbackResponse(userInput)
@@ -2012,7 +2012,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                     processAIResponse(reply)
                 } catch (e: Exception) {
                     Log.e("AiraViewModel", "Online model call failed, checking memory before transitioning to local Llama 3.2 model.", e)
-                    if (com.example.utils.MemoryManager.isDeviceCapable(getApplication())) {
+                    if (!com.example.utils.MemoryManager.isSafeMode(getApplication())) {
                         _currentStatus.value = "Online failure. Transitioning to Llama 3.2..."
                         if (!com.example.utils.MemoryManager.isModelLoaded(com.example.utils.NativeModelType.LLAMA_CPP)) {
                             llamaCppBrain.initializeNativeEngine(_llamaThreads.value)

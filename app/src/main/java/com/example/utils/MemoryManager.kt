@@ -19,7 +19,66 @@ object MemoryManager {
     private const val TAG = "MemoryManager"
     private const val MIN_RAM_BYTES_FOR_LLAMA = 3L * 1024L * 1024L * 1024L // 3 GB RAM Threshold
 
+    private const val PREFS_SAFETY = "aira_safety_guard"
+    private const val KEY_CRASH_COUNT = "crash_count"
+    private const val KEY_SAFE_MODE = "safe_mode"
+
     private val loadedModels = mutableSetOf<NativeModelType>()
+
+    /**
+     * Sets up Uncaught Exception Handler to auto-detect crashes and enable Safe Mode on next startup.
+     */
+    fun setupCrashGuard(context: Context) {
+        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            try {
+                Log.e(TAG, "Uncaught exception caught by Safety Guard! Enabling Safe Mode for next boot.", throwable)
+                val prefs = context.getSharedPreferences(PREFS_SAFETY, Context.MODE_PRIVATE)
+                val count = prefs.getInt(KEY_CRASH_COUNT, 0) + 1
+                prefs.edit()
+                    .putInt(KEY_CRASH_COUNT, count)
+                    .putBoolean(KEY_SAFE_MODE, true)
+                    .apply()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to record crash in preferences", e)
+            }
+            defaultHandler?.uncaughtException(thread, throwable)
+        }
+    }
+
+    /**
+     * Checks if the app is running in Auto-Safe Mode due to past crashes or low RAM (< 3GB).
+     */
+    fun isSafeMode(context: Context): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_SAFETY, Context.MODE_PRIVATE)
+        val forcedSafeMode = prefs.getBoolean(KEY_SAFE_MODE, false)
+        return forcedSafeMode || !isDeviceCapable(context)
+    }
+
+    /**
+     * Returns user-facing warning text if device RAM is low or safe mode is active.
+     */
+    fun getLowRamWarningText(context: Context): String? {
+        val ramMb = getTotalRamMb(context)
+        return if (ramMb < 3072) {
+            "2GB RAM detected ($ramMb MB). Heavy offline AI models are automatically disabled to ensure device safety and prevent reboots."
+        } else if (isSafeMode(context)) {
+            "Safe Mode active due to a previous unexpected event. Heavy background native models have been safely paused."
+        } else {
+            null
+        }
+    }
+
+    /**
+     * Resets safe mode after successful boot without crashes.
+     */
+    fun clearSafeMode(context: Context) {
+        context.getSharedPreferences(PREFS_SAFETY, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_SAFE_MODE, false)
+            .putInt(KEY_CRASH_COUNT, 0)
+            .apply()
+    }
 
     /**
      * Checks if the device has sufficient total RAM (>= 3GB) to run heavy JNI models like local Llama 3.2.

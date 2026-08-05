@@ -551,7 +551,7 @@ class PiperTtsManager(private val context: Context) {
         val isPiperRequested = selectedTtsEngine == "PIPER_OFFLINE" || (selectedTtsEngine == "AUTO" && voiceId == "en_US-amy-medium")
 
         // Real JNI Piper speech for Amy Voice
-        if (isPiperRequested && voiceId == "en_US-amy-medium" && com.example.utils.MemoryManager.isDeviceCapable(context)) {
+        if (isPiperRequested && voiceId == "en_US-amy-medium" && !com.example.utils.MemoryManager.isSafeMode(context)) {
             if (com.example.util.NativeLibraryLoader.isLoaded()) {
                 try {
                     Log.d("PiperTtsManager", "Offline Piper TTS Speaking (Active Voice: en_US-amy-medium) via real JNI/ONNX engine!")
