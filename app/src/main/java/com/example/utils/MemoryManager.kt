@@ -61,7 +61,7 @@ object MemoryManager {
     fun getLowRamWarningText(context: Context): String? {
         val ramMb = getTotalRamMb(context)
         return if (ramMb < 3072) {
-            "2GB RAM detected ($ramMb MB). Heavy offline AI models are automatically disabled to ensure device safety and prevent reboots."
+            "2GB device detected ($ramMb MB). Cloud mode enabled for safety. Offline features disabled to prevent crashes."
         } else if (isSafeMode(context)) {
             "Safe Mode active due to a previous unexpected event. Heavy background native models have been safely paused."
         } else {

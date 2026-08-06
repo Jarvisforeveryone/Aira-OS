@@ -1128,6 +1128,13 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     val selectedTtsEngine: StateFlow<TtsEngine> = _selectedTtsEngine.asStateFlow()
 
     fun setSelectedTtsEngine(engine: TtsEngine) {
+        if (engine == TtsEngine.PIPER_OFFLINE && !com.example.utils.MemoryManager.isDeviceCapable(getApplication())) {
+            _selectedTtsEngine.value = TtsEngine.GOOGLE_TTS
+            sharedPrefs.edit().putString("selected_tts_engine", TtsEngine.GOOGLE_TTS.name).apply()
+            piperTtsManager.selectedTtsEngine = TtsEngine.GOOGLE_TTS.name
+            speakText("2GB device detected. Cloud mode enabled for safety. Offline features disabled.")
+            return
+        }
         _selectedTtsEngine.value = engine
         sharedPrefs.edit().putString("selected_tts_engine", engine.name).apply()
         piperTtsManager.selectedTtsEngine = engine.name
@@ -1230,10 +1237,15 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             sharedPrefs.registerOnSharedPreferenceChangeListener(prefChangeListener)
 
             if (!_isDeviceMemoryCapable.value) {
-                Log.w("AiraViewModel", "Device RAM is < 3GB (${_totalRamMb.value} MB). Disabling heavy local Llama model and persistent listening by default.")
+                Log.w("AiraViewModel", "Device RAM is < 3GB (${_totalRamMb.value} MB). Enforcing Cloud Mode for device safety.")
                 _isOfflineBrain.value = false
                 _usePersistentListening.value = false
-                sharedPrefs.edit().putBoolean("persistent_listening", false).apply()
+                _selectedTtsEngine.value = TtsEngine.GOOGLE_TTS
+                sharedPrefs.edit()
+                    .putBoolean("offline_brain", false)
+                    .putBoolean("persistent_listening", false)
+                    .putString("selected_tts_engine", TtsEngine.GOOGLE_TTS.name)
+                    .apply()
             }
             
             viewModelScope.launch {
@@ -3234,7 +3246,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         if (isOffline && !com.example.utils.MemoryManager.isDeviceCapable(getApplication())) {
             _isOfflineBrain.value = false
             sharedPrefs.edit().putBoolean("offline_brain", false).apply()
-            speakText("Llama 3.2 local AI model is disabled on devices with less than 3GB RAM to prevent memory crash. Cloud AI will be used.")
+            speakText("2GB device detected. Cloud mode enabled for safety. Offline features disabled to prevent crashes.")
             return
         }
         _isOfflineBrain.value = isOffline
