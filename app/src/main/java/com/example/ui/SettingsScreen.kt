@@ -2936,8 +2936,9 @@ fun MemorySettingsScreen(
     }
 
     // Edit Memory Dialog
-    if (showEditDialog && editingMemory != null) {
-        val memoryItem = editingMemory!!
+    val currentMemory = editingMemory
+    if (showEditDialog && currentMemory != null) {
+        val memoryItem = currentMemory
         AlertDialog(
             onDismissRequest = { showEditDialog = false },
             title = {

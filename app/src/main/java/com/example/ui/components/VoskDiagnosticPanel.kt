@@ -383,8 +383,8 @@ fun VoskDiagnosticPanel(
                                 IconButton(
                                     onClick = {
                                         val formatted = VoskLogManager.getFormattedLogsText()
-                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                        clipboard.setPrimaryClip(ClipData.newPlainText("Vosk Engine Logs", formatted))
+                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                                        clipboard?.setPrimaryClip(ClipData.newPlainText("Vosk Engine Logs", formatted))
                                         Toast.makeText(context, "Logs copied to clipboard", Toast.LENGTH_SHORT).show()
                                     },
                                     modifier = Modifier

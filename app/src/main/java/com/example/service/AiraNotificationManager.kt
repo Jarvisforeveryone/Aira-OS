@@ -48,9 +48,9 @@ object AiraNotificationManager {
                 lightColor = 0xFFFF1744.toInt() // Red Alert
             }
 
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channelReminders)
-            notificationManager.createNotificationChannel(channelAlerts)
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            notificationManager?.createNotificationChannel(channelReminders)
+            notificationManager?.createNotificationChannel(channelAlerts)
             Log.d("AiraNotificationMgr", "Notification channels initialized successfully")
         }
     }
@@ -59,7 +59,7 @@ object AiraNotificationManager {
      * Schedules an AlarmManager task to broadcast a reminder intent.
      */
     fun scheduleReminderAlarm(context: Context, id: Long, title: String, timeLabel: String) {
-        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
         val intent = Intent(context, ReminderReceiver::class.java).apply {
             action = "com.example.ACTION_TRIGGER_REMINDER"
             putExtra("reminder_id", id)
@@ -99,7 +99,7 @@ object AiraNotificationManager {
      * Cancels an active alarm for a reminder.
      */
     fun cancelReminderAlarm(context: Context, id: Long) {
-        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
         val intent = Intent(context, ReminderReceiver::class.java).apply {
             action = "com.example.ACTION_TRIGGER_REMINDER"
         }

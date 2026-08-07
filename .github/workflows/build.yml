@@ -31,7 +31,7 @@ jobs:
             ~/.gradle/wrapper
             app/src/main/assets/models
             app/src/main/assets/tts_models
-          key: ${{ runner.os }}-assets-${{ hashFiles('gradle/scripts/assets.gradle.kts') }}
+          key: ${{ runner.os }}-assets-${{ hashFiles('build.gradle.kts', 'app/build.gradle.kts', 'gradle/scripts/assets.gradle.kts') }}
           restore-keys: |
             ${{ runner.os }}-assets-
 

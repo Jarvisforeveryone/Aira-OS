@@ -79,9 +79,10 @@ class GeminiCacheInterceptor(private val context: Context) : Interceptor {
         // Cache miss: execute network request
         val response = chain.proceed(request)
 
-        if (response.isSuccessful && response.body != null) {
+        val respBody = response.body
+        if (response.isSuccessful && respBody != null) {
             try {
-                val responseBody = response.body!!
+                val responseBody = respBody
                 val source = responseBody.source()
                 source.request(Long.MAX_VALUE)
                 val buffer = source.buffer.clone()
@@ -129,6 +130,6 @@ object GeminiOkHttpCache {
                 .writeTimeout(12, TimeUnit.SECONDS)
                 .build()
         }
-        return clientInstance!!
+        return clientInstance ?: OkHttpClient.Builder().build().also { clientInstance = it }
     }
 }

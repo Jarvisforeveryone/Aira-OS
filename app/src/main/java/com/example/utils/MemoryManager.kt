@@ -86,7 +86,8 @@ object MemoryManager {
      */
     fun isLlamaSupported(context: Context): Boolean {
         return try {
-            val actManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val actManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+            if (actManager == null) return false
             val memInfo = ActivityManager.MemoryInfo()
             actManager.getMemoryInfo(memInfo)
             val totalRam = memInfo.totalMem
@@ -109,7 +110,7 @@ object MemoryManager {
      */
     fun getTotalRamMb(context: Context): Long {
         return try {
-            val actManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val actManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager ?: return 2048L
             val memInfo = ActivityManager.MemoryInfo()
             actManager.getMemoryInfo(memInfo)
             memInfo.totalMem / (1024 * 1024)
@@ -123,7 +124,7 @@ object MemoryManager {
      */
     fun isLowMemory(context: Context): Boolean {
         return try {
-            val actManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val actManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager ?: return false
             val memInfo = ActivityManager.MemoryInfo()
             actManager.getMemoryInfo(memInfo)
             memInfo.lowMemory

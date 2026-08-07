@@ -283,8 +283,9 @@ fun ExtrasScreen(
 
         var selectedArticleForDialog by remember { mutableStateOf<Pair<String, String>?>(null) }
 
-        if (selectedArticleForDialog != null) {
-            val (title, detail) = selectedArticleForDialog!!
+        val currentArticle = selectedArticleForDialog
+        if (currentArticle != null) {
+            val (title, detail) = currentArticle
             AlertDialog(
                 onDismissRequest = { selectedArticleForDialog = null },
                 title = {

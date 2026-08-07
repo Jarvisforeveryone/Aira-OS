@@ -28,8 +28,9 @@ class NewsRepository(
         try {
             val url = getCategoryRssUrl(category)
             val response = newsRssService.getRssFeed(url)
-            if (response.isSuccessful && response.body() != null) {
-                val inputStream = response.body()!!.byteStream()
+            val body = response.body()
+            if (response.isSuccessful && body != null) {
+                val inputStream = body.byteStream()
                 val items = parseRssXml(inputStream, category)
                 if (items.isNotEmpty()) {
                     Result.success(items)

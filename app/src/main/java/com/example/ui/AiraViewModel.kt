@@ -886,7 +886,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             else -> "Happy"
         }
 
-        val moodList = formulas[mood] ?: formulas["Happy"]!!
+        val moodList = formulas[mood] ?: formulas["Happy"] ?: listOf("Acha $keyword, batao kya haal hain?")
         var pool = moodList.filter { it !in last3Replies }
         if (pool.isEmpty()) {
             last3Replies.clear()
