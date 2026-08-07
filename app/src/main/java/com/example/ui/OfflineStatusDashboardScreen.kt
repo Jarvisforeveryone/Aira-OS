@@ -31,6 +31,7 @@ import androidx.compose.ui.res.colorResource
 import com.example.R
 import com.example.ui.components.AiraCard
 import com.example.ui.components.AiraBadge
+import com.example.ui.components.VoskDiagnosticPanel
 import com.example.ui.theme.bounceClick
 import com.example.util.NativeLibraryLoader
 import kotlinx.coroutines.launch
@@ -239,6 +240,11 @@ fun OfflineStatusDashboardScreen(
                             }
                         }
                 }
+            }
+
+            // VOSK ENGINE & VOICE TRIGGER DIAGNOSTIC SUITE
+            item {
+                VoskDiagnosticPanel(viewModel = viewModel)
             }
 
             // BACKGROUND SERVICES & ENGINE FALLBACKS CARD

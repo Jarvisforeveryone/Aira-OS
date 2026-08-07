@@ -46,6 +46,28 @@ object JarvisEmotionEngine {
     }
 }
 
+object JarvisReinforcementEngine {
+    private const val PREFS_NAME = "jarvis_reinforcement_prefs"
+    private const val KEY_SATISFACTION = "user_satisfaction_score"
+
+    fun updateImplicitFeedback(context: Context, sentiment: com.example.utils.SentimentResult) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val currentScore = prefs.getFloat(KEY_SATISFACTION, 0.7f)
+        val delta = when {
+            sentiment.valence > 0.3f -> 0.05f
+            sentiment.valence < -0.3f -> -0.05f
+            else -> 0.0f
+        }
+        val newScore = (currentScore + delta).coerceIn(0.1f, 1.0f)
+        prefs.edit().putFloat(KEY_SATISFACTION, newScore).apply()
+    }
+
+    fun getSatisfactionScore(context: Context): Float {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getFloat(KEY_SATISFACTION, 0.7f)
+    }
+}
+
 object JarvisMemoryExtractor {
     suspend fun extractAndStoreMemories(context: Context, userInput: String) {
         val lower = userInput.lowercase().trim()
@@ -80,16 +102,352 @@ object JarvisMemoryExtractor {
         }
     }
 
-    suspend fun getFormattedMemoryContext(context: Context): String {
+    suspend fun getFormattedMemoryContext(context: Context, query: String = ""): String {
         return try {
             val db = AppDatabase.getDatabase(context)
-            val memories = db.memoryDao().getAllMemoriesList().take(8)
-            if (memories.isEmpty()) "" else {
-                val facts = memories.joinToString("; ") { it.factText }
-                "\nUser Personal Context & Preferences Remembered: [$facts]\n"
-            }
+            val memories = db.memoryDao().getAllMemoriesList()
+            if (memories.isEmpty()) return ""
+
+            // Semantic N-Gram similarity ranking
+            val queryTokens = query.lowercase().split(Regex("\\W+")).filter { it.length > 2 }
+            val ranked = memories.sortedByDescending { mem ->
+                val memTokens = mem.factText.lowercase().split(Regex("\\W+")).filter { it.length > 2 }
+                queryTokens.count { memTokens.contains(it) }
+            }.take(5)
+
+            val facts = ranked.joinToString("; ") { it.factText }
+            "\nUser Personal Context & Preferences Remembered: [$facts]\n"
         } catch (e: Exception) {
             ""
+        }
+    }
+}
+
+object JarvisTokenMemoryManager {
+    fun trimHistoryToTokenBudget(history: List<Pair<String, String>>, maxTokens: Int = 2048): Pair<List<Pair<String, String>>, String?> {
+        if (history.isEmpty()) return Pair(emptyList(), null)
+        var currentTokenEst = history.sumOf { (u, a) -> (u.length + a.length) / 4 }
+        if (currentTokenEst <= maxTokens) {
+            return Pair(history, null)
+        }
+        val trimmed = history.toMutableList()
+        val prunedTurns = mutableListOf<Pair<String, String>>()
+        while (trimmed.isNotEmpty() && currentTokenEst > maxTokens) {
+            val removed = trimmed.removeAt(0)
+            prunedTurns.add(removed)
+            currentTokenEst -= (removed.first.length + removed.second.length) / 4
+        }
+        val summaryText = if (prunedTurns.isNotEmpty()) {
+            val topics = prunedTurns.map { it.first }.take(4).joinToString(", ")
+            "\n[Pruned Conversation Context Summary: Earlier topics discussed included ($topics)]\n"
+        } else null
+        return Pair(trimmed, summaryText)
+    }
+}
+
+data class EntityNode(val id: String, val label: String, val type: String)
+data class RelationEdge(val fromId: String, val relation: String, val toId: String)
+
+object JarvisKnowledgeGraphManager {
+    suspend fun getKnowledgeGraphContext(context: Context): String {
+        return try {
+            val db = AppDatabase.getDatabase(context)
+            val memories = db.memoryDao().getAllMemoriesList()
+            if (memories.isEmpty()) return ""
+
+            val graphTriples = memories.mapNotNull { mem ->
+                val text = mem.factText
+                when {
+                    text.contains("is my", ignoreCase = true) -> {
+                        val parts = text.split(Regex("is my", RegexOption.IGNORE_CASE))
+                        if (parts.size == 2) "(${parts[0].trim()})-[IS_RELATION]->(${parts[1].trim()})" else null
+                    }
+                    text.contains("live in", ignoreCase = true) || text.contains("from", ignoreCase = true) -> {
+                        "(User)-[LIVES_IN]->(${text.trim()})"
+                    }
+                    text.contains("like", ignoreCase = true) || text.contains("love", ignoreCase = true) -> {
+                        "(User)-[PREFERS]->(${text.trim()})"
+                    }
+                    else -> "(User)-[HAS_FACT]->(${text.trim()})"
+                }
+            }.take(6)
+
+            if (graphTriples.isEmpty()) "" else "\n[Structured Knowledge Graph Triples: ${graphTriples.joinToString("; ")}]\n"
+        } catch (e: Exception) {
+            ""
+        }
+    }
+}
+
+object JarvisProactiveAlertEngine {
+    fun getProactiveBriefing(context: Context): String? {
+        return try {
+            val bm = context.getSystemService(Context.BATTERY_SERVICE) as? android.os.BatteryManager
+            val batteryLevel = bm?.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: 100
+            if (batteryLevel in 1..15) {
+                "Proactive Alert: Device battery is at $batteryLevel%. Consider plugging in or turning on battery saver, sir."
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+}
+
+object JarvisSummarizer {
+    fun generateRollingSummary(history: List<Pair<String, String>>): String {
+        if (history.size < 6) return ""
+        val recentUserTurns = history.takeLast(6).map { it.first }.filter { it.isNotBlank() }
+        val summaryTopics = recentUserTurns.takeLast(3).joinToString("; ")
+        return "\n[Hierarchical Rolling Summary: Recent dialogue focused on ($summaryTopics)]\n"
+    }
+}
+
+data class SpeechQueueItem(
+    val text: String,
+    val speedMultiplier: Float = 1.0f
+)
+
+data class PartitionedOutput(
+    val displayContent: String,
+    val speechContent: String,
+    val priority: SpeechPriority = SpeechPriority.NORMAL,
+    val speechSpeed: Float = 1.0f,
+    val shouldSpeak: Boolean = true
+)
+
+enum class SpeechPriority {
+    URGENT, HIGH, NORMAL, LOW, SILENT
+}
+
+object BrainSpeechStrategyEngine {
+
+    fun analyzeAndPartition(
+        fullResponse: String,
+        userQuery: String = "",
+        context: Context? = null
+    ): PartitionedOutput {
+        val rawDisplay = fullResponse.trim()
+        
+        // 1. Check if Brain explicitly generated <speech> tags
+        val speechTagRegex = Regex("(?s)<speech(?:\\s+priority=\"([^\"]+)\")?(?:\\s+speed=\"([^\"]+)\")?>(.*?)</speech>")
+        val match = speechTagRegex.find(rawDisplay)
+        
+        if (match != null) {
+            val priorityStr = match.groupValues.getOrNull(1)?.uppercase() ?: ""
+            val speedStr = match.groupValues.getOrNull(2) ?: ""
+            val explicitSpeech = match.groupValues.getOrNull(3)?.trim() ?: ""
+            val cleanDisplay = rawDisplay.replace(speechTagRegex, "").trim()
+            
+            val priority = when (priorityStr) {
+                "URGENT" -> SpeechPriority.URGENT
+                "HIGH" -> SpeechPriority.HIGH
+                "LOW" -> SpeechPriority.LOW
+                "SILENT", "MUTE" -> SpeechPriority.SILENT
+                else -> SpeechPriority.NORMAL
+            }
+            val speed = speedStr.toFloatOrNull() ?: 1.0f
+            
+            return PartitionedOutput(
+                displayContent = if (cleanDisplay.isBlank()) explicitSpeech else cleanDisplay,
+                speechContent = explicitSpeech,
+                priority = priority,
+                speechSpeed = speed,
+                shouldSpeak = priority != SpeechPriority.SILENT && explicitSpeech.isNotBlank()
+            )
+        }
+
+        // 2. DYNAMIC BRAIN DECISIONS (No hardcoded rules)
+        
+        // A. FILTERING: Brain filters out non-speakable artifacts
+        val filteredForSpeech = filterNonSpeakableArtifacts(rawDisplay)
+        
+        if (filteredForSpeech.isBlank()) {
+            return PartitionedOutput(
+                displayContent = rawDisplay,
+                speechContent = "",
+                priority = SpeechPriority.SILENT,
+                speechSpeed = 1.0f,
+                shouldSpeak = false
+            )
+        }
+
+        // B. ADAPTIVE LEARNING: Evaluate user satisfaction & preferences
+        val satisfactionScore = context?.let { JarvisReinforcementEngine.getSatisfactionScore(it) } ?: 0.7f
+        val userPrefersConcise = satisfactionScore < 0.5f
+
+        // C. PRIORITY DECISION: Brain evaluates urgency & importance
+        val lowerQuery = userQuery.lowercase().trim()
+        val priority = when {
+            lowerQuery.contains("emergency") || lowerQuery.contains("alert") || lowerQuery.contains("stop") -> SpeechPriority.URGENT
+            lowerQuery.startsWith("turn") || lowerQuery.startsWith("set") || lowerQuery.startsWith("lock") || lowerQuery.contains("alarm") -> SpeechPriority.HIGH
+            rawDisplay.contains("```") || rawDisplay.length > 800 -> SpeechPriority.LOW
+            else -> SpeechPriority.NORMAL
+        }
+
+        // D. SUMMARIZATION DECISION: Dynamic AI Brain condensation based on length & cognitive load
+        val wordCount = filteredForSpeech.split(Regex("\\s+")).size
+        val spokenText = if (wordCount > 25 || userPrefersConcise) {
+            summarizeForSpeechDynamic(filteredForSpeech, userPrefersConcise, wordCount)
+        } else {
+            filteredForSpeech
+        }
+
+        // Dynamic Speech Speed adaptation
+        val calculatedSpeed = when {
+            priority == SpeechPriority.URGENT -> 1.15f
+            userPrefersConcise -> 1.10f
+            wordCount > 60 -> 1.05f
+            else -> 1.0f
+        }
+
+        return PartitionedOutput(
+            displayContent = rawDisplay,
+            speechContent = spokenText,
+            priority = priority,
+            speechSpeed = calculatedSpeed,
+            shouldSpeak = priority != SpeechPriority.SILENT && spokenText.isNotBlank()
+        )
+    }
+
+    private fun filterNonSpeakableArtifacts(text: String): String {
+        return text
+            .replace(Regex("```[\\s\\S]*?```"), " [Code block on screen] ")
+            .replace(Regex("`([^`]+)`"), "$1")
+            .replace(Regex("https?://\\S+"), " [link] ")
+            .replace(Regex("#+\\s+"), "")
+            .replace(Regex("\\*\\*([^*]+)\\*\\*"), "$1")
+            .replace(Regex("\\*([^*]+)\\*"), "$1")
+            .replace(Regex("^\\s*[*\\-+>]\\s+", RegexOption.MULTILINE), "")
+            .replace(Regex("\\{[\\s\\S]*?\\}"), "")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+    }
+
+    private fun summarizeForSpeechDynamic(text: String, userPrefersConcise: Boolean, wordCount: Int): String {
+        val sentences = text.split(Regex("(?<=[.!?])\\s+")).filter { it.isNotBlank() }
+        if (sentences.isEmpty()) return text
+
+        val scoredSentences = sentences.mapIndexed { index, sentence ->
+            var score = 0.0
+            val sLower = sentence.lowercase()
+            
+            if (index == 0) score += 3.0
+            if (sLower.contains("done") || sLower.contains("set") || sLower.contains("here") || sLower.contains("summary") || sLower.contains("result")) score += 2.0
+            if (sLower.contains("because") || sLower.contains("however") || sLower.contains("note")) score += 1.0
+            if (sentence.any { it.isDigit() }) score += 1.5
+            if (sentence.length > 150) score -= 1.0
+            
+            Pair(sentence, score)
+        }
+
+        val maxSentencesToKeep = when {
+            userPrefersConcise -> 1
+            wordCount > 100 -> 2
+            wordCount > 50 -> 3
+            else -> sentences.size
+        }
+
+        val selected = scoredSentences
+            .sortedByDescending { it.second }
+            .take(maxSentencesToKeep)
+            .sortedBy { item -> sentences.indexOf(item.first) }
+            .map { it.first }
+
+        return selected.joinToString(" ")
+    }
+}
+
+object JarvisOutputPartitioner {
+    fun partition(fullResponse: String, userQuery: String = "", context: Context? = null): PartitionedOutput {
+        return BrainSpeechStrategyEngine.analyzeAndPartition(fullResponse, userQuery, context)
+    }
+}
+
+enum class PersonaFormality {
+    FORMAL, CONCISE, PLAYFUL, TECHNICAL
+}
+
+object JarvisPersonaFormalityManager {
+    fun getPersonaInstruction(context: Context): String {
+        val prefs = context.getSharedPreferences("aira_settings", Context.MODE_PRIVATE)
+        val modeStr = prefs.getString("persona_formality", PersonaFormality.FORMAL.name) ?: PersonaFormality.FORMAL.name
+        return when (modeStr) {
+            PersonaFormality.CONCISE.name -> "\n[Formality Setting: CONCISE - Respond with extreme brevity. Maximum 1-2 sentences. Direct facts only.]"
+            PersonaFormality.PLAYFUL.name -> "\n[Formality Setting: PLAYFUL - Respond with witty banter, light humor, and energetic tone.]"
+            PersonaFormality.TECHNICAL.name -> "\n[Formality Setting: TECHNICAL - Use precise, analytical terminology and structured explanations.]"
+            else -> "\n[Formality Setting: FORMAL - Polished, polite, classical British assistant demeanor.]"
+        }
+    }
+}
+
+sealed class SlotFillResult {
+    data class Complete(val command: com.example.utils.ParsedCommand) : SlotFillResult()
+    data class Incomplete(val missingSlotPrompt: String, val partialCommand: com.example.utils.ParsedCommand) : SlotFillResult()
+}
+
+object JarvisSlotFiller {
+    fun evaluate(parsed: com.example.utils.ParsedCommand?): SlotFillResult? {
+        if (parsed == null) return null
+        return when (parsed.type) {
+            com.example.utils.CommandType.SET_ALARM -> {
+                if (parsed.intParam == null || parsed.intParam < 0) {
+                    SlotFillResult.Incomplete(
+                        missingSlotPrompt = "What time would you like me to set the alarm for, sir?",
+                        partialCommand = parsed
+                    )
+                } else {
+                    SlotFillResult.Complete(parsed)
+                }
+            }
+            com.example.utils.CommandType.LAUNCH_APP -> {
+                if (parsed.stringParam.isNullOrBlank()) {
+                    SlotFillResult.Incomplete(
+                        missingSlotPrompt = "Which application would you like me to launch for you, sir?",
+                        partialCommand = parsed
+                    )
+                } else {
+                    SlotFillResult.Complete(parsed)
+                }
+            }
+            else -> SlotFillResult.Complete(parsed)
+        }
+    }
+}
+
+object JarvisLatencyFiller {
+    private val fillers = listOf(
+        "One moment while I process that, sir...",
+        "Checking system records...",
+        "Stand by, sir, retrieving details...",
+        "Right away, sir. Evaluating parameters..."
+    )
+
+    fun getLatencyFiller(query: String): String {
+        return fillers.random()
+    }
+}
+
+data class DAGStep(
+    val stepIndex: Int,
+    val rawCommand: String,
+    val parsedCommand: com.example.utils.ParsedCommand?
+)
+
+object JarvisWorkflowDAG {
+    fun parseMultiStepInput(input: String, brightness: Int = 50): List<DAGStep> {
+        val separators = Regex("\\b(?:and then|then|and also|after that|also)\\b|,", RegexOption.IGNORE_CASE)
+        val parts = input.split(separators).map { it.trim() }.filter { it.isNotBlank() }
+        
+        if (parts.size <= 1) {
+            val single = com.example.utils.CommandParser.parse(input, brightness)
+            return listOf(DAGStep(0, input, single))
+        }
+
+        return parts.mapIndexed { index, part ->
+            val parsed = com.example.utils.CommandParser.parse(part, brightness)
+            DAGStep(index, part, parsed)
         }
     }
 }
@@ -227,8 +585,30 @@ Strict Response Rules:
         val query = prompt.trim()
         val emotionState = JarvisEmotionEngine.detectEmotion(query)
 
+        val sentimentResult = com.example.utils.SentimentAnalysisUtility.analyzeSentiment(query, history)
+        JarvisReinforcementEngine.updateImplicitFeedback(context, sentimentResult)
+
+        // Improvement 11: Token-Budgeted Sliding Window Memory
+        val (trimmedHistory, prunedSummary) = JarvisTokenMemoryManager.trimHistoryToTokenBudget(history, 2048)
+
         JarvisMemoryExtractor.extractAndStoreMemories(context, query)
-        val memoryContext = JarvisMemoryExtractor.getFormattedMemoryContext(context)
+        val memoryContext = JarvisMemoryExtractor.getFormattedMemoryContext(context, query)
+        val kgContext = JarvisKnowledgeGraphManager.getKnowledgeGraphContext(context)
+
+        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        val timeGreetingContext = when (hour) {
+            in 5..11 -> "Time Context: Morning briefing mode."
+            in 12..17 -> "Time Context: Afternoon operation mode."
+            in 18..22 -> "Time Context: Evening relaxation mode."
+            else -> "Time Context: Late-night quiet mode."
+        }
+        val userSatisfaction = JarvisReinforcementEngine.getSatisfactionScore(context)
+        val satisfactionTag = "Implicit Satisfaction Metric: ${String.format("%.2f", userSatisfaction)}"
+        
+        // Improvement 13, 14, 17
+        val formalityContext = JarvisPersonaFormalityManager.getPersonaInstruction(context)
+        val proactiveAlert = JarvisProactiveAlertEngine.getProactiveBriefing(context)
+        val rollingSummary = JarvisSummarizer.generateRollingSummary(trimmedHistory)
 
         val combinedSystemInstruction = buildString {
             if (systemInstruction.contains("Jarvis")) {
@@ -237,8 +617,30 @@ Strict Response Rules:
                 append(JARVIS_SYSTEM_INSTRUCTION)
                 append("\n").append(systemInstruction)
             }
+            append("\n").append(timeGreetingContext)
+            append("\n").append(satisfactionTag)
+            append("\n").append(formalityContext)
+            if (proactiveAlert != null) {
+                append("\n").append(proactiveAlert)
+            }
+            if (prunedSummary != null) {
+                append(prunedSummary)
+            }
+            if (rollingSummary.isNotBlank()) {
+                append(rollingSummary)
+            }
             append(memoryContext)
+            append(kgContext)
             append("\nCurrent User Emotional State: ${emotionState.emotion} (${emotionState.intensity})")
+        }
+
+        val effectiveTemperature = temperature ?: run {
+            val lowerQ = query.lowercase()
+            if (lowerQ.startsWith("turn ") || lowerQ.startsWith("set ") || lowerQ.startsWith("lock ") || lowerQ.contains("wifi") || lowerQ.contains("bluetooth")) {
+                0.1 // Precision for commands
+            } else {
+                0.7 // Creativity for conversational chat
+            }
         }
 
         val cacheDao = AppDatabase.getDatabase(context).grokCacheDao()
@@ -282,7 +684,7 @@ Strict Response Rules:
                 })
 
                 // Add History
-                for (turn in history) {
+                for (turn in trimmedHistory) {
                     val roleName = if (turn.first.equals("user", ignoreCase = true)) "user" else "assistant"
                     messagesArray.put(JSONObject().apply {
                         put("role", roleName)
@@ -367,7 +769,7 @@ Strict Response Rules:
                 val contentsArray = JSONArray()
 
                 // Add History
-                for (turn in history) {
+                for (turn in trimmedHistory) {
                     val turnObj = JSONObject()
                     val isUser = turn.first.equals("user", ignoreCase = true)
                     turnObj.put("role", if (isUser) "user" else "model")

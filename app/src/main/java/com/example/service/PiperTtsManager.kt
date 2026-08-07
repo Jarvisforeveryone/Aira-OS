@@ -530,14 +530,14 @@ class PiperTtsManager(private val context: Context) {
         }
     }
 
-    fun speakText(text: String) {
-        speak(text)
+    fun speakText(text: String, brainSpeedMultiplier: Float = 1.0f) {
+        speak(text, brainSpeedMultiplier)
     }
 
-    fun speak(text: String) {
+    fun speak(text: String, brainSpeedMultiplier: Float = 1.0f) {
         Log.d("PiperDebug", "MODEL_PATH exists: " + MODEL_PATH.exists() + " Path: " + MODEL_PATH.absolutePath)
         _isSpeakCalled.value = true
-        Log.d("TTS_AUDIT", "PiperTtsManager.speak() was called with text: $text")
+        Log.d("TTS_AUDIT", "PiperTtsManager.speak() was called with text: $text, speed: $brainSpeedMultiplier")
 
         if (hasUrduCharacters(text)) {
             speakUrdu(text)
@@ -566,10 +566,10 @@ class PiperTtsManager(private val context: Context) {
         }
 
         // Google TTS voice processing (Primary Engine or Fallback)
-        speakGoogleTtsVoice(voiceId, humanizedText)
+        speakGoogleTtsVoice(voiceId, humanizedText, brainSpeedMultiplier)
     }
 
-    private fun speakGoogleTtsVoice(voiceId: String, text: String) {
+    private fun speakGoogleTtsVoice(voiceId: String, text: String, brainSpeedMultiplier: Float = 1.0f) {
         if (!isNativeTtsReady || nativeTts == null) {
             Log.e("PiperTtsManager", "Native TTS is not ready, attempting online fallback")
             speakOnlineFallback(text, 1.0f, 1.0f)
@@ -581,11 +581,6 @@ class PiperTtsManager(private val context: Context) {
         val userLengthScale = userPrefs.getFloat("length_scale", 1.0f)
         val userSpeedFactor = if (userLengthScale > 0) 1.0f / userLengthScale else 1.0f
 
-        // REAL VALUES FOR HUMAN FEEL:
-        // - Lily (childish, playful): en-US, pitch 1.3, speed 1.1
-        // - Zara (cocky, confident): en-US, pitch 0.8, speed 1.3
-        // - Ella (soft, caring British): en-UK, pitch 1.0, speed 0.9
-        // - Amy: Real Piper (or 1.02, 1.10)
         val (targetLocale, basePitch, baseSpeed) = when (voiceId) {
             "google-lily", "en_US-lily", "lily" -> Triple(java.util.Locale.US, 1.3f, 1.1f)
             "google-zara", "en_US-zara", "zara" -> Triple(java.util.Locale.US, 0.8f, 1.3f)
@@ -595,7 +590,7 @@ class PiperTtsManager(private val context: Context) {
         }
 
         val effectivePitch = basePitch * userPitchMultiplier
-        val effectiveSpeed = baseSpeed * userSpeedFactor
+        val effectiveSpeed = baseSpeed * userSpeedFactor * brainSpeedMultiplier
 
         try {
             // Fallback logic for Google TTS voices (offline -> online -> silent/fallback)
@@ -648,7 +643,10 @@ class PiperTtsManager(private val context: Context) {
                 else -> 1.00f
             }
 
-            val humanizedPitch = (effectivePitch * prosodyPitchMultiplier * (0.98f + (0.04f * Math.random().toFloat()))).coerceIn(0.7f, 1.5f)
+            val isQuestion = text.trim().endsWith("?")
+            val questionPitchBoost = if (isQuestion) 1.06f else 1.00f
+
+            val humanizedPitch = (effectivePitch * prosodyPitchMultiplier * questionPitchBoost * (0.98f + (0.04f * Math.random().toFloat()))).coerceIn(0.7f, 1.5f)
             val humanizedSpeed = (effectiveSpeed * prosodySpeedMultiplier * (0.98f + (0.04f * Math.random().toFloat()))).coerceIn(0.7f, 1.5f)
 
             nativeTts?.setPitch(humanizedPitch)
@@ -681,11 +679,31 @@ class PiperTtsManager(private val context: Context) {
         return keywords.any { text.contains(it) }
     }
 
+    private fun normalizeTextForSpeech(text: String): String {
+        return text
+            .replace(Regex("```[\\s\\S]*?```"), " code block omitted ")
+            .replace(Regex("`([^`]+)`"), "$1")
+            .replace(Regex("\\*\\*([^*]+)\\*\\*"), "$1")
+            .replace(Regex("\\*([^*]+)\\*"), "$1")
+            .replace(Regex("#+\\s+"), "")
+            .replace(Regex("https?://\\S+"), " link ")
+            .replace("&", " and ")
+            .replace("%", " percent ")
+            .replace("@", " at ")
+            .replace("$", " dollars ")
+            .replace("+", " plus ")
+            .replace("=", " equals ")
+            .replace(Regex("\\b(\\d{1,2}):(\\d{2})\\b")) { match ->
+                "${match.groupValues[1]} ${match.groupValues[2]}"
+            }
+    }
+
     private fun formatNaturalPauses(
         text: String,
         sentiment: com.example.utils.SentimentResult? = null
     ): String {
-        val activeSentiment = sentiment ?: com.example.utils.SentimentAnalysisUtility.analyzeSentiment(text)
+        val normalized = normalizeTextForSpeech(text)
+        val activeSentiment = sentiment ?: com.example.utils.SentimentAnalysisUtility.analyzeSentiment(normalized)
         val pauseSpacing = when (activeSentiment.emotion) {
             com.example.models.UserEmotion.SAD -> " ... "
             com.example.models.UserEmotion.HAPPY -> ", "
@@ -693,7 +711,7 @@ class PiperTtsManager(private val context: Context) {
             else -> ", "
         }
 
-        return text
+        return normalized
             .replace("...", " ... ")
             .replace(" - ", " ... ")
             .replace(",", pauseSpacing)
@@ -710,14 +728,39 @@ class PiperTtsManager(private val context: Context) {
             Log.d("PiperTtsManager", "Falling back to device online/system TTS: $text")
             if (isNativeTtsReady && nativeTts != null) {
                 nativeTts?.language = java.util.Locale.US
-                val humPitch = (pitch * (0.98f + (0.04f * Math.random().toFloat()))).coerceIn(0.7f, 1.5f)
-                val rate = if (length > 0) 1.0f / length else 1.0f
-                val humRate = (rate * (0.98f + (0.04f * Math.random().toFloat()))).coerceIn(0.7f, 1.5f)
+                val sentiment = com.example.utils.SentimentAnalysisUtility.analyzeSentiment(text)
+                val valence = sentiment.valence
+                val emotion = sentiment.emotion
+
+                val prosodyPitchMultiplier = when (emotion) {
+                    com.example.models.UserEmotion.HAPPY -> 1.08f + (valence * 0.05f)
+                    com.example.models.UserEmotion.SAD -> 0.90f + (valence * 0.04f)
+                    com.example.models.UserEmotion.ANGRY -> 0.94f
+                    com.example.models.UserEmotion.CONFUSED -> 1.04f
+                    com.example.models.UserEmotion.CURIOSITY -> 1.05f
+                    else -> 1.00f + (valence * 0.03f)
+                }
+
+                val prosodySpeedMultiplier = when (emotion) {
+                    com.example.models.UserEmotion.HAPPY -> 1.05f
+                    com.example.models.UserEmotion.SAD -> 0.88f
+                    com.example.models.UserEmotion.ANGRY -> 0.96f
+                    com.example.models.UserEmotion.CONFUSED -> 0.92f
+                    com.example.models.UserEmotion.CURIOSITY -> 1.02f
+                    else -> 1.00f
+                }
+
+                val isQuestion = text.trim().endsWith("?")
+                val questionPitchBoost = if (isQuestion) 1.06f else 1.00f
+
+                val baseRate = if (length > 0) 1.0f / length else 1.0f
+                val humPitch = (pitch * prosodyPitchMultiplier * questionPitchBoost * (0.98f + (0.04f * Math.random().toFloat()))).coerceIn(0.7f, 1.5f)
+                val humRate = (baseRate * prosodySpeedMultiplier * (0.98f + (0.04f * Math.random().toFloat()))).coerceIn(0.7f, 1.5f)
 
                 nativeTts?.setPitch(humPitch)
                 nativeTts?.setSpeechRate(humRate)
 
-                val humanizedText = formatNaturalPauses(text)
+                val humanizedText = formatNaturalPauses(text, sentiment)
 
                 nativeTts?.speak(humanizedText, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "AiraOnlineFallbackTts")
             } else {

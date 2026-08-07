@@ -30,7 +30,15 @@ object SentimentAnalysisUtility {
         "very", "extremely", "so", "really", "super", "absolutely", "totally", "deeply", "immensely"
     )
 
-    fun analyzeSentiment(text: String): SentimentResult {
+    private val sarcasmTriggers = setOf(
+        "oh great", "thanks a lot", "yeah right", "sure thing", "brilliant job", "nice going", "wonderful work"
+    )
+
+    private val frustrationTriggers = setOf(
+        "again", "still not", "never mind", "forget it", "whatever", "slow", "useless", "wrong"
+    )
+
+    fun analyzeSentiment(text: String, history: List<Pair<String, String>> = emptyList()): SentimentResult {
         val lower = text.lowercase().trim()
         val tokens = lower.split(Regex("[\\s,.!?\"';:]+")).filter { it.isNotEmpty() }
 
@@ -57,15 +65,44 @@ object SentimentAnalysisUtility {
             }
         }
 
+        // Contextual Sarcasm Detection
+        var isSarcastic = false
+        for (trigger in sarcasmTriggers) {
+            if (lower.contains(trigger)) {
+                isSarcastic = true
+                break
+            }
+        }
+
+        // Contextual Frustration Tracking from recent history
+        var contextFrustrationScore = 0
+        if (history.isNotEmpty()) {
+            val lastUserTurn = history.lastOrNull { it.first.isNotBlank() }?.first?.lowercase() ?: ""
+            if (frustrationTriggers.any { lower.contains(it) || lastUserTurn.contains(it) }) {
+                contextFrustrationScore += 2
+            }
+        }
+
         if (lower.contains("!") || lower.contains("!!")) {
             intensityScore += 2
         }
 
         val totalLexiconHits = posCount + negCount
-        val rawValence = if (totalLexiconHits > 0) {
+        var rawValence = if (totalLexiconHits > 0) {
             (posCount - negCount).toFloat() / totalLexiconHits.toFloat()
         } else {
             0.0f
+        }
+
+        if (isSarcastic) {
+            rawValence = -0.6f
+            foundKeywords.add("sarcasm_detected")
+            intensityScore += 2
+        }
+
+        if (contextFrustrationScore > 0) {
+            rawValence -= 0.3f
+            intensityScore += contextFrustrationScore
         }
 
         val intensity = when {
@@ -75,8 +112,9 @@ object SentimentAnalysisUtility {
         }
 
         val detectedEmotion = when {
+            isSarcastic -> UserEmotion.ANGRY
             rawValence > 0.3f -> UserEmotion.HAPPY
-            rawValence < -0.3f && (tokens.contains("angry") || tokens.contains("hate") || tokens.contains("furious") || tokens.contains("annoyed")) -> UserEmotion.ANGRY
+            rawValence < -0.3f && (tokens.contains("angry") || tokens.contains("hate") || tokens.contains("furious") || tokens.contains("annoyed") || contextFrustrationScore > 0) -> UserEmotion.ANGRY
             rawValence < -0.3f -> UserEmotion.SAD
             tokens.contains("confused") || tokens.contains("huh") || lower.contains("don't understand") -> UserEmotion.CONFUSED
             tokens.contains("why") || tokens.contains("how") || tokens.contains("curious") -> UserEmotion.CURIOSITY

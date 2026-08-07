@@ -504,6 +504,28 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     private val _sttEngineStatus = MutableStateFlow("Online")
     val sttEngineStatus: StateFlow<String> = _sttEngineStatus.asStateFlow()
 
+    // --- Vosk Diagnostic States ---
+    private val _voskRawAudioLevel = MutableStateFlow(0f)
+    val voskRawAudioLevel: StateFlow<Float> = _voskRawAudioLevel.asStateFlow()
+
+    private val _voskConfidenceScore = MutableStateFlow(0f)
+    val voskConfidenceScore: StateFlow<Float> = _voskConfidenceScore.asStateFlow()
+
+    private val _voskWordConfidences = MutableStateFlow<List<Pair<String, Float>>>(emptyList())
+    val voskWordConfidences: StateFlow<List<Pair<String, Float>>> = _voskWordConfidences.asStateFlow()
+
+    private val _voskTriggerStatus = MutableStateFlow("Engine Standby")
+    val voskTriggerStatus: StateFlow<String> = _voskTriggerStatus.asStateFlow()
+
+    fun reinitVoskForDiagnostic() {
+        viewModelScope.launch(Dispatchers.IO) {
+            com.example.utils.VoskLogManager.logInfo("--- Diagnostic STT Re-Initialization Triggered ---", "VoskInit")
+            releaseVoskModel()
+            _voskTriggerStatus.value = "Diagnostic STT Re-Init Starting..."
+            initVoskModel()
+        }
+    }
+
     private var voskModel: Model? = null
     private var voskSpeechService: SpeechService? = null
     private var isVoskInitializing = false
@@ -921,7 +943,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     private val _speakReplies = MutableStateFlow(sharedPrefs.getBoolean("speak_replies", true))
     val speakReplies: StateFlow<Boolean> = _speakReplies.asStateFlow()
 
-    private val speechQueue = kotlinx.coroutines.channels.Channel<String>(kotlinx.coroutines.channels.Channel.UNLIMITED)
+    private val speechQueue = kotlinx.coroutines.channels.Channel<com.example.models.SpeechQueueItem>(kotlinx.coroutines.channels.Channel.UNLIMITED)
     private var currentSpeechJob: Job? = null
 
     fun toggleSpeakReplies(enabled: Boolean) {
@@ -1194,12 +1216,15 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             while (_isListening.value && !_isSpeaking.value && !isUsingGoogleSTT) {
                 val base = Math.abs(Math.sin(tick.toDouble())).toFloat() * 0.5f
                 val noise = (Math.random().toFloat() * 0.35f)
-                _audioAmplitude.value = (base + noise).coerceIn(0.1f, 1f)
+                val level = (base + noise).coerceIn(0.1f, 1f)
+                _audioAmplitude.value = level
+                _voskRawAudioLevel.value = level
                 tick += 0.25f
                 kotlinx.coroutines.delay(40)
             }
             if (!_isSpeaking.value) {
                 _audioAmplitude.value = 0f
+                _voskRawAudioLevel.value = 0f
             }
         }
     }
@@ -1352,10 +1377,10 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             // Start consuming queue on Main thread
             viewModelScope.launch(Dispatchers.Main) {
                 try {
-                    for (text in speechQueue) {
+                    for (item in speechQueue) {
                         if (_speakReplies.value) {
                             val job = launch {
-                                performSpeakText(text)
+                                performSpeakText(item)
                             }
                             currentSpeechJob = job
                             job.join()
@@ -1423,14 +1448,37 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
 
     private fun initSpeechRecognizer() {
         try {
-            if (SpeechRecognizer.isRecognitionAvailable(getApplication())) {
-                speechRecognizer = SpeechRecognizer.createSpeechRecognizer(getApplication())
-                speechRecognizer?.setRecognitionListener(this)
+            val context = getApplication<Application>()
+            if (SpeechRecognizer.isRecognitionAvailable(context)) {
+                try {
+                    speechRecognizer?.destroy()
+                } catch (_: Throwable) {}
+                speechRecognizer = null
+
+                val googleComponent = android.content.ComponentName(
+                    "com.google.android.googlequicksearchbox",
+                    "com.google.android.voicesearch.service.SpeechRecognitionService"
+                )
+
+                speechRecognizer = try {
+                    SpeechRecognizer.createSpeechRecognizer(context, googleComponent)
+                } catch (e: Throwable) {
+                    Log.d("AiraViewModel", "Google explicit component SpeechRecognizer fallback to default", e)
+                    SpeechRecognizer.createSpeechRecognizer(context)
+                }
+
+                if (speechRecognizer != null) {
+                    speechRecognizer?.setRecognitionListener(this)
+                    Log.d("AiraViewModel", "Google SpeechRecognizer initialized successfully")
+                } else {
+                    Log.w("AiraViewModel", "SpeechRecognizer.createSpeechRecognizer returned null")
+                }
             } else {
-                Log.w("AiraViewModel", "SpeechRecognizer not available on this device")
+                Log.w("AiraViewModel", "SpeechRecognizer.isRecognitionAvailable returned false")
             }
         } catch (e: Throwable) {
             Log.e("AiraViewModel", "Failed to create SpeechRecognizer", e)
+            speechRecognizer = null
         }
     }
 
@@ -1438,6 +1486,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         if (voskModel != null || isVoskInitializing) return
         isVoskInitializing = true
         _currentStatus.value = "Initializing Vosk Offline..."
+        com.example.utils.VoskLogManager.logInfo("Initiating Vosk STT Model load pipeline...", "VoskInit")
         
         viewModelScope.launch(Dispatchers.IO) {
             val context = getApplication<Application>()
@@ -1455,12 +1504,14 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                 val confFile = File(unpackedDir, "conf/model.conf")
                 if (confFile.exists() && confFile.length() > 0L) {
                     try {
+                        com.example.utils.VoskLogManager.logInfo("Found cached model at: ${unpackedDir.absolutePath}. Attempting Model instantiation...", "VoskInit")
                         voskModel = Model(unpackedDir.absolutePath)
                         isVoskInitializing = false
-                        Log.d("AiraViewModel", "Vosk model loaded directly from: ${unpackedDir.absolutePath}")
+                        com.example.utils.VoskLogManager.logInfo("Vosk model successfully instantiated via JNI!", "VoskInit")
                         _currentStatus.value = "Offline engine ready"
+                        _voskTriggerStatus.value = "Vosk STT Model Loaded & Ready"
                     } catch (e: Throwable) {
-                        Log.e("AiraViewModel", "Failed to load model from ${unpackedDir.absolutePath}, cleaning corrupted model & unpacking again", e)
+                        com.example.utils.VoskLogManager.logInitError("Failed to load Vosk model from ${unpackedDir.absolutePath}: ${e.message}", e)
                         if (unpackedDir.exists()) {
                             unpackedDir.deleteRecursively()
                         }
@@ -1470,7 +1521,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                     if (unpackedDir.exists()) {
                         unpackedDir.deleteRecursively()
                     }
-                    Log.d("AiraViewModel", "No valid cached Vosk model found. Performing unpack from assets...")
+                    com.example.utils.VoskLogManager.logWarn("No valid cached Vosk model found at ${unpackedDir.absolutePath}. Unpacking from assets...", "VoskInit")
                     performModelUnpack()
                 }
             }
@@ -1505,7 +1556,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                 true
             }
         } catch (e: Throwable) {
-            Log.e("AiraViewModel", "Error copying asset $fromAssetPath to ${toAbsoluteDir.absolutePath}", e)
+            com.example.utils.VoskLogManager.logInitError("Error copying asset $fromAssetPath to ${toAbsoluteDir.absolutePath}", e)
             false
         }
     }
@@ -1518,7 +1569,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                 if (targetDir.exists()) {
                     targetDir.deleteRecursively()
                 }
-                Log.d("AiraViewModel", "Extracting Vosk model assets directly to: ${targetDir.absolutePath}")
+                com.example.utils.VoskLogManager.logInfo("Extracting Vosk model assets directly to: ${targetDir.absolutePath}", "VoskInit")
                 
                 var loadedSuccessfully = false
                 val extracted = copyAssetFolder(context.assets, "models/model-en", targetDir)
@@ -1528,18 +1579,21 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                         voskModel = Model(targetDir.absolutePath)
                         isVoskInitializing = false
                         loadedSuccessfully = true
-                        Log.d("AiraViewModel", "Vosk model successfully extracted and loaded from assets!")
+                        com.example.utils.VoskLogManager.logInfo("Vosk model extracted and loaded successfully!", "VoskInit")
                         _currentStatus.value = "Offline engine ready"
+                        _voskTriggerStatus.value = "Vosk STT Model Loaded & Ready"
                     } catch (e: Throwable) {
-                        Log.e("AiraViewModel", "Vosk model load from extracted files failed: ${e.message}", e)
+                        com.example.utils.VoskLogManager.logInitError("Vosk model load from extracted files failed: ${e.message}", e)
                         if (targetDir.exists()) {
                             targetDir.deleteRecursively()
                         }
                     }
+                } else {
+                    com.example.utils.VoskLogManager.logInitError("Asset extraction failed or conf/model.conf missing/empty after copy", null)
                 }
                 
                 if (!loadedSuccessfully) {
-                    Log.w("AiraViewModel", "Direct extraction failed or incomplete. Attempting Vosk StorageService unpack...")
+                    com.example.utils.VoskLogManager.logWarn("Direct extraction failed. Attempting Vosk StorageService unpack...", "VoskInit")
                     if (targetDir.exists()) {
                         targetDir.deleteRecursively()
                     }
@@ -1548,25 +1602,29 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                             { model ->
                                 voskModel = model
                                 isVoskInitializing = false
-                                Log.d("AiraViewModel", "Vosk model unpacked via StorageService.")
+                                com.example.utils.VoskLogManager.logInfo("Vosk model unpacked via StorageService.", "VoskInit")
                                 _currentStatus.value = "Offline engine ready"
+                                _voskTriggerStatus.value = "Vosk STT Model Loaded & Ready"
                             },
                             { exception ->
                                 isVoskInitializing = false
-                                Log.e("AiraViewModel", "Vosk model StorageService unpack failed: ${exception.message}")
+                                com.example.utils.VoskLogManager.logInitError("Vosk model StorageService unpack failed: ${exception.message}", exception)
                                 _currentStatus.value = "System STT Ready"
+                                _voskTriggerStatus.value = "STT Init Failed: StorageService error"
                             }
                         )
                     } catch (e: Throwable) {
                         isVoskInitializing = false
-                        Log.e("AiraViewModel", "StorageService unpack exception: ${e.message}")
+                        com.example.utils.VoskLogManager.logInitError("StorageService unpack exception: ${e.message}", e)
                         _currentStatus.value = "System STT Ready"
+                        _voskTriggerStatus.value = "STT Init Failed: StorageService exception"
                     }
                 }
             } catch (e: Throwable) {
                 isVoskInitializing = false
-                Log.e("AiraViewModel", "Exception during performModelUnpack: ${e.message}", e)
+                com.example.utils.VoskLogManager.logInitError("Exception during performModelUnpack: ${e.message}", e)
                 _currentStatus.value = "System STT Ready"
+                _voskTriggerStatus.value = "STT Init Failed: Exception"
             }
         }
     }
@@ -1609,29 +1667,41 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         } else if (isInternetAvailable()) {
             isUsingGoogleSTT = true
             _sttEngineStatus.value = "Online"
-            _currentStatus.value = "Listening (Online)..."
+            _currentStatus.value = "Listening (Google Speech)..."
 
             viewModelScope.launch(Dispatchers.Main) {
+                if (speechRecognizer == null) {
+                    initSpeechRecognizer()
+                }
+
+                val recognizer = speechRecognizer
+                if (recognizer == null) {
+                    Log.w("AiraViewModel", "Google SpeechRecognizer unavailable. Falling back to Vosk.")
+                    switchToOfflineVosk()
+                    return@launch
+                }
+
                 val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                     putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                     val targetLocale = if (lang_code == "en-US") Locale.US else Locale("ur", "PK")
-                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, targetLocale.toString())
-                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, targetLocale.toString())
-                    putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, targetLocale.toString())
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, targetLocale.toLanguageTag())
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, targetLocale.toLanguageTag())
+                    putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, targetLocale.toLanguageTag())
                     putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-                    
-                    // Low latency silence detection: complete recognition faster once speech ends
-                    putExtra("android.speech.extras.SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS", 1000L)
-                    putExtra("android.speech.extras.SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS", 1000L)
-                    putExtra("android.speech.extras.SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS", 1000)
-                    putExtra("android.speech.extras.SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS", 1000)
-                    putExtra("android.speech.extra.DICTATION_MODE", true)
+                    putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+
+                    // Allow reasonable silence threshold before finalizing input
+                    putExtra("android.speech.extras.SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS", 2000L)
+                    putExtra("android.speech.extras.SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS", 2000L)
                 }
+
                 try {
-                    speechRecognizer?.startListening(intent)
-                    // Set 4000ms timeout check to allow Google STT ample time to initialize on all connections
+                    recognizer.cancel()
+                    recognizer.startListening(intent)
+
+                    // Set 10s fallback timeout to allow Google STT network connection to settle
                     handler.removeCallbacks(timeoutRunnable)
-                    handler.postDelayed(timeoutRunnable, 4000)
+                    handler.postDelayed(timeoutRunnable, 10000L)
                 } catch (e: Exception) {
                     Log.e("AiraViewModel", "Failed to start Google STT, falling back to Vosk", e)
                     switchToOfflineVosk()
@@ -1687,6 +1757,57 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         }
     }
 
+    private fun processVoskHypothesis(hypothesis: String) {
+        if (hypothesis.isBlank()) return
+        try {
+            val json = JSONObject(hypothesis)
+            if (json.has("result")) {
+                val resultArray = json.optJSONArray("result")
+                val words = mutableListOf<Pair<String, Float>>()
+                var totalConf = 0f
+                if (resultArray != null && resultArray.length() > 0) {
+                    for (i in 0 until resultArray.length()) {
+                        val item = resultArray.getJSONObject(i)
+                        val w = item.optString("word", "")
+                        val c = item.optDouble("conf", 0.0).toFloat()
+                        if (w.isNotBlank()) {
+                            words.add(Pair(w, c))
+                            totalConf += c
+                        }
+                    }
+                }
+                val text = json.optString("text", "")
+                val avgConf = if (words.isNotEmpty()) (totalConf / words.size).coerceIn(0f, 1f) else if (text.isNotBlank()) 0.85f else 0f
+                _voskConfidenceScore.value = avgConf
+                _voskWordConfidences.value = words
+
+                val currentWakeWord = _wakeWord.value.lowercase().trim()
+                val lowerText = text.lowercase().trim()
+
+                if (text.isNotBlank()) {
+                    if (lowerText.contains(currentWakeWord)) {
+                        _voskTriggerStatus.value = "Wake Word Matched: '$text' (${(avgConf * 100).toInt()}%)"
+                        com.example.utils.VoskLogManager.logInfo("Wake Word trigger matched: '$text' (Conf: ${(avgConf * 100).toInt()}%)")
+                    } else if (avgConf < 0.60f) {
+                        _voskTriggerStatus.value = "Low Confidence Rejected: '$text' (${(avgConf * 100).toInt()}%)"
+                        com.example.utils.VoskLogManager.logWarn("Recognition low confidence ($text, conf=${(avgConf * 100).toInt()}%)")
+                    } else {
+                        _voskTriggerStatus.value = "Speech Recognized: '$text' (${(avgConf * 100).toInt()}%)"
+                        com.example.utils.VoskLogManager.logInfo("Recognized phrase: '$text' (${(avgConf * 100).toInt()}%)")
+                    }
+                }
+            } else if (json.has("partial")) {
+                val partial = json.optString("partial", "")
+                if (partial.isNotBlank()) {
+                    _voskTriggerStatus.value = "Phonetic Partial: '$partial'"
+                    _voskConfidenceScore.value = 0.70f
+                }
+            }
+        } catch (e: Exception) {
+            com.example.utils.VoskLogManager.logWarn("Failed to parse Vosk hypothesis JSON: ${e.message}")
+        }
+    }
+
     private fun startVoskListening() {
         if (ContextCompat.checkSelfPermission(
                 getApplication(),
@@ -1715,22 +1836,27 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
 
         try {
             _currentStatus.value = "Listening (Offline)..."
+            _voskTriggerStatus.value = "Listening for Voice Commands / Wake Word..."
+            com.example.utils.VoskLogManager.logInfo("Vosk Recognizer starting listening loop at 16000Hz...", "VoskEngine")
             startVoskWaveLoop()
             val recognizer = Recognizer(model, 16000.0f)
             voskSpeechService = SpeechService(recognizer, 16000.0f)
             voskSpeechService?.startListening(object : org.vosk.android.RecognitionListener {
                 override fun onResult(hypothesis: String) {
                     consecutiveSpeechErrors = 0
+                    processVoskHypothesis(hypothesis)
                     val text = extractVoskText(hypothesis)
                     handleOfflineSpeechResult(text)
                 }
 
                 override fun onPartialResult(hypothesis: String) {
+                    processVoskHypothesis(hypothesis)
                     val text = extractVoskPartialText(hypothesis)
                     if (text.isNotEmpty()) {
                         val currentWakeWord = _wakeWord.value.lowercase().trim()
                         if (_usePersistentListening.value && text.lowercase().contains(currentWakeWord)) {
                             _currentStatus.value = "Wake word detected! Listening..."
+                            _voskTriggerStatus.value = "Wake Word Matched in Partial Speech!"
                         } else {
                             _currentStatus.value = "Phonetics: $text"
                         }
@@ -1739,13 +1865,15 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
 
                 override fun onFinalResult(hypothesis: String) {
                     consecutiveSpeechErrors = 0
+                    processVoskHypothesis(hypothesis)
                     val text = extractVoskText(hypothesis)
                     handleOfflineSpeechResult(text)
                 }
 
                 override fun onError(exception: Exception) {
-                    Log.e("AiraViewModel", "Vosk error: ${exception.message}", exception)
+                    com.example.utils.VoskLogManager.logError("Vosk listener error: ${exception.message}", exception)
                     _currentStatus.value = "Offline Error"
+                    _voskTriggerStatus.value = "Vosk Listener Error: ${exception.message}"
                     consecutiveSpeechErrors++
                     if (consecutiveSpeechErrors >= 3) {
                         consecutiveSpeechErrors = 0
@@ -1770,13 +1898,15 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                 }
 
                 override fun onTimeout() {
-                    Log.d("AiraViewModel", "Vosk timeout")
+                    com.example.utils.VoskLogManager.logInfo("Vosk listener timeout", "VoskEngine")
+                    _voskTriggerStatus.value = "Vosk Listener Timeout"
                     stopListening()
                 }
             })
         } catch (e: Exception) {
-            Log.e("AiraViewModel", "Failed to start Vosk thread", e)
+            com.example.utils.VoskLogManager.logInitError("Failed to start Vosk listening thread: ${e.message}", e)
             _currentStatus.value = "Model error. Reinstall app"
+            _voskTriggerStatus.value = "Failed to start listening thread"
             stopListening()
         }
     }
@@ -1849,26 +1979,26 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         }
     }
 
-    fun speakText(text: String) {
+    fun speakText(text: String, speedMultiplier: Float = 1.0f) {
         if (!_speakReplies.value) {
             Log.d("AiraViewModel", "Speak replies is disabled. Skipping speech for: $text")
             return
         }
         viewModelScope.launch {
             try {
-                speechQueue.send(text)
+                speechQueue.send(com.example.models.SpeechQueueItem(text, speedMultiplier))
             } catch (e: Exception) {
                 Log.e("AiraViewModel", "Failed to enqueue speech text: $text", e)
             }
         }
     }
 
-    private suspend fun performSpeakText(text: String) {
+    private suspend fun performSpeakText(item: com.example.models.SpeechQueueItem) {
         if (_isListening.value) {
             stopListening()
         }
         
-        piperTtsManager.speak(text)
+        piperTtsManager.speak(item.text, item.speedMultiplier)
         
         // Wait up to 1000ms for speech to start
         var waitStartLimit = 20
@@ -2014,8 +2144,14 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                 }
             } else {
                 _currentStatus.value = com.example.data.AiraPredefinedResponses.getRandomProcessingPhrase()
+                val latencyJob = viewModelScope.launch {
+                    kotlinx.coroutines.delay(800L)
+                    val filler = com.example.models.JarvisLatencyFiller.getLatencyFiller(userInput)
+                    speakText(filler)
+                }
                 try {
                     val (aiResponse, sourceEngine) = voiceCommandMgr.getRoutedAiResponse(userInput, finalSystemInstruction, historyList, queryTemperature)
+                    latencyJob.cancel()
                     val reply = if (aiResponse.isNotBlank()) aiResponse else com.example.data.AiraPredefinedResponses.getRandomFallbackResponse(userInput)
                     aiFinalResponse = reply
                     val isOffline = sourceEngine.contains("Llama") || sourceEngine.contains("Offline")
@@ -2023,6 +2159,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                     chatDao.insertMessage(ChatMessage(sender = "aira", message = reply, isOffline = isOffline))
                     processAIResponse(reply)
                 } catch (e: Exception) {
+                    latencyJob.cancel()
                     Log.e("AiraViewModel", "Online model call failed, checking memory before transitioning to local Llama 3.2 model.", e)
                     if (!com.example.utils.MemoryManager.isSafeMode(getApplication())) {
                         _currentStatus.value = "Online failure. Transitioning to Llama 3.2..."
@@ -2397,9 +2534,37 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             return true
         }
 
+        val dagSteps = com.example.models.JarvisWorkflowDAG.parseMultiStepInput(input)
+        if (dagSteps.size > 1) {
+            val stepResults = mutableListOf<String>()
+            for (step in dagSteps) {
+                if (step.parsedCommand != null) {
+                    val eval = com.example.models.JarvisSlotFiller.evaluate(step.parsedCommand)
+                    if (eval is com.example.models.SlotFillResult.Incomplete) {
+                        stepResults.add(eval.missingSlotPrompt)
+                    } else {
+                        stepResults.add(com.example.utils.CommandParser.execute(getApplication(), step.parsedCommand, this))
+                    }
+                }
+            }
+            if (stepResults.isNotEmpty()) {
+                val combined = stepResults.joinToString(" ")
+                viewModelScope.launch {
+                    chatDao.insertMessage(ChatMessage(sender = "aira", message = combined))
+                    speakText(combined)
+                }
+                return true
+            }
+        }
+
         val parsedCommand = com.example.utils.CommandParser.parse(input)
         if (parsedCommand != null) {
-            val responseMsg = com.example.utils.CommandParser.execute(getApplication(), parsedCommand, this)
+            val eval = com.example.models.JarvisSlotFiller.evaluate(parsedCommand)
+            val responseMsg = if (eval is com.example.models.SlotFillResult.Incomplete) {
+                eval.missingSlotPrompt
+            } else {
+                com.example.utils.CommandParser.execute(getApplication(), parsedCommand, this)
+            }
             viewModelScope.launch {
                 chatDao.insertMessage(ChatMessage(sender = "aira", message = responseMsg))
                 speakText(responseMsg)
@@ -3441,11 +3606,45 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     }
 
     override fun onError(error: Int) {
+        handler.removeCallbacks(timeoutRunnable)
         _isListening.value = false
         _audioAmplitude.value = 0f
-        
+
+        val msg = when (error) {
+            SpeechRecognizer.ERROR_AUDIO -> "Audio recording error."
+            SpeechRecognizer.ERROR_CLIENT -> {
+                viewModelScope.launch(Dispatchers.Main) { initSpeechRecognizer() }
+                "Google Speech client error. Reinitializing..."
+            }
+            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "RECORD_AUDIO permission required."
+            SpeechRecognizer.ERROR_NETWORK -> {
+                if (isUsingGoogleSTT && !isInternetAvailable()) {
+                    Log.w("AiraViewModel", "Google STT Network error. Switching to Offline Vosk.")
+                    switchToOfflineVosk()
+                }
+                "Network error during speech recognition."
+            }
+            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> {
+                if (isUsingGoogleSTT && !isInternetAvailable()) {
+                    switchToOfflineVosk()
+                }
+                "Network connection timeout."
+            }
+            SpeechRecognizer.ERROR_NO_MATCH -> "No phrasing recognized. Try speaking again."
+            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> {
+                viewModelScope.launch(Dispatchers.Main) { initSpeechRecognizer() }
+                "Speech recognizer busy. System resetting..."
+            }
+            SpeechRecognizer.ERROR_SERVER -> "Google speech server error."
+            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Speech input timeout."
+            else -> "Speech recognition error ($error)."
+        }
+
+        _currentStatus.value = msg
+        Log.e("AiraViewModel", "Speech recognition error code: $error ($msg)")
+
         consecutiveSpeechErrors++
-        if (consecutiveSpeechErrors >= 3) {
+        if (consecutiveSpeechErrors >= 5) {
             consecutiveSpeechErrors = 0
             if (_usePersistentListening.value) {
                 _usePersistentListening.value = false
@@ -3456,26 +3655,6 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             return
         }
 
-        if (isUsingGoogleSTT) {
-            Log.e("AiraViewModel", "Google STT error $error. Switching to Offline Vosk...")
-            switchToOfflineVosk()
-            return
-        }
-
-        val msg = when (error) {
-            SpeechRecognizer.ERROR_AUDIO -> "Audio recording error."
-            SpeechRecognizer.ERROR_CLIENT -> "Client error. Make sure Google Voice assistant is default."
-            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Record Audio permission is required."
-            SpeechRecognizer.ERROR_NETWORK -> "Network error."
-            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network timeout."
-            SpeechRecognizer.ERROR_NO_MATCH -> "No phrasing recognized. Try again."
-            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Vocal system is busy."
-            SpeechRecognizer.ERROR_SERVER -> "Server error."
-            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Speech input timeout."
-            else -> "Speech trigger error."
-        }
-        _currentStatus.value = msg
-        Log.e("AiraViewModel", "Speech recognition error limit: $error ($msg)")
         if (_isTestingWakeWord.value) {
             viewModelScope.launch(Dispatchers.Main) {
                 kotlinx.coroutines.delay(1000)
@@ -3546,8 +3725,11 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
 
     override fun onEvent(eventType: Int, params: Bundle?) {}
 
-    fun processAIResponse(aiResponseText: String) {
-        speakText(aiResponseText)
+    fun processAIResponse(aiResponseText: String, userQuery: String = "") {
+        val partitioned = com.example.models.JarvisOutputPartitioner.partition(aiResponseText, userQuery, getApplication())
+        if (partitioned.shouldSpeak && partitioned.speechContent.isNotBlank()) {
+            speakText(partitioned.speechContent, partitioned.speechSpeed)
+        }
     }
 
     override fun onCleared() {

@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedReader
@@ -640,12 +641,15 @@ class VoiceCommandManager(private val context: Context) {
         val combinedInstruction = if (systemInstruction.contains("Jarvis")) systemInstruction else "${com.example.models.AiBrain.JARVIS_SYSTEM_INSTRUCTION}\n$systemInstruction"
 
         return if (isOnline) {
-            Log.i("VoiceCommandManager", "Internet detected. Routing query successfully to $onlineLabel...")
+            Log.i("VoiceCommandManager", "Internet detected. Routing query successfully to $onlineLabel (2.5s proactive SLA)...")
             try {
                 _currentEngineSource.value = onlineLabel
-                val response = apiBrain.getAiResponse(userInput, combinedInstruction, history, temperature)
-                if (response.contains("All chat keys are down") || response.contains("API key is missing") || response.startsWith("Error:")) {
-                    Log.w("VoiceCommandManager", "Online AI key missing/down, falling back to Local LLaMa / Rules Model")
+                val response = withTimeoutOrNull(2500L) {
+                    apiBrain.getAiResponse(userInput, combinedInstruction, history, temperature)
+                }
+
+                if (response == null || response.contains("All chat keys are down") || response.contains("API key is missing") || response.startsWith("Error:")) {
+                    Log.w("VoiceCommandManager", "Online AI query timed out (>2.5s) or key down, falling back seamlessly to Local LLaMa / Rules Model")
                     _currentEngineSource.value = "Llama 3.2 + Local Rules (Offline Fallback)"
                     val offlineResp = try {
                         val res = llamaCppBrain.getResponse(userInput, combinedInstruction, history, temperature)
@@ -653,7 +657,7 @@ class VoiceCommandManager(private val context: Context) {
                     } catch (e: Exception) {
                         apiBrain.getOfflineLocalResponse(userInput)
                     }
-                    Pair(offlineResp, "Jarvis Local Brain (Offline Fallback)")
+                    Pair(offlineResp, "Jarvis Local Brain (Proactive Fallback)")
                 } else {
                     Pair(response, onlineLabel)
                 }
