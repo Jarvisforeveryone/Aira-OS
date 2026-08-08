@@ -24,6 +24,10 @@ android {
     versionCode = 1
     versionName = "1.0"
 
+    ndk {
+      abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a"))
+    }
+
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
@@ -118,7 +122,11 @@ dependencies {
   implementation(libs.logging.interceptor)
   implementation(libs.moshi.kotlin)
   implementation(libs.okhttp)
-  implementation("com.squareup.retrofit2:converter-simplexml:2.9.0")
+  implementation("com.squareup.retrofit2:converter-simplexml:2.9.0") {
+    exclude(group = "xpp3", module = "xpp3")
+    exclude(group = "stax", module = "stax")
+    exclude(group = "stax", module = "stax-api")
+  }
   // implementation(libs.play.services.location)
   implementation(libs.retrofit)
   testImplementation(libs.androidx.compose.ui.test.junit4)

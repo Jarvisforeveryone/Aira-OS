@@ -79,26 +79,10 @@ class PiperTtsManager(private val context: Context) {
     val isEngineActive = _isEngineActive.asStateFlow()
 
     private fun isVoiceDownloadedForReal(voiceId: String): Boolean {
-        // Check assets/piper/models/ first for en_US-amy-medium.onnx
-        try {
-            val assetName = if (voiceId == "en_US-amy-medium") "piper/models/en_US-amy-medium.onnx" else null
-            if (assetName != null) {
-                context.assets.open(assetName).use { 
-                    return true 
-                }
-            }
-        } catch (e: Exception) {
-            // Ignore and fall back to checking filesDir
-        }
-
-        val piperModelsDir = File(context.filesDir, "piper_models")
         if (voiceId.startsWith("en_US-amy")) {
-            val file1 = File(piperModelsDir, "amymodel.onnx")
-            val file3 = File(piperModelsDir, "en_US-amy-medium.onnx")
-            val valid1 = file1.exists() && file1.length() > 5 * 1024 * 1024
-            val valid3 = file3.exists() && file3.length() > 5 * 1024 * 1024
-            return valid1 || valid3
+            return com.example.utils.DownloadManager.isPiperModelDownloaded(context)
         }
+        val piperModelsDir = File(context.filesDir, "piper_models")
         val file = File(piperModelsDir, "$voiceId.onnx")
         return file.exists() && file.length() > 5 * 1024 * 1024
     }
@@ -550,8 +534,15 @@ class PiperTtsManager(private val context: Context) {
 
         val isPiperRequested = selectedTtsEngine == "PIPER_OFFLINE" || (selectedTtsEngine == "AUTO" && voiceId == "en_US-amy-medium")
 
+        // Check if Amy model needs to be downloaded on demand
+        if (voiceId == "en_US-amy-medium" && !com.example.utils.DownloadManager.isPiperModelDownloaded(context)) {
+            mainScope.launch {
+                com.example.utils.DownloadManager.downloadPiperModel(context)
+            }
+        }
+
         // Real JNI Piper speech for Amy Voice
-        if (isPiperRequested && voiceId == "en_US-amy-medium" && !com.example.utils.MemoryManager.isSafeMode(context)) {
+        if (isPiperRequested && voiceId == "en_US-amy-medium" && !com.example.utils.MemoryManager.isSafeMode(context) && com.example.utils.MemoryManager.isPiperSupported(context)) {
             if (com.example.util.NativeLibraryLoader.isLoaded()) {
                 try {
                     Log.d("PiperTtsManager", "Offline Piper TTS Speaking (Active Voice: en_US-amy-medium) via real JNI/ONNX engine!")
@@ -775,6 +766,12 @@ class PiperTtsManager(private val context: Context) {
         if (availableVoices.none { it.id == voiceModelId }) return
         _activeVoice.value = voiceModelId
         applyVoiceProfile(voiceModelId)
+
+        if (voiceModelId == "en_US-amy-medium" && !com.example.utils.DownloadManager.isPiperModelDownloaded(context)) {
+            mainScope.launch {
+                com.example.utils.DownloadManager.downloadPiperModel(context)
+            }
+        }
     }
 
     fun setEngineEnabled(enabled: Boolean) {
@@ -846,114 +843,15 @@ class PiperTtsManager(private val context: Context) {
 
     fun downloadVoiceModel(voiceId: String) {
         if (_isModelDownloaded.value[voiceId] == true) return
-        
         mainScope.launch {
-            try {
-                _downloadStatusMessage.value = "Downloading $voiceId..."
-                val currentProgress = _downloadProgress.value.toMutableMap()
-                currentProgress[voiceId] = 0.0f
-                _downloadProgress.value = currentProgress
-
-                val url = getVoiceUrl(voiceId)
-                val piperModelsDir = File(context.filesDir, "piper_models")
-                if (!piperModelsDir.exists()) piperModelsDir.mkdirs()
-                
-                val modelFile = File(piperModelsDir, "$voiceId.onnx")
-                val configFile = File(piperModelsDir, "$voiceId.onnx.json")
-                
-                withContext(Dispatchers.IO) {
-                    val client = OkHttpClient.Builder()
-                        .followRedirects(true)
-                        .followSslRedirects(true)
-                        .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-                        .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-                        .build()
-
-                    // 1. Download ONNX Model
-                    val request = Request.Builder().url(url).build()
-                    client.newCall(request).execute().use { response ->
-                        if (!response.isSuccessful) throw Exception("HTTP error code: ${response.code}")
-                        val body = response.body ?: throw Exception("Empty response body")
-                        val contentLength = body.contentLength()
-                        val tempFile = File(modelFile.absolutePath + ".tmp")
-                        
-                        FileOutputStream(tempFile).use { output ->
-                            body.byteStream().use { input ->
-                                val buffer = ByteArray(16384)
-                                var bytesRead: Int
-                                var totalBytesRead = 0L
-                                while (input.read(buffer).also { bytesRead = it } != -1) {
-                                    output.write(buffer, 0, bytesRead)
-                                    totalBytesRead += bytesRead
-                                    
-                                    val progress = if (contentLength > 0) {
-                                        totalBytesRead.toFloat() / contentLength
-                                    } else {
-                                        0.0f
-                                    }
-                                    
-                                    withContext(Dispatchers.Main) {
-                                        val progMap = _downloadProgress.value.toMutableMap()
-                                        progMap[voiceId] = progress
-                                        _downloadProgress.value = progMap
-                                        
-                                        val percent = (progress * 100).toInt()
-                                        _downloadStatusMessage.value = "Downloading $voiceId: $percent%"
-                                    }
-                                }
-                            }
-                        }
-                        
-                        if (!tempFile.renameTo(modelFile)) {
-                            tempFile.delete()
-                            throw Exception("Failed to save downloaded model file")
-                        }
-                    }
-
-                    // 2. Download JSON Config
-                    val configUrl = url + ".json"
-                    val configRequest = Request.Builder().url(configUrl).build()
-                    client.newCall(configRequest).execute().use { response ->
-                        if (response.isSuccessful) {
-                            val body = response.body
-                            if (body != null) {
-                                FileOutputStream(configFile).use { output ->
-                                    body.byteStream().use { input ->
-                                        input.copyTo(output)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Success
-                _downloadStatusMessage.value = "Offline voice ready"
-                val finalizedModelSet = _isModelDownloaded.value.toMutableMap()
-                finalizedModelSet[voiceId] = true
-                _isModelDownloaded.value = finalizedModelSet
-
-                val progMap = _downloadProgress.value.toMutableMap()
-                progMap.remove(voiceId)
-                _downloadProgress.value = progMap
-
-                if (_activeVoice.value == voiceId || voiceId.startsWith("en_US-amy")) {
+            if (voiceId.startsWith("en_US-amy")) {
+                val success = com.example.utils.DownloadManager.downloadPiperModel(context)
+                if (success) {
+                    val updated = _isModelDownloaded.value.toMutableMap()
+                    updated[voiceId] = true
+                    _isModelDownloaded.value = updated
                     isOfflineTtsEnabled = true
                 }
-
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Voice model $voiceId download complete", Toast.LENGTH_SHORT).show()
-                }
-
-            } catch (e: Exception) {
-                Log.e("PiperTtsManager", "Failed to download model $voiceId", e)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Download failed: ${e.message}", Toast.LENGTH_LONG).show()
-                }
-                val progMap = _downloadProgress.value.toMutableMap()
-                progMap.remove(voiceId)
-                _downloadProgress.value = progMap
-                _downloadStatusMessage.value = "Download failed"
             }
         }
     }
@@ -1037,17 +935,15 @@ class PiperTtsManager(private val context: Context) {
     }
 
     suspend fun downloadAmyModel(onProgress: (Int) -> Unit, onComplete: (Boolean) -> Unit) {
-        try {
+        val success = com.example.utils.DownloadManager.downloadPiperModel(context)
+        if (success) {
             onProgress(100)
             isOfflineTtsEnabled = true
             val finalizedModelSet = _isModelDownloaded.value.toMutableMap()
             finalizedModelSet["en_US-amy-medium"] = true
             _isModelDownloaded.value = finalizedModelSet
-            onComplete(true)
-        } catch (e: Exception) {
-            Log.e("PiperTtsManager", "downloadAmyModel failed", e)
-            onComplete(false)
         }
+        onComplete(success)
     }
 
     fun updateGoogleTtsLanguagesAndVoices() {

@@ -9,6 +9,21 @@
 # debugging stack traces.
 #-keepattributes SourceFile,LineNumberTable
 
+# Keep project classes and models
+-keep class com.example.aira.** { *; }
+-keep class com.aira.voice.** { *; }
+-keep class com.example.ai.** { *; }
+-keep class com.example.** { *; }
+-keep class org.vosk.** { *; }
+-keep class com.google.** { *; }
+
+-dontwarn org.xmlpull.v1.**
+-dontwarn javax.xml.stream.**
+-dontwarn org.simpleframework.xml.**
+-dontwarn com.google.api.client.**
+-dontwarn javax.lang.model.**
+-dontwarn org.joda.time.**
+
 # Keep Room components
 -keep class * extends androidx.room.RoomDatabase
 -keep class * extends androidx.room.Dao

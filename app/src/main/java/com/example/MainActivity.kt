@@ -41,6 +41,8 @@ import com.example.ui.theme.*
 
 class MainActivity : ComponentActivity() {
 
+    private var activeViewModel: AiraViewModel? = null
+
     // Main launcher to handle startup permissions for voice, camera, and calling
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -127,12 +129,15 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val viewModel: AiraViewModel = viewModel()
+            activeViewModel = viewModel
             
             val themeIndex by viewModel.themeIndex.collectAsState()
             val appTheme by viewModel.appTheme.collectAsState()
             val hasCompletedOnboarding by viewModel.hasCompletedOnboarding.collectAsState()
 
             AiraTheme(themeIndex = themeIndex, appTheme = appTheme) {
+                com.example.ui.components.ModelDownloadPopup()
+
                 if (!hasCompletedOnboarding) {
                     OnboardingScreen(
                         viewModel = viewModel,
@@ -324,6 +329,16 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        activeViewModel?.onAppBackgrounded()
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        activeViewModel?.onAppTrimMemory(level)
     }
 }
 

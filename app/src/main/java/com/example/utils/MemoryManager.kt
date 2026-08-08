@@ -101,6 +101,20 @@ object MemoryManager {
     }
 
     /**
+     * Checks if the device has sufficient RAM (>= 3GB) to run Piper ONNX TTS natively without OOM.
+     */
+    fun isPiperSupported(context: Context): Boolean {
+        return isLlamaSupported(context)
+    }
+
+    /**
+     * Checks if the device has sufficient RAM (>= 3GB) to run Vosk STT natively without OOM.
+     */
+    fun isVoskSupported(context: Context): Boolean {
+        return isLlamaSupported(context)
+    }
+
+    /**
      * Checks if the device has sufficient total RAM (>= 3GB) to run heavy JNI models.
      */
     fun isDeviceCapable(context: Context): Boolean = isLlamaSupported(context)
@@ -139,8 +153,16 @@ object MemoryManager {
      */
     @Synchronized
     fun loadModelOnDemand(context: Context, type: NativeModelType, onLoadAction: () -> Unit): Boolean {
-        if (type == NativeModelType.LLAMA_CPP && !isDeviceCapable(context)) {
+        if (type == NativeModelType.LLAMA_CPP && !isLlamaSupported(context)) {
             Log.w(TAG, "Device RAM < 3GB. Skipping heavy Llama 3.2 local model to prevent native memory crash.")
+            return false
+        }
+        if (type == NativeModelType.PIPER_TTS && !isPiperSupported(context)) {
+            Log.w(TAG, "Device RAM < 3GB. Skipping native Piper TTS engine to prevent native memory crash.")
+            return false
+        }
+        if (type == NativeModelType.VOSK_STT && !isVoskSupported(context)) {
+            Log.w(TAG, "Device RAM < 3GB. Skipping native Vosk STT engine to prevent native memory crash.")
             return false
         }
 
@@ -177,5 +199,13 @@ object MemoryManager {
     @Synchronized
     fun isModelLoaded(type: NativeModelType): Boolean {
         return loadedModels.contains(type)
+    }
+
+    /**
+     * Returns whether any native model is currently registered as loaded in memory.
+     */
+    @Synchronized
+    fun isAnyModelLoaded(): Boolean {
+        return loadedModels.isNotEmpty()
     }
 }

@@ -709,11 +709,73 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     private val _totalRamMb = MutableStateFlow(com.example.utils.MemoryManager.getTotalRamMb(application))
     val totalRamMb: StateFlow<Long> = _totalRamMb.asStateFlow()
 
+    @Volatile
+    private var lastUserActivityTimestamp = System.currentTimeMillis()
+
+    fun markUserActivity() {
+        lastUserActivityTimestamp = System.currentTimeMillis()
+    }
+
     fun releaseAllNativeModels() {
         Log.i("AiraViewModel", "Releasing all native JNI models from memory...")
-        llamaCppBrain.deinitializeNativeEngine()
-        piperTtsManager.release()
+        try {
+            llamaCppBrain.deinitializeNativeEngine()
+        } catch (e: Exception) {
+            Log.e("AiraViewModel", "Error deinitializing Llama engine", e)
+        }
+        try {
+            piperTtsManager.release()
+        } catch (e: Exception) {
+            Log.e("AiraViewModel", "Error releasing Piper TTS", e)
+        }
         releaseVoskModel()
+    }
+
+    @Synchronized
+    fun performAggressiveMemoryCleanup(reason: String = "Automated Routine") {
+        Log.i("AiraViewModel", "Executing aggressive memory cleanup. Reason: $reason")
+        try {
+            releaseAllNativeModels()
+            com.example.utils.VoskLogManager.logInfo("Aggressive Memory Cleanup ($reason)", "MemoryManager")
+            // System.gc() to hint JVM and JNI native heap deallocation
+            System.gc()
+        } catch (e: Exception) {
+            Log.e("AiraViewModel", "Error during aggressive memory cleanup", e)
+        }
+    }
+
+    fun onAppBackgrounded() {
+        Log.i("AiraViewModel", "App backgrounded. Triggering aggressive memory cleanup...")
+        markUserActivity()
+        if (!_isListening.value && !_isSpeaking.value) {
+            performAggressiveMemoryCleanup("App Moved to Background")
+        }
+    }
+
+    fun onAppTrimMemory(level: Int) {
+        Log.i("AiraViewModel", "Trim memory signal received level=$level. Cleaning up lazy buffers...")
+        if (!_isListening.value && !_isSpeaking.value) {
+            performAggressiveMemoryCleanup("System TrimMemory Level $level")
+        }
+    }
+
+    private fun startIdleMemoryCleanupWatchdog() {
+        viewModelScope.launch(Dispatchers.Default) {
+            try {
+                while (true) {
+                    kotlinx.coroutines.delay(15_000L) // Check every 15s
+                    val idleMs = System.currentTimeMillis() - lastUserActivityTimestamp
+                    if (idleMs >= 45_000L && !_isListening.value && !_isSpeaking.value) {
+                        if (com.example.utils.MemoryManager.isAnyModelLoaded()) {
+                            Log.i("AiraViewModel", "Assistant idle for ${idleMs / 1000}s. Executing automated memory cleanup routine.")
+                            performAggressiveMemoryCleanup("Idle Timeout (${idleMs / 1000}s)")
+                        }
+                    }
+                }
+            } catch (_: kotlinx.coroutines.CancellationException) {
+                // Scope cancelled when ViewModel is cleared
+            }
+        }
     }
 
     fun releaseVoskModel() {
@@ -1308,13 +1370,6 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             } catch (e: Throwable) {
                 Log.e("AiraViewModel", "Error in initPiperEngine", e)
             }
-            try {
-                if (!piperTtsManager.MODEL_PATH.exists()) {
-                    piperTtsManager.startDownload()
-                }
-            } catch (e: Throwable) {
-                Log.e("AiraViewModel", "Error checking/downloading piper model", e)
-            }
             // Collect Piper auto-download status
             viewModelScope.launch {
                 try {
@@ -1354,24 +1409,40 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             }
             refreshShizukuStatus()
             initSpeechRecognizer()
-            initVoskModel()
+            startIdleMemoryCleanupWatchdog()
+
+            // DEFERRED HEAVY INIT (5-second post-startup delay for 0-lag cold start and binder safety)
             viewModelScope.launch {
+                kotlinx.coroutines.delay(5000L)
+                val appCtx = getApplication<Application>()
+                if (com.example.utils.MemoryManager.isPiperSupported(appCtx)) {
+                    try {
+                        if (!piperTtsManager.MODEL_PATH.exists()) {
+                            piperTtsManager.startDownload()
+                        }
+                    } catch (e: Throwable) {
+                        Log.e("AiraViewModel", "Error checking/downloading piper model", e)
+                    }
+                }
+                if (com.example.utils.MemoryManager.isVoskSupported(appCtx)) {
+                    initVoskModel()
+                }
                 try {
                     performFetchWeather()
                     generateMorningBriefing()
                 } catch (e: Throwable) {
                     Log.e("AiraViewModel", "Error in performFetchWeather/generateMorningBriefing", e)
                 }
-            }
-            try {
-                fetchNews()
-            } catch (e: Throwable) {
-                Log.e("AiraViewModel", "Error in fetchNews", e)
-            }
-            try {
-                preloadVoiceCommands()
-            } catch (e: Throwable) {
-                Log.e("AiraViewModel", "Error in preloadVoiceCommands", e)
+                try {
+                    fetchNews()
+                } catch (e: Throwable) {
+                    Log.e("AiraViewModel", "Error in fetchNews", e)
+                }
+                try {
+                    preloadVoiceCommands()
+                } catch (e: Throwable) {
+                    Log.e("AiraViewModel", "Error in preloadVoiceCommands", e)
+                }
             }
 
             // Start consuming queue on Main thread
@@ -1483,46 +1554,54 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     }
 
     fun initVoskModel() {
+        val appCtx = getApplication<Application>()
+        if (!com.example.utils.MemoryManager.isVoskSupported(appCtx)) {
+            Log.w("AiraViewModel", "Device RAM < 3GB. Skipping Vosk STT initialization to prevent native OOM.")
+            return
+        }
         if (voskModel != null || isVoskInitializing) return
         isVoskInitializing = true
         _currentStatus.value = "Initializing Vosk Offline..."
         com.example.utils.VoskLogManager.logInfo("Initiating Vosk STT Model load pipeline...", "VoskInit")
         
         viewModelScope.launch(Dispatchers.IO) {
-            val context = getApplication<Application>()
-            com.example.utils.MemoryManager.loadModelOnDemand(context, com.example.utils.NativeModelType.VOSK_STT) {
-                val externalDir = context.getExternalFilesDir(null)
-                
-                var unpackedDir = File(context.filesDir, "model")
-                if (!File(unpackedDir, "conf/model.conf").exists() && externalDir != null) {
-                    val extModel = File(externalDir, "model")
-                    if (File(extModel, "conf/model.conf").exists()) {
-                        unpackedDir = extModel
-                    }
-                }
-
-                val confFile = File(unpackedDir, "conf/model.conf")
-                if (confFile.exists() && confFile.length() > 0L) {
+            com.example.utils.MemoryManager.loadModelOnDemand(appCtx, com.example.utils.NativeModelType.VOSK_STT) {
+                if (com.example.utils.DownloadManager.isVoskModelDownloaded(appCtx)) {
+                    val dir = com.example.utils.DownloadManager.getVoskModelDir(appCtx)
                     try {
-                        com.example.utils.VoskLogManager.logInfo("Found cached model at: ${unpackedDir.absolutePath}. Attempting Model instantiation...", "VoskInit")
-                        voskModel = Model(unpackedDir.absolutePath)
+                        com.example.utils.VoskLogManager.logInfo("Found downloaded Vosk model at: ${dir.absolutePath}. Instantiating...", "VoskInit")
+                        voskModel = Model(dir.absolutePath)
                         isVoskInitializing = false
                         com.example.utils.VoskLogManager.logInfo("Vosk model successfully instantiated via JNI!", "VoskInit")
                         _currentStatus.value = "Offline engine ready"
                         _voskTriggerStatus.value = "Vosk STT Model Loaded & Ready"
                     } catch (e: Throwable) {
-                        com.example.utils.VoskLogManager.logInitError("Failed to load Vosk model from ${unpackedDir.absolutePath}: ${e.message}", e)
-                        if (unpackedDir.exists()) {
-                            unpackedDir.deleteRecursively()
+                        com.example.utils.VoskLogManager.logInitError("Failed to load Vosk model from ${dir.absolutePath}: ${e.message}", e)
+                        if (dir.exists()) {
+                            dir.deleteRecursively()
                         }
-                        performModelUnpack()
+                        isVoskInitializing = false
                     }
                 } else {
-                    if (unpackedDir.exists()) {
-                        unpackedDir.deleteRecursively()
+                    com.example.utils.VoskLogManager.logWarn("Vosk model missing. Triggering on-demand download...", "VoskInit")
+                    viewModelScope.launch {
+                        val downloaded = com.example.utils.DownloadManager.downloadVoskModel(appCtx)
+                        if (downloaded) {
+                            val dir = com.example.utils.DownloadManager.getVoskModelDir(appCtx)
+                            try {
+                                voskModel = Model(dir.absolutePath)
+                                com.example.utils.VoskLogManager.logInfo("Vosk model loaded after download!", "VoskInit")
+                                _currentStatus.value = "Offline engine ready"
+                                _voskTriggerStatus.value = "Vosk STT Model Loaded & Ready"
+                            } catch (e: Throwable) {
+                                com.example.utils.VoskLogManager.logInitError("Failed to load Vosk model after download: ${e.message}", e)
+                            }
+                        } else {
+                            _currentStatus.value = "Vosk Download Failed"
+                            _voskTriggerStatus.value = "Vosk model missing"
+                        }
+                        isVoskInitializing = false
                     }
-                    com.example.utils.VoskLogManager.logWarn("No valid cached Vosk model found at ${unpackedDir.absolutePath}. Unpacking from assets...", "VoskInit")
-                    performModelUnpack()
                 }
             }
         }
@@ -1639,6 +1718,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
 
     // --- Speech Recognition Triggers ---
     fun startListening() {
+        markUserActivity()
         if (_isListening.value) return
         
         // Interrupt any ongoing TTS playing to avoid audio loop or echo
@@ -1733,6 +1813,40 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         try {
             speechRecognizer?.cancel()
         } catch (_: Exception) {}
+
+        if (!com.example.utils.MemoryManager.isVoskSupported(getApplication())) {
+            Log.w("AiraViewModel", "Device RAM < 3GB. Offline Vosk STT disabled for memory safety. Using Google Speech.")
+            if (isInternetAvailable()) {
+                isUsingGoogleSTT = true
+                _sttEngineStatus.value = "Online"
+                _currentStatus.value = "Listening (Google Speech)..."
+                viewModelScope.launch(Dispatchers.Main) {
+                    if (speechRecognizer == null) {
+                        initSpeechRecognizer()
+                    }
+                    val recognizer = speechRecognizer
+                    if (recognizer != null) {
+                        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                            val targetLocale = if (lang_code == "en-US") Locale.US else Locale("ur", "PK")
+                            putExtra(RecognizerIntent.EXTRA_LANGUAGE, targetLocale.toLanguageTag())
+                            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                        }
+                        try {
+                            recognizer.cancel()
+                            recognizer.startListening(intent)
+                        } catch (e: Exception) {
+                            Log.e("AiraViewModel", "Failed to start Google STT fallback", e)
+                        }
+                    }
+                }
+            } else {
+                _sttEngineStatus.value = "Offline (Low RAM)"
+                _currentStatus.value = "Offline STT requires >= 3GB RAM"
+                _isListening.value = false
+            }
+            return
+        }
 
         isUsingGoogleSTT = false
         _sttEngineStatus.value = "Offline"
