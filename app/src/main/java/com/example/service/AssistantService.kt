@@ -22,7 +22,22 @@ class AssistantService : VoiceInteractionService() {
 
     override fun onReady() {
         super.onReady()
-        Log.d("AssistantService", "AIRA AssistantService onReady called successfully as Default Digital Assistant.")
+
+        // Memory safety check - prevent OOM
+        val runtime = Runtime.getRuntime()
+        val freeMemory = runtime.freeMemory() / (1024 * 1024) // in MB
+        val maxMemory = runtime.maxMemory() / (1024 * 1024)
+        val usedMemory = (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024)
+
+        Log.d("AssistantService", "Memory - Free: ${freeMemory}MB, Used: ${usedMemory}MB, Max: ${maxMemory}MB")
+
+        // Minimum 20MB free memory required
+        if (freeMemory < 20) {
+            Log.e("AssistantService", "INSUFFICIENT FREE MEMORY: ${freeMemory}MB (need 20MB minimum)")
+            return // Silently fail - prevent crash
+        }
+
+        Log.d("AssistantService", "AssistantService ready - Memory OK")
     }
 
     override fun onShutdown() {

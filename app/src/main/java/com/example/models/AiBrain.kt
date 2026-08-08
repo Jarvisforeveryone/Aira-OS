@@ -756,69 +756,72 @@ Strict Response Rules:
         var activeKey = ChatKeyManager.getInstance(context).getNextKey()
         var retries = 0
         val maxRetries = 3
+        val geminiModelCandidates = listOf("gemini-3.5-flash", "gemini-2.5-flash", "gemini-flash-latest")
 
         while (retries < maxRetries) {
             if (activeKey.isNullOrEmpty()) {
                 return@withContext "All chat keys are down, sir. Please add a new key in Settings."
             }
 
-            val modelName = "gemini-1.5-flash"
-            val url = "https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$activeKey"
+            for (modelName in geminiModelCandidates) {
+                val url = "https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$activeKey"
 
-            try {
-                val contentsArray = JSONArray()
+                try {
+                    val contentsArray = JSONArray()
 
-                // Add History
-                for (turn in trimmedHistory) {
-                    val turnObj = JSONObject()
-                    val isUser = turn.first.equals("user", ignoreCase = true)
-                    turnObj.put("role", if (isUser) "user" else "model")
-                    
-                    val partsArray = JSONArray()
-                    val partObj = JSONObject()
-                    partObj.put("text", turn.second)
-                    partsArray.put(partObj)
-                    
-                    turnObj.put("parts", partsArray)
-                    contentsArray.put(turnObj)
-                }
-
-                // Add current prompt
-                val currentUserTurn = JSONObject().apply {
-                    put("role", "user")
-                    put("parts", JSONArray().apply {
-                        put(JSONObject().apply { put("text", prompt) })
-                    })
-                }
-                contentsArray.put(currentUserTurn)
-
-                val rootJson = JSONObject().apply {
-                    put("contents", contentsArray)
-                    val sysInstObj = JSONObject()
-                    val sysPartsArray = JSONArray().apply {
-                        put(JSONObject().apply { put("text", combinedSystemInstruction) })
+                    // Add History
+                    for (turn in trimmedHistory) {
+                        val turnObj = JSONObject()
+                        val isUser = turn.first.equals("user", ignoreCase = true)
+                        turnObj.put("role", if (isUser) "user" else "model")
+                        
+                        val partsArray = JSONArray()
+                        val partObj = JSONObject()
+                        partObj.put("text", turn.second)
+                        partsArray.put(partObj)
+                        
+                        turnObj.put("parts", partsArray)
+                        contentsArray.put(turnObj)
                     }
-                    sysInstObj.put("parts", sysPartsArray)
-                    put("systemInstruction", sysInstObj)
 
-                    // Max tokens setting to save API quotas
-                    put("generationConfig", JSONObject().apply {
-                        put("maxOutputTokens", 300)
-                        if (temperature != null) {
-                            put("temperature", temperature)
+                    // Add current prompt
+                    val currentUserTurn = JSONObject().apply {
+                        put("role", "user")
+                        put("parts", JSONArray().apply {
+                            put(JSONObject().apply { put("text", prompt) })
+                        })
+                    }
+                    contentsArray.put(currentUserTurn)
+
+                    val rootJson = JSONObject().apply {
+                        put("contents", contentsArray)
+                        val sysInstObj = JSONObject()
+                        val sysPartsArray = JSONArray().apply {
+                            put(JSONObject().apply { put("text", combinedSystemInstruction) })
                         }
-                    })
-                }
+                        sysInstObj.put("parts", sysPartsArray)
+                        put("systemInstruction", sysInstObj)
 
-                val mediaType = "application/json; charset=utf-8".toMediaType()
-                val requestBody = rootJson.toString().toRequestBody(mediaType)
+                        // Max tokens setting to save API quotas
+                        put("generationConfig", JSONObject().apply {
+                            put("maxOutputTokens", 500)
+                            if (temperature != null) {
+                                put("temperature", temperature)
+                            }
+                        })
+                    }
 
-                val request = Request.Builder()
-                    .url(url)
-                    .post(requestBody)
-                    .build()
+                    val mediaType = "application/json; charset=utf-8".toMediaType()
+                    val requestBody = rootJson.toString().toRequestBody(mediaType)
 
-                val apiResponse = com.example.data.NetworkErrorHandler.safeApiCall("Gemini API") {
+                    val request = Request.Builder()
+                        .url(url)
+                        .post(requestBody)
+                        .build()
+
+                    var apiSuccessResult: String? = null
+                    var isModelNotFound = false
+
                     client.newCall(request).execute().use { response ->
                         val code = response.code
                         if (code == 200) {
@@ -842,34 +845,37 @@ Strict Response Rules:
                                                 Log.e("AiBrain", "Cache insert failed: ", e)
                                             }
 
-                                            jarvisFormatted
-                                        } else "No text parts"
-                                    } else "No response content"
-                                } else "No candidate choices"
-                            } else "Empty Gemini response"
-                        } else if (code == 401 || code == 429 || code == 500) {
+                                            apiSuccessResult = jarvisFormatted
+                                        }
+                                    }
+                                }
+                            }
+                        } else if (code == 404) {
+                            Log.w("AiBrain", "Gemini model $modelName not found (HTTP 404), trying candidate fallback...")
+                            isModelNotFound = true
+                        } else if (code == 401 || code == 403 || code == 429 || code == 500) {
                             activeKey?.let { ChatKeyManager.getInstance(context).markCooldown(it) }
-                            activeKey = ChatKeyManager.getInstance(context).getNextKey()
-                            retries++
-                            throw Exception("HTTP $code")
+                            Log.w("AiBrain", "Gemini API HTTP $code on key, triggering key cooldown and rotation...")
                         } else {
                             val errorBody = response.body?.string() ?: ""
-                            Log.e("AiBrain", "Error response: $errorBody")
-                            throw Exception("HTTP $code")
+                            Log.e("AiBrain", "Gemini API HTTP $code error response: $errorBody")
                         }
                     }
+
+                    if (apiSuccessResult != null) {
+                        return@withContext apiSuccessResult!!
+                    }
+                    if (isModelNotFound) {
+                        continue // try next model candidate in for loop
+                    } else {
+                        break // exit candidate loop to rotate key in outer while loop
+                    }
+                } catch (e: Exception) {
+                    Log.e("AiBrain", "Exception in Gemini API call with model $modelName: ", e)
                 }
-                if (apiResponse != null) {
-                    return@withContext apiResponse
-                } else {
-                    retries++
-                    activeKey = ChatKeyManager.getInstance(context).getNextKey()
-                }
-            } catch (e: Exception) {
-                Log.e("AiBrain", "Exception in API call: ", e)
-                retries++
-                activeKey = ChatKeyManager.getInstance(context).getNextKey()
             }
+            retries++
+            activeKey = ChatKeyManager.getInstance(context).getNextKey()
         }
         return@withContext "All chat keys are down, sir. Please add a new key in Settings."
     }

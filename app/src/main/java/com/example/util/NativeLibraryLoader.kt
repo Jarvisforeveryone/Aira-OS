@@ -62,4 +62,6 @@ object NativeLibraryLoader {
     fun isLoaded(): Boolean {
         return isOnnxruntimeLoaded && isPiperLoaded
     }
+
+    fun areLibrariesLoaded(): Boolean = isLoaded()
 }

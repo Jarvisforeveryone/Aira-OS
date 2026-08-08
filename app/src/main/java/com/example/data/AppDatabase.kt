@@ -38,5 +38,12 @@ abstract class AppDatabase : RoomDatabase() {
                 instance
             }
         }
+
+        fun getInstance(context: Context): AppDatabase = getDatabase(context)
+
+        fun clearInstance() {
+            INSTANCE?.close()
+            INSTANCE = null
+        }
     }
 }

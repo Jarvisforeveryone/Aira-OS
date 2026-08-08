@@ -25,6 +25,21 @@ class LlamaCppBrain(private val context: Context) {
     }
 
     init {
+        try {
+            val pid = android.os.Process.myPid()
+            val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
+            val processName = manager?.runningAppProcesses?.find { it.pid == pid }?.processName ?: "unknown"
+
+            if (processName.contains(":assistant")) {
+                Log.e(TAG, "FATAL: Llama cannot run in :assistant process!")
+                throw RuntimeException("LlamaCppBrain blocked in :assistant process - OOM prevention")
+            }
+        } catch (e: RuntimeException) {
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "Process check exception", e)
+        }
+
         // Attempt to load the native llama.cpp library
         try {
             System.loadLibrary("llama-jni")

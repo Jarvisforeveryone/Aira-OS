@@ -112,6 +112,7 @@ class AiraAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+        setInstance(this)
         Log.d("AiraAccessibility", "Aira Accessibility Service Connected Successfully")
     }
 
@@ -176,12 +177,18 @@ class AiraAccessibilityService : AccessibilityService() {
     }
 
     companion object {
+        @JvmField
         var instance: AiraAccessibilityService? = null
-            private set
-    }
 
-    init {
-        instance = this
+        fun getInstance(): AiraAccessibilityService? = instance
+
+        fun setInstance(service: AiraAccessibilityService?) {
+            instance = service
+        }
+
+        fun clearInstance() {
+            instance = null
+        }
     }
 
     fun performBackAction(): Boolean {
@@ -245,8 +252,6 @@ class AiraAccessibilityService : AccessibilityService() {
     override fun onDestroy() {
         super.onDestroy()
         serviceScope.cancel()
-        if (instance == this) {
-            instance = null
-        }
+        clearInstance()
     }
 }

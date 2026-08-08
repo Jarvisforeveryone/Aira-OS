@@ -44,6 +44,10 @@ class VoiceCommandManager(private val context: Context) {
                 instance
             }
         }
+
+        fun clearInstance() {
+            INSTANCE = null
+        }
     }
 
     // Preload 10 Default System Actions if not already preloaded
@@ -611,15 +615,15 @@ class VoiceCommandManager(private val context: Context) {
         return try {
             val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
             if (connectivityManager != null) {
-                val activeNetwork = connectivityManager.activeNetwork ?: return false
-                val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
+                val activeNetwork = connectivityManager.activeNetwork ?: return true
+                val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return true
                 capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
             } else {
-                false
+                true
             }
         } catch (e: Exception) {
-            Log.e("VoiceCommandManager", "Failed to check internet connectivity, fallback to false", e)
-            false
+            Log.e("VoiceCommandManager", "Failed to check internet connectivity, fallback to true", e)
+            true
         }
     }
 
@@ -641,15 +645,15 @@ class VoiceCommandManager(private val context: Context) {
         val combinedInstruction = if (systemInstruction.contains("Jarvis")) systemInstruction else "${com.example.models.AiBrain.JARVIS_SYSTEM_INSTRUCTION}\n$systemInstruction"
 
         return if (isOnline) {
-            Log.i("VoiceCommandManager", "Internet detected. Routing query successfully to $onlineLabel (2.5s proactive SLA)...")
+            Log.i("VoiceCommandManager", "Internet detected. Routing query successfully to $onlineLabel...")
             try {
                 _currentEngineSource.value = onlineLabel
-                val response = withTimeoutOrNull(2500L) {
+                val response = withTimeoutOrNull(15000L) {
                     apiBrain.getAiResponse(userInput, combinedInstruction, history, temperature)
                 }
 
                 if (response == null || response.contains("All chat keys are down") || response.contains("API key is missing") || response.startsWith("Error:")) {
-                    Log.w("VoiceCommandManager", "Online AI query timed out (>2.5s) or key down, falling back seamlessly to Local LLaMa / Rules Model")
+                    Log.w("VoiceCommandManager", "Online AI query failed, key down, or timed out (>15s), falling back seamlessly to Local LLaMa / Rules Model")
                     _currentEngineSource.value = "Llama 3.2 + Local Rules (Offline Fallback)"
                     val offlineResp = try {
                         val res = llamaCppBrain.getResponse(userInput, combinedInstruction, history, temperature)

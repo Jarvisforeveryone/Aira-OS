@@ -20,7 +20,23 @@ import androidx.work.workDataOf
 class PiperTtsManager(private val context: Context) {
     companion object {
         @Volatile
-        var activeInstance: PiperTtsManager? = null
+        private var _activeInstance: PiperTtsManager? = null
+
+        val activeInstance: PiperTtsManager?
+            get() = _activeInstance
+
+        fun getInstance(context: Context): PiperTtsManager {
+            return _activeInstance ?: synchronized(this) {
+                _activeInstance ?: PiperTtsManager(context.applicationContext).also {
+                    _activeInstance = it
+                }
+            }
+        }
+
+        fun clearInstance() {
+            _activeInstance?.release()
+            _activeInstance = null
+        }
 
         const val MODEL_URL = "https://drive.google.com/uc?export=download&id=1o14RBC9-S4KeJvvdZ_EiOoQ18gfXE3_a"
         const val MODEL_FILENAME = "amymodel.onnx"
@@ -139,8 +155,22 @@ class PiperTtsManager(private val context: Context) {
 
     private val mainScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
+    private fun logProcessInfo() {
+        try {
+            val pid = android.os.Process.myPid()
+            val manager = context.getSystemService(android.content.Context.ACTIVITY_SERVICE) 
+                as android.app.ActivityManager
+            val processName = manager.runningAppProcesses
+                ?.find { it.pid == pid }?.processName ?: "unknown"
+            Log.d("PiperTtsManager", "Running in process: $processName (PID: $pid)")
+        } catch (e: Exception) {
+            Log.e("PiperTtsManager", "Error logging process info", e)
+        }
+    }
+
     init {
-        activeInstance = this
+        logProcessInfo()
+        _activeInstance = this
         val sharedPrefs = com.example.utils.SecurePrefs.getEncryptedSharedPreferences(context, "aira_settings")
         if (!sharedPrefs.contains("use_piper_tts")) {
             sharedPrefs.edit().putBoolean("use_piper_tts", true).apply()
@@ -894,6 +924,9 @@ class PiperTtsManager(private val context: Context) {
         try {
             Log.d("PiperTtsManager", "Releasing Piper TTS resources...")
             piperTtsEngine.release()
+            nativeTts?.stop()
+            nativeTts?.shutdown()
+            nativeTts = null
         } catch (e: Exception) {
             Log.e("PiperTtsManager", "Error releasing Piper TTS", e)
         }
@@ -913,8 +946,8 @@ class PiperTtsManager(private val context: Context) {
                 nativeTts?.shutdown()
                 nativeTts = null
             }
-            if (activeInstance == this) {
-                activeInstance = null
+            if (_activeInstance == this) {
+                _activeInstance = null
             }
             mainScope.cancel()
         } catch (e: Exception) {

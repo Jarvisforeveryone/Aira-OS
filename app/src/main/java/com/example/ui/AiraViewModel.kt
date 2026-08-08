@@ -618,18 +618,47 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             _isTestingGemini.value = true
             val startTime = System.currentTimeMillis()
             try {
+                val keyManager = com.example.data.ChatKeyManager.getInstance(getApplication())
+                val activeKey = keyManager.getNextKey()
                 val client = okhttp3.OkHttpClient.Builder()
-                    .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
-                    .readTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+                    .connectTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
+                    .readTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
                     .build()
-                val request = okhttp3.Request.Builder()
-                    .url("https://generativelanguage.googleapis.com/")
-                    .head()
-                    .build()
-                client.newCall(request).execute().use { response ->
-                    val latency = System.currentTimeMillis() - startTime
-                    _geminiLatencyMs.value = latency
-                    _geminiConnectivityStatus.value = "Connected (HTTP ${response.code})"
+
+                if (!activeKey.isNullOrEmpty()) {
+                    val pingJson = org.json.JSONObject().apply {
+                        put("contents", org.json.JSONArray().apply {
+                            put(org.json.JSONObject().apply {
+                                put("parts", org.json.JSONArray().apply {
+                                    put(org.json.JSONObject().apply { put("text", "hi") })
+                                })
+                            })
+                        })
+                    }
+                    val mediaType = "application/json; charset=utf-8".toMediaType()
+                    val body = pingJson.toString().toRequestBody(mediaType)
+                    val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=$activeKey"
+                    val request = okhttp3.Request.Builder().url(url).post(body).build()
+
+                    client.newCall(request).execute().use { response ->
+                        val latency = System.currentTimeMillis() - startTime
+                        _geminiLatencyMs.value = latency
+                        if (response.code == 200) {
+                            _geminiConnectivityStatus.value = "Connected & Valid API Key (HTTP 200)"
+                        } else {
+                            _geminiConnectivityStatus.value = "Host Reachable, API Status HTTP ${response.code}"
+                        }
+                    }
+                } else {
+                    val request = okhttp3.Request.Builder()
+                        .url("https://generativelanguage.googleapis.com/")
+                        .head()
+                        .build()
+                    client.newCall(request).execute().use { response ->
+                        val latency = System.currentTimeMillis() - startTime
+                        _geminiLatencyMs.value = latency
+                        _geminiConnectivityStatus.value = "Connected (Host Reachable, No Key Set)"
+                    }
                 }
             } catch (e: Exception) {
                 val latency = System.currentTimeMillis() - startTime

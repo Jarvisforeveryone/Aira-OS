@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap
  * Implements hardware-backed EncryptedSharedPreferences storage with automatic key rotation
  * and sliding expiration cooldown windows.
  */
-class ChatKeyManager private constructor(context: Context) {
+class ChatKeyManager private constructor(private val context: Context) {
 
     private val sharedPreferences: SharedPreferences = com.example.utils.SecurePrefs.getEncryptedSharedPreferences(context, "aira_secure_api_keys")
 
@@ -25,8 +25,10 @@ class ChatKeyManager private constructor(context: Context) {
      */
     fun getNextKey(): String? {
         val currentTime = System.currentTimeMillis()
+        
+        // 1. Check indexed keys 1..20
         for (i in 1..20) {
-            val key = sharedPreferences.getString("chat_api_$i", "") ?: ""
+            val key = sharedPreferences.getString("chat_api_$i", "")?.trim() ?: ""
             if (key.isNotEmpty()) {
                 val cooldownTime = cooldowns[key] ?: 0L
                 if (currentTime >= cooldownTime) {
@@ -34,6 +36,45 @@ class ChatKeyManager private constructor(context: Context) {
                 }
             }
         }
+        
+        // 2. Check unindexed key alias slots in secure prefs
+        val keyAliases = listOf("gemini_api_key", "gemini_key", "api_key", "user_api_key")
+        for (alias in keyAliases) {
+            val key = sharedPreferences.getString(alias, "")?.trim() ?: ""
+            if (key.isNotEmpty()) {
+                val cooldownTime = cooldowns[key] ?: 0L
+                if (currentTime >= cooldownTime) {
+                    return key
+                }
+            }
+        }
+
+        // 3. Fallback to standard preferences if stored there
+        try {
+            val fallbackPrefs = context.getSharedPreferences("aira_settings", Context.MODE_PRIVATE)
+            for (i in 1..20) {
+                val key = fallbackPrefs.getString("chat_api_$i", "")?.trim() ?: ""
+                if (key.isNotEmpty()) {
+                    val cooldownTime = cooldowns[key] ?: 0L
+                    if (currentTime >= cooldownTime) {
+                        return key
+                    }
+                }
+            }
+            for (alias in keyAliases) {
+                val key = fallbackPrefs.getString(alias, "")?.trim() ?: ""
+                if (key.isNotEmpty()) {
+                    val cooldownTime = cooldowns[key] ?: 0L
+                    if (currentTime >= cooldownTime) {
+                        return key
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("ChatKeyManager", "Fallback prefs check exception: ", e)
+        }
+
+        // 4. Check BuildConfig env variable
         val envKey = com.example.BuildConfig.GEMINI_API_KEY
         if (envKey.isNotBlank() && !envKey.startsWith("MY_") && (cooldowns[envKey] ?: 0L) <= currentTime) {
             return envKey
@@ -51,23 +92,65 @@ class ChatKeyManager private constructor(context: Context) {
     }
 
     fun saveKey(index: Int, key: String) {
+        val trimmed = key.trim()
         if (index in 1..20) {
-            sharedPreferences.edit().putString("chat_api_$index", key.trim()).apply()
+            sharedPreferences.edit()
+                .putString("chat_api_$index", trimmed)
+                .putString("gemini_api_key", trimmed)
+                .apply()
+
+            try {
+                val fallbackPrefs = context.getSharedPreferences("aira_settings", Context.MODE_PRIVATE)
+                fallbackPrefs.edit()
+                    .putString("chat_api_$index", trimmed)
+                    .putString("gemini_api_key", trimmed)
+                    .apply()
+            } catch (e: Exception) {
+                Log.e("ChatKeyManager", "Failed saving to fallback prefs: ", e)
+            }
+
             // Instantly clear any cooldown flags on new configs
-            cooldowns.remove(key.trim())
+            if (trimmed.isNotEmpty()) {
+                cooldowns.remove(trimmed)
+            }
         }
     }
 
     fun getKey(index: Int): String {
-        return sharedPreferences.getString("chat_api_$index", "") ?: ""
+        val secureKey = sharedPreferences.getString("chat_api_$index", "")?.trim() ?: ""
+        if (secureKey.isNotEmpty()) return secureKey
+        return try {
+            val fallbackPrefs = context.getSharedPreferences("aira_settings", Context.MODE_PRIVATE)
+            fallbackPrefs.getString("chat_api_$index", "")?.trim() ?: ""
+        } catch (e: Exception) {
+            ""
+        }
     }
 
     fun getGroqKey(): String {
-        return sharedPreferences.getString("groq_api_key", "") ?: ""
+        val secureKey = sharedPreferences.getString("groq_api_key", "")?.trim() ?: ""
+        if (secureKey.isNotEmpty()) return secureKey
+        val fallbackKey = try {
+            val fallbackPrefs = context.getSharedPreferences("aira_settings", Context.MODE_PRIVATE)
+            fallbackPrefs.getString("groq_api_key", "")?.trim() ?: ""
+        } catch (e: Exception) {
+            ""
+        }
+        return fallbackKey
     }
 
     fun saveGroqKey(key: String) {
-        sharedPreferences.edit().putString("groq_api_key", key.trim()).apply()
+        val trimmed = key.trim()
+        sharedPreferences.edit().putString("groq_api_key", trimmed).apply()
+        try {
+            val fallbackPrefs = context.getSharedPreferences("aira_settings", Context.MODE_PRIVATE)
+            fallbackPrefs.edit().putString("groq_api_key", trimmed).apply()
+        } catch (e: Exception) {
+            Log.e("ChatKeyManager", "Failed saving groq key to fallback prefs: ", e)
+        }
+        if (trimmed.isNotEmpty()) {
+            cooldowns.remove(trimmed)
+        }
     }
 
     companion object {
@@ -80,6 +163,10 @@ class ChatKeyManager private constructor(context: Context) {
                 INSTANCE = instance
                 instance
             }
+        }
+
+        fun clearInstance() {
+            INSTANCE = null
         }
     }
 }
