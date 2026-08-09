@@ -689,6 +689,12 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     val isLocalMode: StateFlow<Boolean> = _isLocalMode.asStateFlow()
 
     fun toggleLocalMode(enabled: Boolean) {
+        if (enabled && (!com.example.utils.MemoryManager.isDeviceCapable(getApplication()) || !com.example.utils.MemoryManager.isOfflineSupported(getApplication()))) {
+            _isLocalMode.value = false
+            sharedPrefs.edit().putBoolean("is_local_mode", false).apply()
+            speakText("Offline mode not available on this device")
+            return
+        }
         _isLocalMode.value = enabled
         sharedPrefs.edit().putBoolean("is_local_mode", enabled).apply()
         if (enabled) {
@@ -1352,15 +1358,19 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         try {
             sharedPrefs.registerOnSharedPreferenceChangeListener(prefChangeListener)
 
-            if (!_isDeviceMemoryCapable.value) {
+            if (!_isDeviceMemoryCapable.value || !com.example.utils.MemoryManager.isOfflineSupported(application)) {
                 Log.w("AiraViewModel", "Device RAM is < 3GB (${_totalRamMb.value} MB). Enforcing Cloud Mode for device safety.")
                 _isOfflineBrain.value = false
+                _isLocalMode.value = false
                 _usePersistentListening.value = false
                 _selectedTtsEngine.value = TtsEngine.GOOGLE_TTS
+                _selectedSttEngine.value = SttEngine.AUTO
                 sharedPrefs.edit()
                     .putBoolean("offline_brain", false)
+                    .putBoolean("is_local_mode", false)
                     .putBoolean("persistent_listening", false)
                     .putString("selected_tts_engine", TtsEngine.GOOGLE_TTS.name)
+                    .putString("selected_stt_engine", SttEngine.AUTO.name)
                     .apply()
             }
             
@@ -1444,17 +1454,21 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             viewModelScope.launch {
                 kotlinx.coroutines.delay(5000L)
                 val appCtx = getApplication<Application>()
-                if (com.example.utils.MemoryManager.isPiperSupported(appCtx)) {
-                    try {
-                        if (!piperTtsManager.MODEL_PATH.exists()) {
-                            piperTtsManager.startDownload()
+                if (com.example.utils.MemoryManager.isOfflineSupported(appCtx)) {
+                    if (com.example.utils.MemoryManager.isPiperSupported(appCtx)) {
+                        try {
+                            if (!piperTtsManager.MODEL_PATH.exists()) {
+                                piperTtsManager.startDownload()
+                            }
+                        } catch (e: Throwable) {
+                            Log.e("AiraViewModel", "Error checking/downloading piper model", e)
                         }
-                    } catch (e: Throwable) {
-                        Log.e("AiraViewModel", "Error checking/downloading piper model", e)
                     }
-                }
-                if (com.example.utils.MemoryManager.isVoskSupported(appCtx)) {
-                    initVoskModel()
+                    if (com.example.utils.MemoryManager.isVoskSupported(appCtx)) {
+                        initVoskModel()
+                    }
+                } else {
+                    Log.i("AiraViewModel", "Offline mode not supported on 2GB device. Skipping Piper, Vosk, and Llama init.")
                 }
                 try {
                     performFetchWeather()
@@ -1584,7 +1598,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
 
     fun initVoskModel() {
         val appCtx = getApplication<Application>()
-        if (!com.example.utils.MemoryManager.isVoskSupported(appCtx)) {
+        if (!com.example.utils.MemoryManager.isVoskSupported(appCtx) || !com.example.utils.MemoryManager.isOfflineSupported(appCtx)) {
             Log.w("AiraViewModel", "Device RAM < 3GB. Skipping Vosk STT initialization to prevent native OOM.")
             return
         }
@@ -3551,10 +3565,10 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     }
 
     fun toggleOfflineBrain(isOffline: Boolean) {
-        if (isOffline && !com.example.utils.MemoryManager.isDeviceCapable(getApplication())) {
+        if (isOffline && (!com.example.utils.MemoryManager.isDeviceCapable(getApplication()) || !com.example.utils.MemoryManager.isOfflineSupported(getApplication()))) {
             _isOfflineBrain.value = false
             sharedPrefs.edit().putBoolean("offline_brain", false).apply()
-            speakText("2GB device detected. Cloud mode enabled for safety. Offline features disabled to prevent crashes.")
+            speakText("Offline mode not available on this device")
             return
         }
         _isOfflineBrain.value = isOffline

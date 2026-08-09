@@ -27,6 +27,11 @@ class LlamaCppBrain(private val context: Context) {
 
     init {
         try {
+            if (!com.example.utils.MemoryManager.isOfflineSupported(context)) {
+                Log.e(TAG, "Offline mode not supported on 2GB devices (<3GB RAM). Blocking Llama model loading.")
+                isBlockedInAssistantProcess = true
+            }
+
             val pid = android.os.Process.myPid()
             val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
             val processName = manager?.runningAppProcesses?.find { it.pid == pid }?.processName ?: "unknown"
@@ -86,6 +91,10 @@ class LlamaCppBrain(private val context: Context) {
      * Initializes the native model context on demand via MemoryManager.
      */
     fun initializeNativeEngine(threads: Int = DEFAULT_THREADS): Boolean {
+        if (!com.example.utils.MemoryManager.isOfflineSupported(context)) {
+            Log.w(TAG, "Offline mode not supported on this device. Skipping Llama native engine init.")
+            return false
+        }
         if (isBlockedInAssistantProcess || !isNativeLibraryLoaded) return false
         val modelFile = getModelFile()
         if (!modelFile.exists()) return false

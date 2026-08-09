@@ -17,6 +17,32 @@ object NativeLibraryLoader {
             return true
         }
 
+        // Memory & process safety guard: block JNI loading on 2GB devices or :assistant process
+        if (context != null) {
+            if (!com.example.utils.MemoryManager.isOfflineSupported(context)) {
+                Log.w(TAG, "Offline mode not supported on 2GB devices (<3GB RAM). Native library loading blocked.")
+                return false
+            }
+        } else if (!com.example.utils.MemoryManager.isOfflineSupported()) {
+            Log.w(TAG, "Offline mode not supported on 2GB devices (<3GB RAM). Native library loading blocked.")
+            return false
+        }
+
+        try {
+            val pid = android.os.Process.myPid()
+            val processName = if (context != null) {
+                val am = context.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
+                am?.runningAppProcesses?.find { it.pid == pid }?.processName ?: ""
+            } else ""
+
+            if (processName.endsWith(":assistant")) {
+                Log.w(TAG, "Native library loading blocked in ':assistant' process.")
+                return false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking process name in NativeLibraryLoader", e)
+        }
+
         var onnxError: Throwable? = null
         var piperError: Throwable? = null
 

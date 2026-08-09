@@ -24,11 +24,13 @@ object MemoryManager {
     private const val KEY_SAFE_MODE = "safe_mode"
 
     private val loadedModels = mutableSetOf<NativeModelType>()
+    private var appContext: Context? = null
 
     /**
      * Sets up Uncaught Exception Handler to auto-detect crashes and enable Safe Mode on next startup.
      */
     fun setupCrashGuard(context: Context) {
+        appContext = context.applicationContext
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             try {
@@ -118,6 +120,21 @@ object MemoryManager {
      * Checks if the device has sufficient total RAM (>= 3GB) to run heavy JNI models.
      */
     fun isDeviceCapable(context: Context): Boolean = isLlamaSupported(context)
+
+    /**
+     * Checks if Offline Mode (Llama, Piper, Vosk) is supported on this device.
+     * Offline mode is disabled ONLY on 2GB devices (< 3GB RAM).
+     */
+    fun isOfflineSupported(context: Context): Boolean = isLlamaSupported(context)
+
+    fun isOfflineSupported(): Boolean {
+        val ctx = appContext
+        return if (ctx != null) {
+            isOfflineSupported(ctx)
+        } else {
+            false
+        }
+    }
 
     /**
      * Returns total RAM in megabytes.

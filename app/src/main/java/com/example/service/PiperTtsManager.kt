@@ -260,6 +260,10 @@ class PiperTtsManager(private val context: Context) {
     private var retryCount = 0
 
     fun startDownload() {
+        if (!com.example.utils.MemoryManager.isOfflineSupported(context)) {
+            Log.w("PiperTtsManager", "Offline mode not supported on this device. Skipping Piper download.")
+            return
+        }
         if (downloadJob?.isActive == true) {
             Log.d("PiperTtsManager", "Download already in progress")
             return
@@ -568,6 +572,13 @@ class PiperTtsManager(private val context: Context) {
         val voiceId = _activeVoice.value
         val sentiment = com.example.utils.SentimentAnalysisUtility.analyzeSentiment(text)
         val humanizedText = formatNaturalPauses(text, sentiment)
+
+        // Force Google TTS only on 2GB devices (< 3GB RAM)
+        if (!com.example.utils.MemoryManager.isOfflineSupported(context)) {
+            Log.d("PiperTtsManager", "Device RAM < 3GB. Enforcing Google TTS only.")
+            speakGoogleTtsVoice(voiceId, humanizedText, brainSpeedMultiplier)
+            return
+        }
 
         val isPiperRequested = selectedTtsEngine == "PIPER_OFFLINE" || (selectedTtsEngine == "AUTO" && voiceId == "en_US-amy-medium")
 

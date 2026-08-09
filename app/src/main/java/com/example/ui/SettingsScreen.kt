@@ -2385,7 +2385,8 @@ fun SystemSettingsScreen(
                         color = MaterialTheme.colorScheme.onSurface
                     )
 
-                    if (!isDeviceMemoryCapable) {
+                    val isOfflineSupported = com.example.utils.MemoryManager.isOfflineSupported(LocalContext.current)
+                    if (!isDeviceMemoryCapable || !isOfflineSupported) {
                         Card(
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)),
                             shape = RoundedCornerShape(12.dp),
@@ -2403,7 +2404,7 @@ fun SystemSettingsScreen(
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Text(
-                                    text = "Disabled on devices with less than 3GB RAM to keep performance fast and stable. Online AI will be used instead.",
+                                    text = "Offline mode not available on this device",
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onErrorContainer,
                                     fontFamily = FontFamily.SansSerif,
@@ -2424,11 +2425,11 @@ fun SystemSettingsScreen(
                                 fontSize = 16.sp, // Body
                                 fontWeight = FontWeight.Medium,
                                 fontFamily = FontFamily.SansSerif,
-                                color = if (isDeviceMemoryCapable) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                color = if (isDeviceMemoryCapable && isOfflineSupported) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                             )
                             Text(
-                                text = if (isDeviceMemoryCapable) "Process conversations directly on your phone for complete privacy without using external servers."
-                                       else "Not recommended for your device (<3GB RAM). Switch disabled for memory stability.",
+                                text = if (isDeviceMemoryCapable && isOfflineSupported) "Process conversations directly on your phone for complete privacy without using external servers."
+                                       else "Offline mode not available on this device",
                                 fontSize = 14.sp, // Caption
                                 fontWeight = FontWeight.Normal,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -2438,8 +2439,8 @@ fun SystemSettingsScreen(
                         }
 
                         Switch(
-                            checked = isOffline && isDeviceMemoryCapable,
-                            enabled = isDeviceMemoryCapable,
+                            checked = isOffline && isDeviceMemoryCapable && isOfflineSupported,
+                            enabled = isDeviceMemoryCapable && isOfflineSupported,
                             onCheckedChange = { viewModel.toggleOfflineBrain(it) },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = MaterialTheme.colorScheme.primary,
