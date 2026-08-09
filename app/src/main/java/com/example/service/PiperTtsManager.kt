@@ -168,15 +168,22 @@ class PiperTtsManager(private val context: Context) {
         }
     }
 
+    private var isTtsInitialized = false
+
     init {
         logProcessInfo()
         _activeInstance = this
-        val sharedPrefs = com.example.utils.SecurePrefs.getEncryptedSharedPreferences(context, "aira_settings")
-        if (!sharedPrefs.contains("use_piper_tts")) {
-            sharedPrefs.edit().putBoolean("use_piper_tts", true).apply()
-        }
-        initializeEngine()
+    }
+
+    fun ensureInitialized() {
+        if (isTtsInitialized) return
+        isTtsInitialized = true
         try {
+            val sharedPrefs = com.example.utils.SecurePrefs.getEncryptedSharedPreferences(context, "aira_settings")
+            if (!sharedPrefs.contains("use_piper_tts")) {
+                sharedPrefs.edit().putBoolean("use_piper_tts", true).apply()
+            }
+            initializeEngine()
             nativeTts = android.speech.tts.TextToSpeech(context) { status ->
                 if (status == android.speech.tts.TextToSpeech.SUCCESS) {
                     isNativeTtsReady = true
@@ -211,12 +218,10 @@ class PiperTtsManager(private val context: Context) {
                     Log.d("PiperTtsManager", "Native TextToSpeech initialized successfully")
                 } else {
                     Log.e("PiperTtsManager", "Native TextToSpeech initialization failed status: $status")
-                    com.example.ui.AiraViewModel.showGlobalError("Native Text-to-Speech initialization failed.")
                 }
             }
         } catch (e: Exception) {
             Log.e("PiperTtsManager", "Failed to construct TextToSpeech", e)
-            com.example.ui.AiraViewModel.showGlobalError("Failed to build Text-to-Speech: ${e.localizedMessage}")
         }
     }
 
@@ -535,6 +540,7 @@ class PiperTtsManager(private val context: Context) {
     }
 
     fun speakUrdu(text: String) {
+        ensureInitialized()
         Log.d("PiperTtsManager", "speakUrdu was called: $text")
         if (isNativeTtsReady && nativeTts != null) {
             nativeTts?.language = java.util.Locale("ur", "PK")
@@ -549,6 +555,7 @@ class PiperTtsManager(private val context: Context) {
     }
 
     fun speak(text: String, brainSpeedMultiplier: Float = 1.0f) {
+        ensureInitialized()
         Log.d("PiperDebug", "MODEL_PATH exists: " + MODEL_PATH.exists() + " Path: " + MODEL_PATH.absolutePath)
         _isSpeakCalled.value = true
         Log.d("TTS_AUDIT", "PiperTtsManager.speak() was called with text: $text, speed: $brainSpeedMultiplier")

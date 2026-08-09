@@ -606,7 +606,14 @@ class VoiceCommandManager(private val context: Context) {
         }
     }
 
-    private val llamaCppBrain = com.example.models.LlamaCppBrain(context)
+    private val llamaCppBrain: com.example.models.LlamaCppBrain? by lazy {
+        try {
+            com.example.models.LlamaCppBrain(context)
+        } catch (e: Exception) {
+            Log.e("VoiceCommandManager", "Llama init failed: ${e.message}")
+            null
+        }
+    }
 
     /**
      * Checks if active internet is available using ConnectivityManager safely.
@@ -656,7 +663,7 @@ class VoiceCommandManager(private val context: Context) {
                     Log.w("VoiceCommandManager", "Online AI query failed, key down, or timed out (>15s), falling back seamlessly to Local LLaMa / Rules Model")
                     _currentEngineSource.value = "Llama 3.2 + Local Rules (Offline Fallback)"
                     val offlineResp = try {
-                        val res = llamaCppBrain.getResponse(userInput, combinedInstruction, history, temperature)
+                        val res = llamaCppBrain?.getResponse(userInput, combinedInstruction, history, temperature) ?: ""
                         if (res.isBlank() || res.contains("Error")) apiBrain.getOfflineLocalResponse(userInput) else res
                     } catch (e: Exception) {
                         apiBrain.getOfflineLocalResponse(userInput)
@@ -669,7 +676,7 @@ class VoiceCommandManager(private val context: Context) {
                 Log.e("VoiceCommandManager", "Online AI model query failed, falling back to Local LLaMa / Rules Model", e)
                 _currentEngineSource.value = "Llama 3.2 + Local Rules (Offline Fallback)"
                 try {
-                    val response = llamaCppBrain.getResponse(userInput, combinedInstruction, history, temperature)
+                    val response = llamaCppBrain?.getResponse(userInput, combinedInstruction, history, temperature) ?: ""
                     if (response.isBlank() || response.contains("Error")) {
                         Pair(apiBrain.getOfflineLocalResponse(userInput), "Jarvis Local Brain (Offline)")
                     } else {
@@ -683,7 +690,7 @@ class VoiceCommandManager(private val context: Context) {
             Log.i("VoiceCommandManager", "No internet detected. Routing query automatically to Local LLaMa / Rules Engine...")
             _currentEngineSource.value = "Jarvis Local Brain (Offline)"
             try {
-                val response = llamaCppBrain.getResponse(userInput, combinedInstruction, history, temperature)
+                val response = llamaCppBrain?.getResponse(userInput, combinedInstruction, history, temperature) ?: ""
                 if (response.isBlank() || response.contains("Error")) {
                     Pair(apiBrain.getOfflineLocalResponse(userInput), "Jarvis Local Brain (Offline)")
                 } else {

@@ -17,6 +17,7 @@ class LlamaCppBrain(private val context: Context) {
 
     private var isNativeLibraryLoaded = false
     private var nativeContext: Long = 0L
+    private var isBlockedInAssistantProcess = false
 
     companion object {
         private const val TAG = "LlamaCppBrain"
@@ -31,23 +32,23 @@ class LlamaCppBrain(private val context: Context) {
             val processName = manager?.runningAppProcesses?.find { it.pid == pid }?.processName ?: "unknown"
 
             if (processName.contains(":assistant")) {
-                Log.e(TAG, "FATAL: Llama cannot run in :assistant process!")
-                throw RuntimeException("LlamaCppBrain blocked in :assistant process - OOM prevention")
+                Log.e(TAG, "FATAL: Llama cannot run in :assistant process! Blocking initialization for OOM prevention.")
+                isBlockedInAssistantProcess = true
             }
-        } catch (e: RuntimeException) {
-            throw e
         } catch (e: Exception) {
             Log.e(TAG, "Process check exception", e)
         }
 
-        // Attempt to load the native llama.cpp library
-        try {
-            System.loadLibrary("llama-jni")
-            isNativeLibraryLoaded = true
-            Log.i(TAG, "Successfully loaded native llama-jni library.")
-        } catch (e: UnsatisfiedLinkError) {
-            Log.w(TAG, "Native llama-jni library not found. Using high-performance offline Llama.cpp fallback simulation.")
-            isNativeLibraryLoaded = false
+        if (!isBlockedInAssistantProcess) {
+            // Attempt to load the native llama.cpp library
+            try {
+                System.loadLibrary("llama-jni")
+                isNativeLibraryLoaded = true
+                Log.i(TAG, "Successfully loaded native llama-jni library.")
+            } catch (e: UnsatisfiedLinkError) {
+                Log.w(TAG, "Native llama-jni library not found. Using high-performance offline Llama.cpp fallback simulation.")
+                isNativeLibraryLoaded = false
+            }
         }
     }
 
@@ -74,6 +75,7 @@ class LlamaCppBrain(private val context: Context) {
      */
     fun getEngineStatus(): String {
         return when {
+            isBlockedInAssistantProcess -> "Disabled in assistant process (OOM Guard)"
             isNativeLibraryLoaded && nativeContext != 0L -> "Native llama.cpp engine: ACTIVE (Model Loaded)"
             isNativeLibraryLoaded -> "Native llama.cpp engine: LOADED (Ready to load model)"
             else -> "Offline Fallback Engine: ACTIVE (Simulated Llama 3.2 1B/3B)"
@@ -84,7 +86,7 @@ class LlamaCppBrain(private val context: Context) {
      * Initializes the native model context on demand via MemoryManager.
      */
     fun initializeNativeEngine(threads: Int = DEFAULT_THREADS): Boolean {
-        if (!isNativeLibraryLoaded) return false
+        if (isBlockedInAssistantProcess || !isNativeLibraryLoaded) return false
         val modelFile = getModelFile()
         if (!modelFile.exists()) return false
 
@@ -133,6 +135,9 @@ class LlamaCppBrain(private val context: Context) {
         history: List<Pair<String, String>> = emptyList(),
         temperature: Double? = null
     ): String = withContext(Dispatchers.IO) {
+        if (isBlockedInAssistantProcess) {
+            return@withContext "Llama not available in assistant process."
+        }
         val cleanPrompt = prompt.trim()
 
         if (isNativeLibraryLoaded && nativeContext != 0L) {

@@ -20,24 +20,30 @@ import android.util.Log
  */
 class AssistantService : VoiceInteractionService() {
 
+    override fun onCreate() {
+        super.onCreate()
+        Log.d("AssistantService", "AIRA AssistantService onCreate called.")
+        com.example.utils.MemoryDebugger.startMonitoring(this, intervalMs = 100L, durationMs = 10000L)
+    }
+
     override fun onReady() {
         super.onReady()
 
         // Memory safety check - prevent OOM
         val runtime = Runtime.getRuntime()
-        val freeMemory = runtime.freeMemory() / (1024 * 1024) // in MB
         val maxMemory = runtime.maxMemory() / (1024 * 1024)
-        val usedMemory = (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024)
+        val totalMemory = runtime.totalMemory() / (1024 * 1024)
+        val usedMemory = totalMemory - (runtime.freeMemory() / (1024 * 1024))
+        val availableHeap = maxMemory - usedMemory
 
-        Log.d("AssistantService", "Memory - Free: ${freeMemory}MB, Used: ${usedMemory}MB, Max: ${maxMemory}MB")
+        Log.d("AssistantService", "Heap - Max: ${maxMemory}MB, Used: ${usedMemory}MB, Available: ${availableHeap}MB")
 
-        // Minimum 20MB free memory required
-        if (freeMemory < 20) {
-            Log.e("AssistantService", "INSUFFICIENT FREE MEMORY: ${freeMemory}MB (need 20MB minimum)")
+        if (availableHeap < 30) {
+            Log.e("AssistantService", "INSUFFICIENT HEAP SPACE: ${availableHeap}MB available (need 30MB)")
             return // Silently fail - prevent crash
         }
 
-        Log.d("AssistantService", "AssistantService ready - Memory OK")
+        Log.d("AssistantService", "AssistantService ready - Heap OK")
     }
 
     override fun onShutdown() {

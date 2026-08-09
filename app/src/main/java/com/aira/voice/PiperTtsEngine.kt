@@ -10,22 +10,28 @@ import com.tencent.piperncnn.PiperNcnn
 import kotlinx.coroutines.*
 
 class PiperTtsEngine(private val context: Context) {
-    init {
-        try {
-            com.example.util.NativeLibraryLoader.loadLibraries(context)
-        } catch (e: Throwable) {
-            Log.e("PiperTtsEngine", "Failed to load libraries in init", e)
-        }
-    }
+    private var nativeLibsLoaded = false
     private var isInitialized = false
     private var piperNcnn: PiperNcnn? = null
     private var isModelLoaded = false
+
+    private fun ensureLibrariesLoaded() {
+        if (nativeLibsLoaded) return
+        try {
+            com.example.util.NativeLibraryLoader.loadLibraries(context)
+            nativeLibsLoaded = true
+            Log.d("PiperTtsEngine", "Native libraries loaded successfully on demand")
+        } catch (e: Throwable) {
+            Log.e("PiperTtsEngine", "Failed to load libraries on demand", e)
+        }
+    }
 
     private val engineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private var activePlayJob: Job? = null
     private var audioTrack: AudioTrack? = null
 
     suspend fun initialize() = withContext(Dispatchers.IO) {
+        ensureLibrariesLoaded()
         if (isModelLoaded) return@withContext
         com.example.utils.MemoryManager.loadModelOnDemand(context, com.example.utils.NativeModelType.PIPER_TTS) {
             try {
@@ -55,6 +61,7 @@ class PiperTtsEngine(private val context: Context) {
     }
 
     fun speak(text: String) {
+        ensureLibrariesLoaded()
         Log.d("PiperTtsEngine", "Speak request: $text")
         stop()
 
