@@ -18,8 +18,16 @@
     <string name="ready_status">مدد کے لیے تیار</string>
 
     <!-- Memory Settings -->
-    <string name="memory_settings_title">میموری کی ترتیبات</string>
+    <string name="memory_settings_title">میموری بینک</string>
+    <string name="memory_bank_subtitle">نکالی گئی صارف کی حقائق اور لوکل میموری اسٹوریج</string>
+    <string name="clear_all_memories_confirm_title">تمام میموریز کو صاف کریں؟</string>
+    <string name="clear_all_memories_confirm_desc">کیا آپ واقعی لوکل ڈیٹا بیس سے تمام محفوظ شدہ یادوں کو حذف کرنا چاہتے ہیں؟ اس عمل کو منسوخ نہیں کیا جا سکتا۔</string>
     <string name="edit_memory_title">میموری میں ترمیم کریں</string>
+    <string name="add_memory_title">میموری شامل کریں</string>
+    <string name="add_memory">میموری شامل کریں</string>
+    <string name="category_label">زمرہ</string>
+    <string name="mark_important">اہم</string>
+    <string name="search_memories">میموری تلاش کریں...</string>
     <string name="memory_fact_label">میموری کی حقیقت</string>
     <string name="save">محفوظ کریں</string>
     <string name="delete">حذف کریں</string>

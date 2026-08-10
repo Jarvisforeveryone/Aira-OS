@@ -28,7 +28,7 @@ val AiraShapes = Shapes(
     small = RoundedCornerShape(8.dp),
     medium = RoundedCornerShape(12.dp),
     large = RoundedCornerShape(16.dp),
-    extraLarge = RoundedCornerShape(24.dp)
+    extraLarge = RoundedCornerShape(28.dp)
 )
 
 val AiraTypography = Typography(
@@ -146,6 +146,7 @@ fun AiraTheme(
     content: @Composable () -> Unit
 ) {
     val darkTheme = (appTheme == "dark")
+
     // Resolve standard resource colors
     val primaryColorRes = colorResource(id = if (darkTheme) R.color.aira_primary_dark else R.color.aira_primary)
     val onPrimaryColorRes = colorResource(id = R.color.aira_surface_light)
@@ -179,7 +180,13 @@ fun AiraTheme(
     // Resolve the primary color from the selected design system theme
     val primaryColor = themeColor ?: primaryColorRes
 
-    // Determine the base schemes based on the target dark/light mode and primary color choice
+    // M3 Surface Container definitions (Dark vs Light)
+    val surfaceLowest = if (darkTheme) Color(0xFF0F1115) else Color(0xFFFFFFFF)
+    val surfaceLow = if (darkTheme) Color(0xFF1A1D24) else Color(0xFFF4F6F9)
+    val surfaceContainer = if (darkTheme) Color(0xFF21252F) else Color(0xFFEDF0F5)
+    val surfaceHigh = if (darkTheme) Color(0xFF2B303C) else Color(0xFFE5E9EF)
+    val surfaceHighest = if (darkTheme) Color(0xFF363C4A) else Color(0xFFDCDFE6)
+
     val baseScheme = if (darkTheme) {
         darkColorScheme(
             primary = primaryColor,
@@ -198,6 +205,11 @@ fun AiraTheme(
             onSurface = onSurfaceColorRes,
             surfaceVariant = surfaceVariantColorRes,
             onSurfaceVariant = onSurfaceVariantColorRes,
+            surfaceContainerLowest = surfaceLowest,
+            surfaceContainerLow = surfaceLow,
+            surfaceContainer = surfaceContainer,
+            surfaceContainerHigh = surfaceHigh,
+            surfaceContainerHighest = surfaceHighest,
             outline = outlineColorRes,
             outlineVariant = outlineVariantColorRes,
             error = errorColorRes,
@@ -226,6 +238,11 @@ fun AiraTheme(
             onSurface = onSurfaceColorRes,
             surfaceVariant = surfaceVariantColorRes,
             onSurfaceVariant = onSurfaceVariantColorRes,
+            surfaceContainerLowest = surfaceLowest,
+            surfaceContainerLow = surfaceLow,
+            surfaceContainer = surfaceContainer,
+            surfaceContainerHigh = surfaceHigh,
+            surfaceContainerHighest = surfaceHighest,
             outline = outlineColorRes,
             outlineVariant = outlineVariantColorRes,
             error = errorColorRes,
@@ -264,6 +281,11 @@ fun animateColorScheme(targetColorScheme: ColorScheme): ColorScheme {
     val background = animateColorAsState(targetColorScheme.background, animationSpec, label = "background").value
     val surface = animateColorAsState(targetColorScheme.surface, animationSpec, label = "surface").value
     val surfaceVariant = animateColorAsState(targetColorScheme.surfaceVariant, animationSpec, label = "surfaceVariant").value
+    val surfaceContainerLowest = animateColorAsState(targetColorScheme.surfaceContainerLowest, animationSpec, label = "surfaceLowest").value
+    val surfaceContainerLow = animateColorAsState(targetColorScheme.surfaceContainerLow, animationSpec, label = "surfaceLow").value
+    val surfaceContainer = animateColorAsState(targetColorScheme.surfaceContainer, animationSpec, label = "surfaceContainer").value
+    val surfaceContainerHigh = animateColorAsState(targetColorScheme.surfaceContainerHigh, animationSpec, label = "surfaceHigh").value
+    val surfaceContainerHighest = animateColorAsState(targetColorScheme.surfaceContainerHighest, animationSpec, label = "surfaceHighest").value
     val primary = animateColorAsState(targetColorScheme.primary, animationSpec, label = "primary").value
     val secondary = animateColorAsState(targetColorScheme.secondary, animationSpec, label = "secondary").value
     val tertiary = animateColorAsState(targetColorScheme.tertiary, animationSpec, label = "tertiary").value
@@ -293,6 +315,11 @@ fun animateColorScheme(targetColorScheme: ColorScheme): ColorScheme {
         onSurface = onSurface,
         surfaceVariant = surfaceVariant,
         onSurfaceVariant = onSurfaceVariant,
+        surfaceContainerLowest = surfaceContainerLowest,
+        surfaceContainerLow = surfaceContainerLow,
+        surfaceContainer = surfaceContainer,
+        surfaceContainerHigh = surfaceContainerHigh,
+        surfaceContainerHighest = surfaceContainerHighest,
         outline = outline,
         outlineVariant = outlineVariant,
         inverseSurface = inverseSurface,

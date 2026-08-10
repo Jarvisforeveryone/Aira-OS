@@ -55,8 +55,8 @@ fun AiraCard(
     iconTint: Color = MaterialTheme.colorScheme.primary,
     headerTrailing: (@Composable RowScope.() -> Unit)? = null,
     cornerShape: RoundedCornerShape? = null,
-    containerColor: Color = MaterialTheme.colorScheme.surface,
-    borderColor: Color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
+    borderColor: Color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
     contentPadding: Dp? = null,
     verticalSpacing: Dp = Dimens.ListVerticalSpacing,
     content: @Composable ColumnScope.() -> Unit
@@ -139,19 +139,18 @@ fun AiraCardHeader(
                 if (title != null) {
                     Text(
                         text = title,
-                        fontSize = 17.sp,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         fontFamily = FontFamily.SansSerif,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.95f)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
                 if (subtitle != null) {
                     Text(
                         text = subtitle,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Normal,
+                        style = MaterialTheme.typography.bodySmall,
                         fontFamily = FontFamily.SansSerif,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -179,15 +178,15 @@ fun AiraBadge(
 ) {
     Surface(
         color = badgeColor,
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(8.dp),
         modifier = Modifier.padding(vertical = 2.dp)
     ) {
         Text(
             text = text,
-            fontSize = 11.sp,
+            style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
             color = textColor,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
         )
     }
 }

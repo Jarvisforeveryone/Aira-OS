@@ -63,6 +63,8 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.foundation.lazy.LazyRow
 import com.example.ui.theme.success
 import com.example.ui.theme.warning
+import com.example.ui.theme.Dimens
+import com.example.ui.components.AdaptiveGrid
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -107,7 +109,14 @@ fun SettingsScreen(
             GeneralSettingsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
         composable("settings_voice") {
-            VoiceSettingsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+            VoiceSettingsScreen(
+                viewModel = viewModel,
+                onBack = { navController.popBackStack() },
+                onOpenTrainer = { navController.navigate("wake_word_trainer") }
+            )
+        }
+        composable("wake_word_trainer") {
+            com.example.ui.settings.WakeWordTrainerScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
         composable("settings_system") {
             SystemSettingsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
@@ -141,8 +150,8 @@ fun SettingsHomeScreen(navController: NavController, viewModel: AiraViewModel) {
                 title = {
                     Text(
                         text = "Settings",
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 22.sp, // Section Title: 22sp SemiBold
                         color = MaterialTheme.colorScheme.primary,
                         fontFamily = FontFamily.SansSerif
                     )
@@ -155,159 +164,215 @@ fun SettingsHomeScreen(navController: NavController, viewModel: AiraViewModel) {
         containerColor = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground
     ) { innerPadding ->
-        LazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 24.dp, vertical = 8.dp), // Outer Screen Padding: 24dp
-            verticalArrangement = Arrangement.spacedBy(18.dp) // Between Cards: 18dp
+                .padding(innerPadding),
+            contentAlignment = Alignment.TopCenter
         ) {
-            if (isOfflineBrain) {
-                item {
-                    Surface(
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.fillMaxWidth().testTag("settings_offline_mode_banner")
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .widthIn(max = 600.dp)
+                    .padding(horizontal = Dimens.responsiveScreenPadding, vertical = Dimens.GapSmall),
+                verticalArrangement = Arrangement.spacedBy(Dimens.GapLarge)
+            ) {
+                if (isOfflineBrain) {
+                    item {
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceContainerLow,
+                            shape = RoundedCornerShape(Dimens.CornerRadiusLarge),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("settings_offline_mode_banner")
                         ) {
                             Row(
-                                modifier = Modifier.weight(1f, fill = false),
+                                modifier = Modifier.padding(horizontal = Dimens.GapLarge, vertical = Dimens.GapMedium),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(10.dp)
-                                        .background(colorResource(id = R.color.aira_success_light), CircleShape)
-                                )
-                                Text(
-                                    text = "Offline Mode Active",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    fontFamily = FontFamily.SansSerif,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Surface(
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text(
-                                    text = "Private On-Device AI • Voice Ready",
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontFamily = FontFamily.SansSerif,
-                                    fontWeight = FontWeight.Medium,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                )
+                                Row(
+                                    modifier = Modifier.weight(1f, fill = false),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(Dimens.GapSmall)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(Dimens.GapSmall)
+                                            .background(MaterialTheme.colorScheme.primary, CircleShape)
+                                    )
+                                    Text(
+                                        text = "Offline Mode Active",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        fontFamily = FontFamily.SansSerif,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(Dimens.GapSmall))
+                                Surface(
+                                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    shape = RoundedCornerShape(Dimens.CornerRadiusSmall)
+                                ) {
+                                    Text(
+                                        text = "Private On-Device AI • Voice Ready",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontFamily = FontFamily.SansSerif,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.padding(horizontal = Dimens.GapSmall, vertical = Dimens.GapTiny)
+                                    )
+                                }
                             }
                         }
                     }
                 }
+
+                // SECTION 1: GENERAL & DISPLAY
+                item {
+                    SettingsSectionHeader(title = "General & Display")
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(Dimens.CornerRadiusLarge),
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                    ) {
+                    Column {
+                        SettingsCategoryItem(
+                            title = "General",
+                            subtitle = "Theme, FPS, Access",
+                            icon = Icons.Default.Palette,
+                            testTag = "settings_tab_general",
+                            onClick = { navController.navigate("settings_general") }
+                        )
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = Dimens.GapLarge),
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+                        SettingsCategoryItem(
+                            title = "Theme",
+                            subtitle = "Cosmic Color Schemes",
+                            icon = Icons.Default.Palette,
+                            testTag = "settings_tab_theme",
+                            onClick = { navController.navigate("theme_screen") }
+                        )
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = Dimens.GapLarge),
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+                        SettingsCategoryItem(
+                            title = "Accessibility & VoiceOver",
+                            subtitle = "Reduce Motion, High Contrast & Live Status",
+                            icon = Icons.Default.Palette,
+                            testTag = "settings_tab_accessibility",
+                            onClick = { navController.navigate("settings_accessibility") }
+                        )
+                    }
+                }
             }
 
+            // SECTION 2: AI & VOICE INTELLIGENCE
             item {
-                Text(
-                    text = "System",
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 13.sp, // Labels: 13sp Medium
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                    fontFamily = FontFamily.SansSerif,
-                    modifier = Modifier.padding(start = 8.dp, bottom = 4.dp, top = 8.dp)
-                )
+                SettingsSectionHeader(title = "AI & Voice Intelligence")
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(Dimens.CornerRadiusLarge),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                ) {
+                    Column {
+                        SettingsCategoryItem(
+                            title = "Offline Status Dashboard",
+                            subtitle = "Live status, model progress & HW acceleration",
+                            icon = Icons.Default.Memory,
+                            testTag = "settings_tab_offline_dashboard",
+                            onClick = { navController.navigate("offline_status_dashboard") }
+                        )
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = Dimens.GapLarge),
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+                        SettingsCategoryItem(
+                            title = "AI Engine Controls",
+                            subtitle = "Keys, Local AI, Reasoning",
+                            icon = Icons.Default.Memory,
+                            testTag = "settings_tab_system",
+                            onClick = { navController.navigate("settings_system") }
+                        )
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = Dimens.GapLarge),
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+                        SettingsCategoryItem(
+                            title = "Voice Settings",
+                            subtitle = "Wake, Listen, Voice, Sound",
+                            icon = Icons.Default.Mic,
+                            testTag = "settings_tab_voice",
+                            onClick = { navController.navigate("settings_voice") }
+                        )
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = Dimens.GapLarge),
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+                        SettingsCategoryItem(
+                            title = "Wake Word Trainer",
+                            subtitle = "Multi-sample voice recording & calibration studio",
+                            icon = Icons.Default.Mic,
+                            testTag = "settings_tab_wake_word_trainer",
+                            onClick = { navController.navigate("wake_word_trainer") }
+                        )
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = Dimens.GapLarge),
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+                        SettingsCategoryItem(
+                            title = "Memory & Backup",
+                            subtitle = "Long-Term, Backup, Restore",
+                            icon = Icons.Default.Memory,
+                            testTag = "settings_tab_memory",
+                            onClick = { navController.navigate("settings_memory") }
+                        )
+                    }
+                }
             }
 
+            // SECTION 3: SYSTEM & INTEGRATION
             item {
-                SettingsCategoryItem(
-                    title = "Offline Status Dashboard",
-                    subtitle = "Live status, model progress & HW acceleration",
-                    icon = Icons.Default.Memory,
-                    testTag = "settings_tab_offline_dashboard",
-                    onClick = { navController.navigate("offline_status_dashboard") }
-                )
-            }
-
-            item {
-                SettingsCategoryItem(
-                    title = "General",
-                    subtitle = "Theme, FPS, Access",
-                    icon = Icons.Default.Palette,
-                    testTag = "settings_tab_general",
-                    onClick = { navController.navigate("settings_general") }
-                )
-            }
-
-            item {
-                SettingsCategoryItem(
-                    title = "Theme",
-                    subtitle = "Cosmic Color Schemes",
-                    icon = Icons.Default.Palette,
-                    testTag = "settings_tab_theme",
-                    onClick = { navController.navigate("theme_screen") }
-                )
-            }
-
-            item {
-                SettingsCategoryItem(
-                    title = "Voice",
-                    subtitle = "Wake, Listen, Voice, Sound",
-                    icon = Icons.Default.Mic,
-                    testTag = "settings_tab_voice",
-                    onClick = { navController.navigate("settings_voice") }
-                )
-            }
-
-            item {
-                SettingsCategoryItem(
-                    title = "AI",
-                    subtitle = "Keys, Local AI, Reasoning",
-                    icon = Icons.Default.Memory,
-                    testTag = "settings_tab_system",
-                    onClick = { navController.navigate("settings_system") }
-                )
-            }
-
-            item {
-                SettingsCategoryItem(
-                    title = "Memory",
-                    subtitle = "Long-Term, Backup, Restore",
-                    icon = Icons.Default.Memory,
-                    testTag = "settings_tab_memory",
-                    onClick = { navController.navigate("settings_memory") }
-                )
-            }
-
-            item {
-                SettingsCategoryItem(
-                    title = "Accessibility & VoiceOver",
-                    subtitle = "Reduce Motion, High Contrast & Live Status",
-                    icon = Icons.Default.Palette,
-                    testTag = "settings_tab_accessibility",
-                    onClick = { navController.navigate("settings_accessibility") }
-                )
-            }
-
-            item {
-                SettingsCategoryItem(
-                    title = "Shizuku ADB Integration",
-                    subtitle = "System privileged control, status & setup guide",
-                    icon = Icons.Default.Lock,
-                    testTag = "settings_tab_shizuku",
-                    onClick = { navController.navigate("settings_shizuku") }
-                )
+                SettingsSectionHeader(title = "System & Integration")
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(Dimens.CornerRadiusLarge),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                ) {
+                    SettingsCategoryItem(
+                        title = "Shizuku ADB Integration",
+                        subtitle = "System privileged control, status & setup guide",
+                        icon = Icons.Default.Lock,
+                        testTag = "settings_tab_shizuku",
+                        onClick = { navController.navigate("settings_shizuku") }
+                    )
+                }
             }
         }
+        }
     }
+}
+
+@Composable
+fun SettingsSectionHeader(title: String) {
+    Text(
+        text = title.uppercase(),
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.primary,
+        fontFamily = FontFamily.SansSerif,
+        modifier = Modifier.padding(start = Dimens.GapMedium, top = Dimens.GapLarge, bottom = Dimens.GapSmall)
+    )
 }
 
 @Composable
@@ -318,58 +383,57 @@ fun SettingsCategoryItem(
     testTag: String,
     onClick: () -> Unit
 ) {
-    Card(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .testTag(testTag),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), // Premium dark surface
-        shape = RoundedCornerShape(22.dp), // Corner Radius: 22dp
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        color = Color.Transparent
     ) {
-        ListItem(
-            headlineContent = {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = Dimens.ItemMinHeight)
+                .padding(horizontal = Dimens.GapLarge, vertical = Dimens.GapMedium),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = title,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(Dimens.IconStandard)
+            )
+            Spacer(modifier = Modifier.width(Dimens.GapLarge))
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
                 Text(
                     text = title,
-                    fontFamily = FontFamily.SansSerif,
-                    fontSize = 18.sp, // Card Title: 18sp Medium
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontFamily = FontFamily.SansSerif
                 )
-            },
-            supportingContent = {
-                Text(
-                    text = subtitle,
-                    fontFamily = FontFamily.SansSerif,
-                    fontSize = 14.sp, // Caption: 14sp
-                    fontWeight = FontWeight.Normal,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            leadingContent = {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = title,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp) // Icons: 24dp
-                )
-            },
-            trailingContent = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = "Navigate",
-                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                    modifier = Modifier.size(24.dp)
-                )
-            },
-            colors = ListItemDefaults.colors(
-                containerColor = Color.Transparent
-            ),
-            modifier = Modifier
-                .defaultMinSize(minHeight = 64.dp) // Height: 64dp minimum
-                .padding(vertical = 4.dp)
-        )
+                if (subtitle.isNotEmpty()) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontFamily = FontFamily.SansSerif,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(Dimens.GapSmall))
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = "Navigate",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
+            )
+        }
     }
 }
 
@@ -574,7 +638,8 @@ fun GeneralSettingsScreen(
 @Composable
 fun VoiceSettingsScreen(
     viewModel: AiraViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onOpenTrainer: () -> Unit = {}
 ) {
     val wakeWord by viewModel.wakeWord.collectAsState()
     val speakReplies by viewModel.speakReplies.collectAsState()
@@ -901,20 +966,33 @@ fun VoiceSettingsScreen(
                     }
 
                     if (!isTrainingWakeWord) {
-                        Button(
-                            onClick = { viewModel.startWakeWordTraining(tempWakeWord) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("train_voice_trigger_btn"),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
-                                contentColor = MaterialTheme.colorScheme.primary
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Icon(Icons.Filled.Mic, contentDescription = "Train voice trigger", modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Record & Train Custom Trigger", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = onOpenTrainer,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("open_wake_word_trainer_btn"),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(Icons.Filled.Mic, contentDescription = "Open Trainer Studio", modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Launch Wake Word Trainer Studio", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            }
+
+                            OutlinedButton(
+                                onClick = { viewModel.startWakeWordTraining(tempWakeWord) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("train_voice_trigger_btn"),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(Icons.Filled.Mic, contentDescription = "Quick train voice trigger", modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Quick Inline Calibration", fontSize = 13.sp)
+                            }
                         }
                     }
 
@@ -1107,14 +1185,14 @@ fun VoiceSettingsScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
-                                text = "Always Listening",
+                                text = "Active Listening Mode",
                                 fontSize = 16.sp, // Body: 16sp
                                 fontWeight = FontWeight.Medium,
                                 fontFamily = FontFamily.SansSerif,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "Continuously listen for triggers in background.",
+                                text = "Keeps voice wake service active in the background with a persistent notification for instant hands-free triggers.",
                                 fontSize = 14.sp, // Caption: 14sp
                                 fontWeight = FontWeight.Normal,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1125,7 +1203,7 @@ fun VoiceSettingsScreen(
                         Switch(
                             checked = usePersistentList,
                             onCheckedChange = { viewModel.togglePersistentListening(it) },
-                            modifier = Modifier.testTag("persistent_listening_switch"),
+                            modifier = Modifier.testTag("toggle_active_listening_switch"),
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = MaterialTheme.colorScheme.primary,
                                 checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
@@ -2196,195 +2274,8 @@ fun SystemSettingsScreen(
                 .padding(24.dp), // Outer Screen Padding
             verticalArrangement = Arrangement.spacedBy(28.dp) // Spacing between sections
         ) {
-            // CARD 1B: API Keys (Accordion Mode)
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { isExpanded = !isExpanded },
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(22.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Lock,
-                                contentDescription = "Lock Icon",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                Text(
-                                    text = "Secure API Keys",
-                                    fontSize = 18.sp, // Card Title
-                                    fontWeight = FontWeight.Medium,
-                                    fontFamily = FontFamily.SansSerif,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = if (isExpanded) "Tap to hide API keys" else "Tap to view API keys",
-                                    fontSize = 14.sp, // Caption
-                                    fontWeight = FontWeight.Normal,
-                                    fontFamily = FontFamily.SansSerif,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                        Icon(
-                            imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                            contentDescription = "Arrow Icon",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-
-                    val context = LocalContext.current
-                    val keyManager = remember { ChatKeyManager.getInstance(context) }
-
-                    AnimatedVisibility(
-                        visible = isExpanded,
-                        enter = fadeIn() + expandVertically(),
-                        exit = fadeOut() + shrinkVertically()
-                    ) {
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            HorizontalDivider(
-                                modifier = Modifier.padding(vertical = 4.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant,
-                                thickness = 1.dp
-                            )
-
-                            Text(
-                                text = "Multiple keys help keep online AI services connected smoothly. All keys are encrypted and saved securely on your device.",
-                                fontSize = 14.sp, // Caption
-                                fontWeight = FontWeight.Normal,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontFamily = FontFamily.SansSerif,
-                                lineHeight = 18.sp
-                            )
-
-                            (1..20).forEach { index ->
-                                var keyValue by remember { mutableStateOf(keyManager.getKey(index)) }
-
-                                Column(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Text(
-                                        text = "Gemini Key #${index}",
-                                        fontSize = 13.sp, // Labels
-                                        fontWeight = FontWeight.Medium,
-                                        fontFamily = FontFamily.SansSerif,
-                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
-                                    )
-
-                                    TextField(
-                                        value = keyValue,
-                                        onValueChange = { newValue ->
-                                            keyValue = newValue
-                                            keyManager.saveKey(index, newValue)
-                                        },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .testTag("gemini_api_key_input_$index"),
-                                        placeholder = {
-                                            Text(
-                                                text = "Unconfigured slot",
-                                                fontFamily = FontFamily.SansSerif,
-                                                color = MaterialTheme.colorScheme.outline,
-                                                fontSize = 16.sp
-                                            )
-                                        },
-                                        textStyle = TextStyle(
-                                            fontFamily = FontFamily.SansSerif,
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.Normal,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        ),
-                                        singleLine = true,
-                                        colors = TextFieldDefaults.colors(
-                                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                            focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                                            unfocusedIndicatorColor = Color.Transparent,
-                                            cursorColor = MaterialTheme.colorScheme.primary
-                                        ),
-                                        shape = RoundedCornerShape(16.dp)
-                                    )
-                                }
-                            }
-
-                            // Groq API Key Included in Accordion
-                            HorizontalDivider(
-                                modifier = Modifier.padding(vertical = 4.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant,
-                                thickness = 1.dp
-                            )
-
-                            var groqKeyValue by remember { mutableStateOf(keyManager.getGroqKey()) }
-
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text(
-                                    text = "Groq AI Endpoint Key",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    fontFamily = FontFamily.SansSerif,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-
-                                TextField(
-                                    value = groqKeyValue,
-                                    onValueChange = { newValue ->
-                                        groqKeyValue = newValue
-                                        keyManager.saveGroqKey(newValue)
-                                    },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .testTag("groq_api_key_input"),
-                                    placeholder = {
-                                        Text(
-                                            text = "Enter Groq key",
-                                            fontFamily = FontFamily.SansSerif,
-                                            color = MaterialTheme.colorScheme.outline,
-                                            fontSize = 16.sp
-                                        )
-                                    },
-                                    textStyle = TextStyle(
-                                        fontFamily = FontFamily.SansSerif,
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Normal,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    ),
-                                    singleLine = true,
-                                    colors = TextFieldDefaults.colors(
-                                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                                        unfocusedIndicatorColor = Color.Transparent,
-                                        cursorColor = MaterialTheme.colorScheme.primary
-                                    ),
-                                    shape = RoundedCornerShape(16.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
+            // CARD 1B: Multi-API Settings (8 Providers, Model Selector, Key Vault & Connection Tester)
+            com.example.ui.components.MultiApiSettingsCard()
 
             // CARD 3: AI Mode
             Card(
@@ -2837,590 +2728,12 @@ fun SystemSettingsScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun MemorySettingsScreen(
     viewModel: AiraViewModel,
     onBack: () -> Unit
 ) {
-    val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
-    val memories by viewModel.memories.collectAsState()
-    val snackbarHostState = remember { SnackbarHostState() }
-
-    var selectedCategory by remember { mutableStateOf("All") }
-    var searchQuery by remember { mutableStateOf("") }
-
-    var showAddDialog by remember { mutableStateOf(false) }
-    var addFactText by remember { mutableStateOf("") }
-    var addCategory by remember { mutableStateOf("Personal") }
-    var addIsImportant by remember { mutableStateOf(false) }
-
-    var showEditDialog by remember { mutableStateOf(false) }
-    var editingMemory by remember { mutableStateOf<com.example.data.Memory?>(null) }
-    var editFactText by remember { mutableStateOf("") }
-    var editCategory by remember { mutableStateOf("Personal") }
-    var editIsImportant by remember { mutableStateOf(false) }
-
-    LaunchedEffect(editingMemory) {
-        editingMemory?.let {
-            editFactText = it.factText
-            editCategory = it.category
-            editIsImportant = it.isImportant
-        }
-    }
-
-    val categories = listOf("All", "Personal", "Work", "Tasks", "Reminders", "Preferences")
-
-    val filteredMemories = remember(memories, selectedCategory, searchQuery) {
-        memories.filter { mem ->
-            val matchesCat = if (selectedCategory == "All") true else mem.category.equals(selectedCategory, ignoreCase = true)
-            val matchesQuery = if (searchQuery.isBlank()) true else mem.factText.lowercase().contains(searchQuery.lowercase().trim())
-            matchesCat && matchesQuery
-        }.sortedWith(compareByDescending<com.example.data.Memory> { it.isImportant }.thenByDescending { it.createdAt })
-    }
-
-    // Add Memory Dialog
-    if (showAddDialog) {
-        AlertDialog(
-            onDismissRequest = { showAddDialog = false },
-            title = {
-                Text(
-                    text = stringResource(R.string.add_memory_title),
-                    fontSize = 18.sp,
-                    fontFamily = FontFamily.SansSerif,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    TextField(
-                        value = addFactText,
-                        onValueChange = { addFactText = it },
-                        modifier = Modifier.fillMaxWidth().testTag("add_memory_input"),
-                        textStyle = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                            unfocusedIndicatorColor = Color.Transparent,
-                            cursorColor = MaterialTheme.colorScheme.primary
-                        ),
-                        shape = RoundedCornerShape(16.dp),
-                        placeholder = { Text(stringResource(R.string.memory_fact_label), fontSize = 16.sp, fontFamily = FontFamily.SansSerif) }
-                    )
-
-                    Text(stringResource(R.string.category_label), fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(listOf("Personal", "Work", "Tasks", "Reminders", "Preferences").size) { idx ->
-                            val cat = listOf("Personal", "Work", "Tasks", "Reminders", "Preferences")[idx]
-                            FilterChip(
-                                selected = addCategory == cat,
-                                onClick = { addCategory = cat },
-                                label = { Text(cat, fontSize = 13.sp, fontFamily = FontFamily.SansSerif) },
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(stringResource(R.string.mark_important), fontSize = 14.sp, fontFamily = FontFamily.SansSerif, color = MaterialTheme.colorScheme.onSurface)
-                        Switch(
-                            checked = addIsImportant,
-                            onCheckedChange = { addIsImportant = it },
-                            modifier = Modifier.testTag("add_memory_important_switch")
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (addFactText.isNotBlank()) {
-                            viewModel.addMemoryManual(addFactText, addCategory, addIsImportant)
-                            addFactText = ""
-                            addIsImportant = false
-                            showAddDialog = false
-                            coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Memory added successfully ✅")
-                            }
-                        }
-                    },
-                    modifier = Modifier.testTag("confirm_add_memory_btn"),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(stringResource(R.string.save), fontFamily = FontFamily.SansSerif, fontSize = 14.sp, color = MaterialTheme.colorScheme.onPrimary)
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showAddDialog = false },
-                    modifier = Modifier.testTag("cancel_add_memory_btn")
-                ) {
-                    Text(stringResource(R.string.cancel), fontFamily = FontFamily.SansSerif, fontSize = 14.sp)
-                }
-            },
-            containerColor = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(22.dp)
-        )
-    }
-
-    // Edit Memory Dialog
-    val currentMemory = editingMemory
-    if (showEditDialog && currentMemory != null) {
-        val memoryItem = currentMemory
-        AlertDialog(
-            onDismissRequest = { showEditDialog = false },
-            title = {
-                Text(
-                    text = stringResource(R.string.edit_memory_title),
-                    fontSize = 18.sp,
-                    fontFamily = FontFamily.SansSerif,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    TextField(
-                        value = editFactText,
-                        onValueChange = { editFactText = it },
-                        modifier = Modifier.fillMaxWidth().testTag("edit_memory_input"),
-                        textStyle = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                            unfocusedIndicatorColor = Color.Transparent,
-                            cursorColor = MaterialTheme.colorScheme.primary
-                        ),
-                        shape = RoundedCornerShape(16.dp),
-                        placeholder = { Text(stringResource(R.string.memory_fact_label), fontSize = 16.sp, fontFamily = FontFamily.SansSerif) }
-                    )
-
-                    Text(stringResource(R.string.category_label), fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(listOf("Personal", "Work", "Tasks", "Reminders", "Preferences").size) { idx ->
-                            val cat = listOf("Personal", "Work", "Tasks", "Reminders", "Preferences")[idx]
-                            FilterChip(
-                                selected = editCategory == cat,
-                                onClick = { editCategory = cat },
-                                label = { Text(cat, fontSize = 13.sp, fontFamily = FontFamily.SansSerif) },
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(stringResource(R.string.mark_important), fontSize = 14.sp, fontFamily = FontFamily.SansSerif, color = MaterialTheme.colorScheme.onSurface)
-                        Switch(
-                            checked = editIsImportant,
-                            onCheckedChange = { editIsImportant = it },
-                            modifier = Modifier.testTag("edit_memory_important_switch")
-                        )
-                    }
-
-                    Text(
-                        text = "Source Layer: ${memoryItem.source.uppercase()}",
-                        fontSize = 12.sp,
-                        fontFamily = FontFamily.SansSerif,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (editFactText.isNotBlank()) {
-                            viewModel.updateMemory(
-                                id = memoryItem.id,
-                                factText = editFactText.trim(),
-                                source = memoryItem.source,
-                                createdAt = memoryItem.createdAt,
-                                category = editCategory,
-                                isImportant = editIsImportant
-                            )
-                            showEditDialog = false
-                            coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Memory updated")
-                            }
-                        }
-                    },
-                    modifier = Modifier.testTag("save_edit_memory_btn"),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(stringResource(R.string.save), fontFamily = FontFamily.SansSerif, fontSize = 14.sp, color = MaterialTheme.colorScheme.onPrimary)
-                }
-            },
-            dismissButton = {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(
-                        onClick = {
-                            viewModel.deleteMemory(memoryItem.id)
-                            showEditDialog = false
-                            coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Deleted")
-                            }
-                        },
-                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                        modifier = Modifier.testTag("dialog_delete_memory_btn")
-                    ) {
-                        Text(stringResource(R.string.delete), fontFamily = FontFamily.SansSerif, fontSize = 14.sp)
-                    }
-                    TextButton(
-                        onClick = { showEditDialog = false },
-                        modifier = Modifier.testTag("dialog_cancel_memory_btn")
-                    ) {
-                        Text(stringResource(R.string.cancel), fontFamily = FontFamily.SansSerif, fontSize = 14.sp)
-                    }
-                }
-            },
-            containerColor = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(22.dp)
-        )
-    }
-
-    Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.memory_settings_title),
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 22.sp,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontFamily = FontFamily.SansSerif
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack, modifier = Modifier.testTag("memory_back_btn")) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.back),
-                            tint = Color(0xFF0F172A),
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = { showAddDialog = true },
-                        modifier = Modifier.testTag("add_memory_fab_btn")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Add Memory",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(26.dp)
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.background,
-        contentColor = MaterialTheme.colorScheme.onBackground
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Backup/Restore Controls Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(22.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.memory_engine_header),
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 16.sp,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontFamily = FontFamily.SansSerif
-                    )
-                    Text(
-                        text = stringResource(R.string.memory_engine_desc),
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontFamily = FontFamily.SansSerif,
-                        lineHeight = 17.sp
-                    )
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Button(
-                            onClick = {
-                                coroutineScope.launch {
-                                    val msg = viewModel.exportMemoriesToDownloads(context)
-                                    android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
-                                }
-                            },
-                            modifier = Modifier.weight(1f).height(44.dp).testTag("export_memories_btn"),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text(
-                                stringResource(R.string.export_backup),
-                                color = MaterialTheme.colorScheme.primary,
-                                fontSize = 13.sp,
-                                fontFamily = FontFamily.SansSerif,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-
-                        Button(
-                            onClick = {
-                                coroutineScope.launch {
-                                    val msg = viewModel.importMemoriesFromDownloads(context)
-                                    android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
-                                }
-                            },
-                            modifier = Modifier.weight(1f).height(44.dp).testTag("import_memories_btn"),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text(
-                                stringResource(R.string.import_backup),
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                fontSize = 13.sp,
-                                fontFamily = FontFamily.SansSerif,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Search Bar
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                modifier = Modifier.fillMaxWidth().testTag("search_memories_input"),
-                placeholder = { Text(stringResource(R.string.search_memories), fontSize = 14.sp) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Clear search", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                },
-                singleLine = true,
-                shape = RoundedCornerShape(16.dp),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
-                )
-            )
-
-            // Category Chips Row
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(categories.size) { index ->
-                    val cat = categories[index]
-                    FilterChip(
-                        selected = selectedCategory == cat,
-                        onClick = { selectedCategory = cat },
-                        label = { Text(cat, fontSize = 13.sp, fontFamily = FontFamily.SansSerif) },
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.testTag("filter_chip_$cat")
-                    )
-                }
-            }
-
-            // Memories List Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "RECALLED FACTS (${filteredMemories.size})",
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                    fontFamily = FontFamily.SansSerif,
-                    fontWeight = FontWeight.SemiBold
-                )
-                if (memories.isNotEmpty()) {
-                    Text(
-                        text = stringResource(R.string.clear_all),
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
-                        fontFamily = FontFamily.SansSerif,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.clickable { viewModel.clearMemories() }
-                    )
-                }
-            }
-
-            if (filteredMemories.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxWidth().weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        stringResource(R.string.no_memories_placeholder),
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontFamily = FontFamily.SansSerif,
-                        lineHeight = 18.sp,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth().weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(filteredMemories.size) { index ->
-                        val item = filteredMemories[index]
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .combinedClickable(
-                                    onClick = {
-                                        editingMemory = item
-                                        showEditDialog = true
-                                    },
-                                    onLongClick = {
-                                        editingMemory = item
-                                        showEditDialog = true
-                                    }
-                                ),
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (item.isImportant) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surface
-                            ),
-                            shape = RoundedCornerShape(18.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        // Category Badge
-                                        Surface(
-                                            color = when (item.category) {
-                                                "Work" -> MaterialTheme.colorScheme.secondaryContainer
-                                                "Tasks" -> MaterialTheme.colorScheme.tertiaryContainer
-                                                "Reminders" -> MaterialTheme.colorScheme.warning.copy(alpha = 0.2f)
-                                                "Preferences" -> MaterialTheme.colorScheme.surfaceVariant
-                                                else -> MaterialTheme.colorScheme.primaryContainer
-                                            },
-                                            shape = RoundedCornerShape(8.dp)
-                                        ) {
-                                            Text(
-                                                text = item.category.uppercase(),
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSurface,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                            )
-                                        }
-
-                                        // Source Badge
-                                        Surface(
-                                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                                            shape = RoundedCornerShape(8.dp)
-                                        ) {
-                                            Text(
-                                                text = item.source.uppercase(),
-                                                fontSize = 10.sp,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                            )
-                                        }
-                                    }
-
-                                    Text(
-                                        text = item.factText,
-                                        fontSize = 15.sp,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        fontFamily = FontFamily.SansSerif,
-                                        fontWeight = if (item.isImportant) FontWeight.SemiBold else FontWeight.Normal
-                                    )
-
-                                    Text(
-                                        text = android.text.format.DateFormat.format("yyyy-MM-dd HH:mm", item.createdAt).toString(),
-                                        fontSize = 12.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        fontFamily = FontFamily.SansSerif
-                                    )
-                                }
-
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    // Important Star Toggle
-                                    IconButton(onClick = {
-                                        viewModel.toggleMemoryImportant(item)
-                                        coroutineScope.launch {
-                                            val stateText = if (!item.isImportant) "Marked as important ⭐" else "Unmarked important"
-                                            snackbarHostState.showSnackbar(stateText)
-                                        }
-                                    }) {
-                                        Icon(
-                                            imageVector = Icons.Default.Star,
-                                            contentDescription = "Toggle Important",
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                    }
-
-                                    // Delete Button
-                                    IconButton(onClick = {
-                                        viewModel.deleteMemory(item.id)
-                                        coroutineScope.launch {
-                                            snackbarHostState.showSnackbar("Deleted")
-                                        }
-                                    }) {
-                                        Icon(
-                                            imageVector = Icons.Default.Delete,
-                                            contentDescription = "Delete Memory",
-                                            tint = MaterialTheme.colorScheme.error,
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+    MemoryBankScreen(viewModel = viewModel, onBack = onBack)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -3721,8 +3034,8 @@ fun ShizukuSettingsScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+                .padding(Dimens.GapLarge),
+            verticalArrangement = Arrangement.spacedBy(Dimens.GapMedium)
         ) {
             // Status Card
             Card(
@@ -3734,21 +3047,21 @@ fun ShizukuSettingsScreen(
                         MaterialTheme.colorScheme.surface
                     }
                 ),
-                shape = RoundedCornerShape(22.dp),
+                shape = RoundedCornerShape(Dimens.CornerRadiusLarge),
                 border = BorderStroke(
                     1.dp,
                     if (isShizukuRunning && isShizukuGranted) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                     else MaterialTheme.colorScheme.outlineVariant
                 )
             ) {
-                Column(modifier = Modifier.padding(20.dp)) {
+                Column(modifier = Modifier.padding(Dimens.GapLarge)) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.GapSmall)
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(12.dp)
+                                .size(Dimens.GapSmall)
                                 .background(
                                     if (isShizukuRunning && isShizukuGranted) colorResource(id = R.color.aira_success_light)
                                     else colorResource(id = R.color.aira_warning_light),
@@ -3761,13 +3074,13 @@ fun ShizukuSettingsScreen(
                                 isShizukuRunning -> "Shizuku Running (Permission Required)"
                                 else -> "Shizuku Service Not Running"
                             },
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
-                            fontSize = 16.sp,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(Dimens.GapSmall))
 
                     Text(
                         text = when {
@@ -3775,33 +3088,32 @@ fun ShizukuSettingsScreen(
                             isShizukuRunning -> "Shizuku service is running in background. Click below to grant ADB permission to AIRA."
                             else -> "Shizuku is not running. AIRA will automatically fall back to AccessibilityService and system dialogs seamlessly."
                         },
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        lineHeight = 18.sp
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(Dimens.GapMedium))
 
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.GapMedium)
                     ) {
                         Button(
                             onClick = { viewModel.refreshShizukuStatus() },
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(Dimens.CornerRadiusMedium),
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                             modifier = Modifier.testTag("refresh_shizuku_btn")
                         ) {
-                            Text("Refresh Status", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Refresh Status", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
 
                         if (isShizukuRunning && !isShizukuGranted) {
                             Button(
                                 onClick = { viewModel.requestShizukuPermission() },
-                                shape = RoundedCornerShape(12.dp),
+                                shape = RoundedCornerShape(Dimens.CornerRadiusMedium),
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                                 modifier = Modifier.testTag("request_shizuku_perm_btn")
                             ) {
-                                Text("Request Permission", fontSize = 13.sp)
+                                Text("Request Permission", style = MaterialTheme.typography.bodySmall)
                             }
                         }
                     }
@@ -3810,6 +3122,9 @@ fun ShizukuSettingsScreen(
 
             // Quick Test Controls Card
             if (isShizukuRunning && isShizukuGranted) {
+                val executionLogs by com.example.service.ShizukuVoiceExecutionService.executionHistory.collectAsState()
+                var customVoiceInput by remember { mutableStateOf("") }
+
                 Card(
                     modifier = Modifier.fillMaxWidth().testTag("shizuku_test_card"),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -3818,59 +3133,160 @@ fun ShizukuSettingsScreen(
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text(
-                            text = "Shizuku Quick Action Test",
-                            fontWeight = FontWeight.Medium,
+                            text = "Shizuku Voice Command Service Testing",
+                            fontWeight = FontWeight.Bold,
                             fontSize = 16.sp,
                             color = MaterialTheme.colorScheme.onSurface
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Execute high-privilege system commands via voice or text input layer",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
 
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            OutlinedButton(
-                                onClick = {
-                                    testResultText = com.example.utils.ShizukuManager.toggleWiFi(true)
-                                },
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("Wi-Fi ON", fontSize = 11.sp)
+                        OutlinedTextField(
+                            value = customVoiceInput,
+                            onValueChange = { customVoiceInput = it },
+                            placeholder = { Text("e.g. 'Turn off Wi-Fi', 'Take screenshot', 'Lock screen'") },
+                            modifier = Modifier.fillMaxWidth().testTag("shizuku_voice_input_field"),
+                            trailingIcon = {
+                                IconButton(
+                                    onClick = {
+                                        if (customVoiceInput.isNotBlank()) {
+                                            val resp = com.example.service.ShizukuVoiceExecutionService.executeVoiceCommand(context, customVoiceInput)
+                                            testResultText = resp.responseMessage
+                                            customVoiceInput = ""
+                                        }
+                                    }
+                                ) {
+                                    Icon(Icons.Default.Mic, contentDescription = "Execute Voice Command")
+                                }
+                            },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text("Preset Voice Commands:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                                OutlinedButton(
+                                    onClick = {
+                                        val resp = com.example.service.ShizukuVoiceExecutionService.executeVoiceCommand(context, "Turn off Wi-Fi")
+                                        testResultText = resp.responseMessage
+                                    },
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("Wi-Fi OFF", fontSize = 10.sp)
+                                }
+                                OutlinedButton(
+                                    onClick = {
+                                        val resp = com.example.service.ShizukuVoiceExecutionService.executeVoiceCommand(context, "Turn on Hotspot")
+                                        testResultText = resp.responseMessage
+                                    },
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("Hotspot ON", fontSize = 10.sp)
+                                }
+                                OutlinedButton(
+                                    onClick = {
+                                        val resp = com.example.service.ShizukuVoiceExecutionService.executeVoiceCommand(context, "Take screenshot")
+                                        testResultText = resp.responseMessage
+                                    },
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("Screenshot", fontSize = 10.sp)
+                                }
                             }
-                            OutlinedButton(
-                                onClick = {
-                                    testResultText = com.example.utils.ShizukuManager.toggleBluetooth(true)
-                                },
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("BT ON", fontSize = 11.sp)
-                            }
-                            OutlinedButton(
-                                onClick = {
-                                    testResultText = com.example.utils.ShizukuManager.setBrightness(80)
-                                },
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("Bright 80%", fontSize = 11.sp)
+
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                                OutlinedButton(
+                                    onClick = {
+                                        val resp = com.example.service.ShizukuVoiceExecutionService.executeVoiceCommand(context, "Enable battery saver")
+                                        testResultText = resp.responseMessage
+                                    },
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("Battery Saver", fontSize = 10.sp)
+                                }
+                                OutlinedButton(
+                                    onClick = {
+                                        val resp = com.example.service.ShizukuVoiceExecutionService.executeVoiceCommand(context, "Lock screen")
+                                        testResultText = resp.responseMessage
+                                    },
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("Lock Screen", fontSize = 10.sp)
+                                }
+                                OutlinedButton(
+                                    onClick = {
+                                        val resp = com.example.service.ShizukuVoiceExecutionService.executeVoiceCommand(context, "Expand quick settings")
+                                        testResultText = resp.responseMessage
+                                    },
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("Quick Settings", fontSize = 10.sp)
+                                }
                             }
                         }
 
                         testResultText?.let { res ->
-                            Spacer(modifier = Modifier.height(10.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
                             Surface(
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                                shape = RoundedCornerShape(10.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text(
-                                    text = res,
+                                    text = "Latest Output: $res",
                                     fontSize = 12.sp,
                                     fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
                                     modifier = Modifier.padding(10.dp)
                                 )
+                            }
+                        }
+
+                        if (executionLogs.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(14.dp))
+                            HorizontalDivider()
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text("Service Execution History (${executionLogs.size})", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            executionLogs.take(5).forEach { log ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(text = log.voiceInput, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                        Text(text = "${log.commandType} • ${log.timestamp}", fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
+                                    }
+                                    Surface(
+                                        color = if (log.isShizukuElevated) colorResource(id = R.color.aira_success_light).copy(alpha = 0.2f) else MaterialTheme.colorScheme.secondaryContainer,
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) {
+                                        Text(
+                                            text = if (log.isShizukuElevated) "Shizuku ADB" else "Fallback",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (log.isShizukuElevated) colorResource(id = R.color.aira_success_light) else MaterialTheme.colorScheme.onSecondaryContainer,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

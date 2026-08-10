@@ -31,6 +31,9 @@ import com.example.ui.theme.IconColors
 import com.example.ui.theme.bounceClick
 import com.example.utils.ScreenUtils
 
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+
 enum class AiraButtonVariant {
     PRIMARY,
     OUTLINED,
@@ -40,7 +43,7 @@ enum class AiraButtonVariant {
 /**
  * AIRA UNIFIED BUTTON COMPONENT
  * Single source of truth for action buttons across AIRA.
- * Standardizes typography, colors, padding, loading states, and bounce micro-interactions.
+ * Standardizes typography, colors, padding, loading states, tactile haptic feedback, and bounce micro-interactions.
  * Automatically adapts size, elevation, and font size using ScreenUtils responsive system.
  */
 @Composable
@@ -58,21 +61,26 @@ fun AiraButton(
     height: Dp? = null,
     fullWidth: Boolean = false
 ) {
+    val haptic = LocalHapticFeedback.current
     val adaptive = ScreenUtils.adaptiveValues()
     val effectiveHeight = height ?: adaptive.buttonHeight
     val effectiveShape = shape ?: RoundedCornerShape(adaptive.cornerRadius)
 
+    val onHapticClick = {
+        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        onClick()
+    }
+
     val buttonModifier = modifier
         .then(if (fullWidth) Modifier.fillMaxWidth() else Modifier)
         .height(effectiveHeight)
-        .bounceClick(onClick = if (enabled && !isLoading) onClick else { {} })
 
     val contentPadding = PaddingValues(horizontal = adaptive.padding, vertical = 8.dp)
 
     when (variant) {
         AiraButtonVariant.PRIMARY -> {
             Button(
-                onClick = onClick,
+                onClick = onHapticClick,
                 enabled = enabled && !isLoading,
                 modifier = buttonModifier,
                 shape = effectiveShape,
@@ -95,7 +103,7 @@ fun AiraButton(
         }
         AiraButtonVariant.OUTLINED -> {
             OutlinedButton(
-                onClick = onClick,
+                onClick = onHapticClick,
                 enabled = enabled && !isLoading,
                 modifier = buttonModifier,
                 shape = effectiveShape,
@@ -115,7 +123,7 @@ fun AiraButton(
         }
         AiraButtonVariant.TEXT -> {
             TextButton(
-                onClick = onClick,
+                onClick = onHapticClick,
                 enabled = enabled && !isLoading,
                 modifier = buttonModifier,
                 shape = effectiveShape,

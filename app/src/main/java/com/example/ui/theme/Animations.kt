@@ -26,7 +26,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 
 /**
  * AIRA CENTRALIZED ANIMATION & MOTION SYSTEM
@@ -85,14 +91,15 @@ object AiraMotion {
 }
 
 /**
- * MICRO-INTERACTION MODIFIER: Press Scale Effect
- * Provides tactile button press animation.
+ * MICRO-INTERACTION MODIFIER: Press Scale Effect with Tactile Haptic Feedback
+ * Provides tactile button press animation and haptic feedback.
  */
 @Composable
 fun Modifier.bounceClick(
     onClick: () -> Unit,
     scaleDownFactor: Float = 0.96f
 ): Modifier {
+    val haptic = LocalHapticFeedback.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
@@ -110,8 +117,78 @@ fun Modifier.bounceClick(
         .clickable(
             interactionSource = interactionSource,
             indication = null,
-            onClick = onClick
+            onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onClick()
+            }
         )
+}
+
+/**
+ * Haptic Click Modifier
+ * Wraps clickable with automatic tactile haptic feedback.
+ */
+@Composable
+fun Modifier.hapticClick(
+    enabled: Boolean = true,
+    onClick: () -> Unit
+): Modifier {
+    val haptic = LocalHapticFeedback.current
+    return this.clickable(enabled = enabled) {
+        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        onClick()
+    }
+}
+
+/**
+ * STAGGERED ENTRY MODIFIER
+ * Applies a smooth spring-based staggered slide-and-fade animation for cards when loading.
+ */
+@Composable
+fun Modifier.staggeredEntry(
+    index: Int = 0,
+    baseDelayMs: Long = 60L,
+    initialOffsetY: Float = 40f
+): Modifier {
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(index * baseDelayMs)
+        visible = true
+    }
+
+    val alpha by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "staggeredAlpha_$index"
+    )
+
+    val offsetY by animateFloatAsState(
+        targetValue = if (visible) 0f else initialOffsetY,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "staggeredOffset_$index"
+    )
+
+    val scale by animateFloatAsState(
+        targetValue = if (visible) 1f else 0.94f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "staggeredScale_$index"
+    )
+
+    return this.graphicsLayer {
+        this.alpha = alpha
+        this.translationY = offsetY
+        this.scaleX = scale
+        this.scaleY = scale
+    }
 }
 
 /**

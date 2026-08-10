@@ -573,47 +573,48 @@ class PiperTtsManager(private val context: Context) {
         val sentiment = com.example.utils.SentimentAnalysisUtility.analyzeSentiment(text)
         val humanizedText = formatNaturalPauses(text, sentiment)
 
-        // Force Google TTS only on 2GB devices (< 3GB RAM)
-        if (!com.example.utils.MemoryManager.isOfflineSupported(context)) {
-            Log.d("PiperTtsManager", "Device RAM < 3GB. Enforcing Google TTS only.")
-            speakGoogleTtsVoice(voiceId, humanizedText, brainSpeedMultiplier)
+        // HIERARCHY LEVEL 1: PRIMARY - Google TTS
+        var level1Success = false
+        if (isNativeTtsReady && nativeTts != null) {
+            try {
+                Log.d("PiperTtsManager", "TTS Hierarchy Level 1: Attempting Primary Google TTS...")
+                level1Success = speakGoogleTtsVoicePrimary(voiceId, humanizedText, brainSpeedMultiplier)
+            } catch (e: Throwable) {
+                Log.e("PiperTtsManager", "Google TTS primary engine failed: ${e.message}", e)
+            }
+        }
+
+        if (level1Success) {
+            Log.d("PiperTtsManager", "TTS Hierarchy Level 1 (Google TTS) Succeeded.")
             return
         }
 
-        val isPiperRequested = selectedTtsEngine == "PIPER_OFFLINE" || (selectedTtsEngine == "AUTO" && voiceId == "en_US-amy-medium")
-
-        // Check if Amy model needs to be downloaded on demand
-        if (voiceId == "en_US-amy-medium" && !com.example.utils.DownloadManager.isPiperModelDownloaded(context)) {
-            mainScope.launch {
-                com.example.utils.DownloadManager.downloadPiperModel(context)
-            }
-        }
-
-        // Real JNI Piper speech for Amy Voice
-        if (isPiperRequested && voiceId == "en_US-amy-medium" && !com.example.utils.MemoryManager.isSafeMode(context) && com.example.utils.MemoryManager.isPiperSupported(context)) {
-            if (com.example.util.NativeLibraryLoader.isLoaded()) {
-                try {
-                    Log.d("PiperTtsManager", "Offline Piper TTS Speaking (Active Voice: en_US-amy-medium) via real JNI/ONNX engine!")
-                    piperTtsEngine.speak(humanizedText)
-                    return
-                } catch (e: Throwable) {
-                    Log.e("PiperTtsManager", "Real JNI Piper speech failed for Amy, falling back to Google TTS", e)
+        // HIERARCHY LEVEL 2: FALLBACK - Piper ONNX (Amy Model)
+        Log.w("PiperTtsManager", "TTS Hierarchy Level 1 failed/unavailable. Transitioning to Level 2 (Piper ONNX Fallback)...")
+        var level2Success = false
+        if (com.example.utils.MemoryManager.isPiperSupported(context) && com.example.util.NativeLibraryLoader.isLoaded()) {
+            try {
+                if (!com.example.utils.DownloadManager.isPiperModelDownloaded(context)) {
+                    mainScope.launch {
+                        com.example.utils.DownloadManager.downloadPiperModel(context)
+                    }
                 }
-            } else {
-                Log.w("PiperTtsManager", "Native JNI libraries not available for Real Piper, using Google TTS fallback for Amy")
+                piperTtsEngine.speak(humanizedText)
+                level2Success = true
+                Log.d("PiperTtsManager", "TTS Hierarchy Level 2 (Piper ONNX) Succeeded.")
+                return
+            } catch (e: Throwable) {
+                Log.e("PiperTtsManager", "Piper ONNX fallback engine failed: ${e.message}", e)
             }
         }
 
-        // Google TTS voice processing (Primary Engine or Fallback)
-        speakGoogleTtsVoice(voiceId, humanizedText, brainSpeedMultiplier)
+        // HIERARCHY LEVEL 3: FINAL FALLBACK - System Default TTS
+        Log.w("PiperTtsManager", "TTS Hierarchy Level 2 failed/unavailable. Transitioning to Level 3 (System Default TTS Final Fallback)...")
+        speakOnlineFallback(humanizedText, 1.0f, 1.0f)
     }
 
-    private fun speakGoogleTtsVoice(voiceId: String, text: String, brainSpeedMultiplier: Float = 1.0f) {
-        if (!isNativeTtsReady || nativeTts == null) {
-            Log.e("PiperTtsManager", "Native TTS is not ready, attempting online fallback")
-            speakOnlineFallback(text, 1.0f, 1.0f)
-            return
-        }
+    private fun speakGoogleTtsVoicePrimary(voiceId: String, text: String, brainSpeedMultiplier: Float = 1.0f): Boolean {
+        if (!isNativeTtsReady || nativeTts == null) return false
 
         val userPrefs = com.example.utils.SecurePrefs.getEncryptedSharedPreferences(context, "voice_prefs")
         val userPitchMultiplier = userPrefs.getFloat("pitch", 1.0f)
@@ -623,95 +624,62 @@ class PiperTtsManager(private val context: Context) {
         val (targetLocale, basePitch, baseSpeed) = when (voiceId) {
             "google-lily", "en_US-lily", "lily" -> Triple(java.util.Locale.US, 1.3f, 1.1f)
             "google-zara", "en_US-zara", "zara" -> Triple(java.util.Locale.US, 0.8f, 1.3f)
-            "google-ella", "en_UK-ella", "en_GB-ella", "ella" -> Triple(java.util.Locale.UK, 1.0f, 0.9f)
-            "en_US-amy-medium", "amy" -> Triple(java.util.Locale.US, 1.02f, 1.10f)
+            "google-ella", "en_US-ella", "ella" -> Triple(java.util.Locale.UK, 1.1f, 1.0f)
             else -> Triple(java.util.Locale.US, 1.0f, 1.0f)
         }
 
-        val effectivePitch = basePitch * userPitchMultiplier
-        val effectiveSpeed = baseSpeed * userSpeedFactor * brainSpeedMultiplier
+        val effectivePitch = (basePitch * userPitchMultiplier).coerceIn(0.5f, 2.0f)
+        val effectiveSpeed = (baseSpeed * userSpeedFactor * brainSpeedMultiplier).coerceIn(0.5f, 2.0f)
 
-        try {
-            // Fallback logic for Google TTS voices (offline -> online -> silent/fallback)
-            val langAvailability = nativeTts?.isLanguageAvailable(targetLocale)
-            if (langAvailability == android.speech.tts.TextToSpeech.LANG_MISSING_DATA ||
-                langAvailability == android.speech.tts.TextToSpeech.LANG_NOT_SUPPORTED) {
-                
-                Log.w("PiperTtsManager", "Google TTS missing language data for $targetLocale. Triggering popup.")
-                _missingTtsLanguageLocale.value = targetLocale.toLanguageTag()
-                _showTtsDataDialog.value = true
+        nativeTts?.language = targetLocale
 
-                // Try fallback: locale US if not already US, otherwise online fallback
-                if (targetLocale != java.util.Locale.US) {
-                    val usCheck = nativeTts?.isLanguageAvailable(java.util.Locale.US)
-                    if (usCheck != android.speech.tts.TextToSpeech.LANG_MISSING_DATA &&
-                        usCheck != android.speech.tts.TextToSpeech.LANG_NOT_SUPPORTED) {
-                        nativeTts?.language = java.util.Locale.US
-                    } else {
-                        speakOnlineFallback(text, effectivePitch, userLengthScale)
-                        return
-                    }
-                } else {
-                    speakOnlineFallback(text, effectivePitch, userLengthScale)
-                    return
-                }
-            } else {
-                nativeTts?.language = targetLocale
-            }
-
-            // Apply Expressive Jarvis Prosody Modulation based on Sentiment Analysis & Punctuation
-            val sentiment = com.example.utils.SentimentAnalysisUtility.analyzeSentiment(text)
-            val valence = sentiment.valence
-            val emotion = sentiment.emotion
-
-            val prosodyPitchMultiplier = when (emotion) {
-                com.example.models.UserEmotion.HAPPY -> 1.08f + (valence * 0.05f)
-                com.example.models.UserEmotion.SAD -> 0.90f + (valence * 0.04f)
-                com.example.models.UserEmotion.ANGRY -> 0.94f
-                com.example.models.UserEmotion.CONFUSED -> 1.04f
-                com.example.models.UserEmotion.CURIOSITY -> 1.05f
-                else -> 1.00f + (valence * 0.03f)
-            }
-
-            val prosodySpeedMultiplier = when (emotion) {
-                com.example.models.UserEmotion.HAPPY -> 1.05f
-                com.example.models.UserEmotion.SAD -> 0.88f
-                com.example.models.UserEmotion.ANGRY -> 0.96f
-                com.example.models.UserEmotion.CONFUSED -> 0.92f
-                com.example.models.UserEmotion.CURIOSITY -> 1.02f
-                else -> 1.00f
-            }
-
-            val isQuestion = text.trim().endsWith("?")
-            val questionPitchBoost = if (isQuestion) 1.06f else 1.00f
-
-            val humanizedPitch = (effectivePitch * prosodyPitchMultiplier * questionPitchBoost * (0.98f + (0.04f * Math.random().toFloat()))).coerceIn(0.7f, 1.5f)
-            val humanizedSpeed = (effectiveSpeed * prosodySpeedMultiplier * (0.98f + (0.04f * Math.random().toFloat()))).coerceIn(0.7f, 1.5f)
-
-            nativeTts?.setPitch(humanizedPitch)
-            nativeTts?.setSpeechRate(humanizedSpeed)
-
-            applyVoiceProfile(voiceId)
-
-            val humanizedText = formatNaturalPauses(text, sentiment)
-
-            val result = nativeTts?.speak(
-                humanizedText,
-                android.speech.tts.TextToSpeech.QUEUE_FLUSH,
-                null,
-                "AiraVoice_$voiceId"
-            )
-
-            if (result == android.speech.tts.TextToSpeech.ERROR) {
-                Log.e("PiperTtsManager", "nativeTts.speak error for voice $voiceId, trying fallback")
-                speakOnlineFallback(text, humanizedPitch, userLengthScale)
-            } else {
-                Log.d("PiperTtsManager", "Spoke $voiceId successfully with pitch $humanizedPitch, rate $humanizedSpeed")
-            }
-        } catch (e: Exception) {
-            Log.e("PiperTtsManager", "Exception during TTS speak for $voiceId", e)
-            speakOnlineFallback(text, effectivePitch, userLengthScale)
+        val langAvailability = nativeTts?.isLanguageAvailable(targetLocale) ?: android.speech.tts.TextToSpeech.LANG_NOT_SUPPORTED
+        if (langAvailability == android.speech.tts.TextToSpeech.LANG_MISSING_DATA ||
+            langAvailability == android.speech.tts.TextToSpeech.LANG_NOT_SUPPORTED) {
+            Log.w("PiperTtsManager", "Google TTS missing language data for $targetLocale.")
+            return false
         }
+
+        val sentiment = com.example.utils.SentimentAnalysisUtility.analyzeSentiment(text)
+        val prosodyPitchMultiplier = when (sentiment.emotion) {
+            com.example.models.UserEmotion.HAPPY -> 1.08f + (sentiment.valence * 0.05f)
+            com.example.models.UserEmotion.SAD -> 0.90f + (sentiment.valence * 0.04f)
+            com.example.models.UserEmotion.ANGRY -> 0.94f
+            com.example.models.UserEmotion.CONFUSED -> 1.04f
+            com.example.models.UserEmotion.CURIOSITY -> 1.05f
+            else -> 1.00f + (sentiment.valence * 0.03f)
+        }
+
+        val prosodySpeedMultiplier = when (sentiment.emotion) {
+            com.example.models.UserEmotion.HAPPY -> 1.05f
+            com.example.models.UserEmotion.SAD -> 0.88f
+            com.example.models.UserEmotion.ANGRY -> 0.96f
+            com.example.models.UserEmotion.CONFUSED -> 0.92f
+            com.example.models.UserEmotion.CURIOSITY -> 1.02f
+            else -> 1.00f
+        }
+
+        val isQuestion = text.trim().endsWith("?")
+        val questionPitchBoost = if (isQuestion) 1.06f else 1.00f
+
+        val humanizedPitch = (effectivePitch * prosodyPitchMultiplier * questionPitchBoost * (0.98f + (0.04f * Math.random().toFloat()))).coerceIn(0.7f, 1.5f)
+        val humanizedSpeed = (effectiveSpeed * prosodySpeedMultiplier * (0.98f + (0.04f * Math.random().toFloat()))).coerceIn(0.7f, 1.5f)
+
+        nativeTts?.setPitch(humanizedPitch)
+        nativeTts?.setSpeechRate(humanizedSpeed)
+
+        applyVoiceProfile(voiceId)
+
+        val humanizedText = formatNaturalPauses(text, sentiment)
+
+        val result = nativeTts?.speak(
+            humanizedText,
+            android.speech.tts.TextToSpeech.QUEUE_FLUSH,
+            null,
+            "AiraVoice_$voiceId"
+        )
+
+        return result != android.speech.tts.TextToSpeech.ERROR
     }
 
     private fun lowerPromptContains(text: String, vararg keywords: String): Boolean {

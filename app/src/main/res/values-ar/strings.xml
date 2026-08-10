@@ -18,8 +18,16 @@
     <string name="ready_status">جاهز للمساعدة</string>
 
     <!-- Memory Settings -->
-    <string name="memory_settings_title">إعدادات الذاكرة</string>
+    <string name="memory_settings_title">بنك الذاكرة</string>
+    <string name="memory_bank_subtitle">حقائق المستخدم المستخرجة ومخزن الذاكرة المحلي</string>
+    <string name="clear_all_memories_confirm_title">مسح جميع الذكريات؟</string>
+    <string name="clear_all_memories_confirm_desc">هل أنت تأكد من رغبتك في حذف جميع الذكريات المحفوظة من قاعدة البيانات المحلية؟ لا يمكن التراجع عن هذا الإجراء.</string>
     <string name="edit_memory_title">تعديل الذاكرة</string>
+    <string name="add_memory_title">إضافة ذاكرة</string>
+    <string name="add_memory">إضافة ذاكرة</string>
+    <string name="category_label">الفئة</string>
+    <string name="mark_important">مهم</string>
+    <string name="search_memories">البحث في الذاكرة...</string>
     <string name="memory_fact_label">حقيقة الذاكرة</string>
     <string name="save">حفظ</string>
     <string name="delete">حذف</string>

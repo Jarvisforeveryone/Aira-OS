@@ -918,6 +918,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             }
             _usePersistentListening.value = true
             sharedPrefs.edit().putBoolean("persistent_listening", true).apply()
+            com.example.service.ActiveListeningService.startService(getApplication(), _wakeWord.value)
             speakText("Continuous listening wake-word module activated.")
             if (!_isListening.value && !_isSpeaking.value) {
                 startListening()
@@ -925,6 +926,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         } else {
             _usePersistentListening.value = false
             sharedPrefs.edit().putBoolean("persistent_listening", false).apply()
+            com.example.service.ActiveListeningService.stopService(getApplication())
             speakText("Continuous listening disabled.")
             stopListening()
         }
@@ -2648,12 +2650,8 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
 
     // --- Local Device Custom Voice Controls & Permissions ---
     fun parseAndExecuteVoiceCommand(input: String): String {
-        val parsed = com.example.utils.CommandParser.parse(input)
-        return if (parsed != null) {
-            com.example.utils.CommandParser.execute(getApplication(), parsed, this)
-        } else {
-            "Command not recognized: '$input'"
-        }
+        val response = com.example.service.ShizukuVoiceExecutionService.executeVoiceCommand(getApplication(), input)
+        return response.responseMessage
     }
 
     private fun checkAndExecuteDeviceCommands(input: String): Boolean {
@@ -3313,6 +3311,28 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         _isTrainingWakeWord.value = false
         _isRecordingAttempt.value = false
         stopAttemptAudioRecord()
+    }
+
+    fun resetWakeWordTrainingAttempts() {
+        _trainingAttempts.value = emptyList()
+        _trainingCurrentStep.value = 1
+        _trainingQualityScore.value = "Speak clearly. Ready for Attempt 1."
+        _isRecordingAttempt.value = false
+        stopAttemptAudioRecord()
+    }
+
+    fun removeTrainingAttemptAt(index: Int) {
+        val current = _trainingAttempts.value.toMutableList()
+        if (index in current.indices) {
+            current.removeAt(index)
+            _trainingAttempts.value = current
+            _trainingCurrentStep.value = (current.size + 1).coerceAtMost(3)
+            _trainingQualityScore.value = if (current.isEmpty()) {
+                "Speak clearly. Ready for Attempt 1."
+            } else {
+                "Attempt removed. Ready for Attempt ${_trainingCurrentStep.value}."
+            }
+        }
     }
 
     fun startRecordingAttempt() {

@@ -41,6 +41,7 @@ import androidx.compose.material.icons.outlined.RateReview
 import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.material.icons.outlined.Refresh
 import com.example.data.ResponseFeedback
+import com.example.ui.theme.staggeredEntry
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -57,6 +58,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import com.example.ui.theme.*
 import com.example.ui.components.AiraCard
 import com.example.ui.components.AiraBadge
+import com.example.ui.components.SkeletonCard
+import com.example.ui.components.SkeletonText
+import com.example.ui.components.LoadingCard
+import com.example.ui.components.LoadingInlineIndicator
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -186,16 +191,17 @@ fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp), // Outer padding: 24dp
+                .padding(Dimens.responsiveScreenPadding)
+                .widthIn(max = 800.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Dimens.GapLarge))
 
             // 1. TOP ROW
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = Spacing.ExtraSmall),
+                    .padding(vertical = Dimens.GapSmall),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -207,8 +213,8 @@ fun HomeScreen(
                 )
                 Box(
                     modifier = Modifier
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), shape = RoundedCornerShape(Radius.ExtraLarge))
-                        .padding(horizontal = Spacing.Small, vertical = 6.dp)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), shape = RoundedCornerShape(Dimens.CornerRadiusLarge))
+                        .padding(horizontal = Dimens.GapSmall, vertical = Dimens.GapTiny)
                 ) {
                     Text(
                         text = "Voice: $selectedVoiceName",
@@ -219,7 +225,7 @@ fun HomeScreen(
                 }
             }
 
-            Spacer(Modifier.height(Spacing.Large))
+            Spacer(Modifier.height(Dimens.GapLarge))
 
             // 2. NEXT 2 LINES BELOW TOP ROW
             Column(
@@ -233,15 +239,15 @@ fun HomeScreen(
                         fontWeight = TypographySubsystem.WeightBold,
                         color = MaterialTheme.colorScheme.onBackground
                     )
-                    Spacer(Modifier.width(Spacing.ExtraSmall))
+                    Spacer(Modifier.width(Dimens.GapSmall))
                     Icon(
                         imageVector = Icons.Outlined.AutoAwesome,
                         contentDescription = null,
-                        modifier = Modifier.size(Dimensions.IconSizeLarge),
+                        modifier = Modifier.size(Dimens.IconStandard),
                         tint = MaterialTheme.colorScheme.tertiary
                     )
                 }
-                Spacer(Modifier.height(Spacing.Tiny))
+                Spacer(Modifier.height(Dimens.GapTiny))
                 Text(
                     text = AppStrings.DefaultSubtitle,
                     fontSize = TypographySubsystem.SizeBodyLarge,
@@ -249,29 +255,29 @@ fun HomeScreen(
                 )
             }
 
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(Dimens.GapExtraLarge))
 
             if (isOfflineBrain) {
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(Dimens.GapMedium))
                 Surface(
                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(Dimens.CornerRadiusLarge),
                     modifier = Modifier.fillMaxWidth().testTag("offline_mode_banner")
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        modifier = Modifier.padding(horizontal = Dimens.GapLarge, vertical = Dimens.GapMedium),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(
                             modifier = Modifier.weight(1f, fill = false),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(Dimens.GapSmall)
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(10.dp)
+                                    .size(Dimens.GapSmall)
                                     .background(colorResource(id = R.color.aira_success_light), CircleShape)
                             )
                             Text(
@@ -284,10 +290,10 @@ fun HomeScreen(
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(Dimens.GapSmall))
                         Surface(
                             color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                            shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(Dimens.CornerRadiusSmall)
                         ) {
                             Text(
                                 text = "Private On-Device AI • Voice Ready",
@@ -297,7 +303,7 @@ fun HomeScreen(
                                 fontWeight = FontWeight.Medium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                modifier = Modifier.padding(horizontal = Dimens.GapSmall, vertical = Dimens.GapTiny)
                             )
                         }
                     }
@@ -310,26 +316,26 @@ fun HomeScreen(
             val selectedTtsEngine by viewModel.selectedTtsEngine.collectAsState()
             val selectedSttEngine by viewModel.selectedSttEngine.collectAsState()
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(Dimens.GapMedium))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("background_status_chips_row"),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(Dimens.GapSmall),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(Dimens.CornerRadiusSmall)
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.padding(horizontal = Dimens.GapSmall, vertical = Dimens.GapTiny),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.GapTiny)
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(6.dp)
+                                .size(Dimens.GapSmall)
                                 .background(colorResource(id = R.color.aira_success_light), CircleShape)
                         )
                         Text(
@@ -343,32 +349,32 @@ fun HomeScreen(
 
                 Surface(
                     color = if (isAccessibilityActive) colorResource(id = R.color.aira_success_light).copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(Dimens.CornerRadiusSmall)
                 ) {
                     Text(
                         text = if (isAccessibilityActive) "Accessibility On" else "Accessibility Off",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
                         color = if (isAccessibilityActive) colorResource(id = R.color.aira_success_light) else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        modifier = Modifier.padding(horizontal = Dimens.GapSmall, vertical = Dimens.GapTiny)
                     )
                 }
 
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(Dimens.CornerRadiusSmall)
                 ) {
                     Text(
                         text = if (isOfflineBrain) "AI: Offline Mode" else "AI: Online Mode",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        modifier = Modifier.padding(horizontal = Dimens.GapSmall, vertical = Dimens.GapTiny)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(28.dp)) // Section spacing: 28dp
+            Spacer(modifier = Modifier.height(Dimens.GapExtraLarge)) // Section spacing
 
             // Hero Orb with real-time audio input volume reactivity
             AudioReactiveHeroOrb(
@@ -387,16 +393,16 @@ fun HomeScreen(
                 }
             )
 
-            Spacer(modifier = Modifier.height(28.dp)) // Distance below orb: 28dp
+            Spacer(modifier = Modifier.height(Dimens.GapExtraLarge)) // Distance below orb
 
             // Instruction Text
-            Spacer(modifier = Modifier.height(20.dp)) // Top spacing: 20dp
+            Spacer(modifier = Modifier.height(Dimens.GapExtraLarge))
             Text(
                 text = "Tap to speak or type a message",
-                fontSize = 14.sp, // Caption: 14sp
+                fontSize = 14.sp,
                 fontFamily = FontFamily.SansSerif,
                 fontWeight = FontWeight.Normal,
-                color = MaterialTheme.colorScheme.onSurfaceVariant, // Muted color, not too bright
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
 
@@ -405,15 +411,15 @@ fun HomeScreen(
             // Status Card
             Row(
                 modifier = Modifier
-                    .defaultMinSize(minHeight = 48.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(20.dp))
+                    .defaultMinSize(minHeight = Dimens.MinTouchTarget)
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(Dimens.CornerRadiusLarge))
                     .semantics {
                         liveRegion = LiveRegionMode.Polite
                         contentDescription = "System Status: $derivedStatus. Connection mode: ${if (onlineMode) "Online" else "Offline"}. Voice detection is active."
                     }
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = Dimens.GapLarge, vertical = Dimens.GapMedium),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)
+                horizontalArrangement = Arrangement.spacedBy(Dimens.GapLarge, Alignment.CenterHorizontally)
             ) {
                 // PART A - CONNECTION
                 Row(
@@ -435,11 +441,11 @@ fun HomeScreen(
                             viewModel.toggleOfflineBrain(!onlineMode)
                         },
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.GapSmall)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(8.dp)
+                            .size(Dimens.GapSmall)
                             .background(colorResource(id = R.color.aira_success_light), CircleShape)
                     )
                     Text(
@@ -458,11 +464,11 @@ fun HomeScreen(
                 // PART B - VOICE
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.GapSmall)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(8.dp)
+                            .size(Dimens.GapSmall)
                             .background(colorResource(id = R.color.aira_success_light), CircleShape)
                     )
                     Text(
@@ -481,51 +487,46 @@ fun HomeScreen(
 
             // Iron Man Morning Briefing Card
             AiraCard(
-                modifier = Modifier.padding(top = 16.dp).testTag("morning_briefing_card"),
+                modifier = Modifier
+                    .staggeredEntry(index = 0)
+                    .padding(top = Dimens.GapLarge)
+                    .testTag("morning_briefing_card"),
                 title = "Iron Man Morning Briefing",
                 headerTrailing = {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.GapSmall),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(
                             onClick = { viewModel.playMorningBriefing() },
-                            modifier = Modifier.size(32.dp).testTag("play_briefing_btn")
+                            modifier = Modifier.size(Dimens.IconLarge).testTag("play_briefing_btn")
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.VolumeUp,
                                 contentDescription = "Play Briefing Voice",
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(Dimens.IconSmall)
                             )
                         }
                         IconButton(
                             onClick = { viewModel.refreshWeather() },
-                            modifier = Modifier.size(32.dp).testTag("refresh_briefing_btn")
+                            modifier = Modifier.size(Dimens.IconLarge).testTag("refresh_briefing_btn")
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.Refresh,
                                 contentDescription = "Refresh Briefing",
                                 tint = MaterialTheme.colorScheme.secondary,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(Dimens.IconSmall)
                             )
                         }
                     }
                 }
             ) {
                 if (isBriefingLoading) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                        Text(
-                            text = "AIRA compiling weather & schedule agenda...",
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    LoadingCard(
+                        title = "Iron Man Briefing",
+                        message = "AIRA compiling weather, local status & schedule agenda..."
+                    )
                 } else {
                     val briefingContent = morningBriefing ?: "Tap refresh to compile your Iron Man morning briefing."
                     Text(
@@ -541,7 +542,9 @@ fun HomeScreen(
 
             // Recent Conversations Card
             AiraCard(
-                modifier = Modifier.padding(top = 24.dp),
+                modifier = Modifier
+                    .staggeredEntry(index = 1)
+                    .padding(top = Dimens.GapExtraLarge),
                 title = "Recent Chats",
                 headerTrailing = {
                     Row(
@@ -549,13 +552,13 @@ fun HomeScreen(
                             .testTag("open_feedback_logs_btn")
                             .bounceClick(onClick = { showFeedbackLogsDialog = true }),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.GapTiny)
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.RateReview,
                             contentDescription = "Feedback Logs",
                             tint = MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(Dimens.IconSmall)
                         )
                         Text(
                             text = "Logs",
@@ -571,7 +574,7 @@ fun HomeScreen(
                             .testTag("view_all_conversations_btn")
                             .bounceClick(onClick = { showFullHistoryDialog = true }),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.GapTiny)
                     ) {
                         Text(
                             text = "View All",
@@ -584,7 +587,7 @@ fun HomeScreen(
                             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                             contentDescription = "View All",
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(Dimens.IconSmall)
                         )
                     }
                 }
@@ -611,7 +614,7 @@ fun HomeScreen(
                             fontSize = 14.sp,
                             fontFamily = FontFamily.SansSerif,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(vertical = 12.dp)
+                            modifier = Modifier.padding(vertical = Dimens.GapMedium)
                         )
                     } else {
                         displayItems.forEachIndexed { index, item ->
@@ -633,7 +636,7 @@ fun HomeScreen(
                                 HorizontalDivider(
                                     color = MaterialTheme.colorScheme.outlineVariant,
                                     thickness = 1.dp,
-                                    modifier = Modifier.padding(vertical = 4.dp)
+                                    modifier = Modifier.padding(vertical = Dimens.GapTiny)
                                 )
                             }
                         }
@@ -653,103 +656,117 @@ fun HomeScreen(
             isDismissed = false
         }
 
+        val dismissState = rememberSwipeToDismissBoxState(
+            confirmValueChange = { dismissValue ->
+                if (dismissValue != SwipeToDismissBoxValue.Settled) {
+                    isDismissed = true
+                    true
+                } else false
+            }
+        )
+
         AnimatedVisibility(
             visible = statusMsg != null && !isDismissed && !isAmyDownloaded,
             enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
             exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(16.dp)
-                .padding(bottom = 8.dp)
+                .padding(Dimens.GapLarge)
+                .padding(bottom = Dimens.GapSmall)
         ) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("tts_download_overlay_card"),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f)
-                ),
-                shape = RoundedCornerShape(18.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+            SwipeToDismissBox(
+                state = dismissState,
+                backgroundContent = {},
+                content = {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("tts_download_overlay_card"),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f)
+                        ),
+                        shape = RoundedCornerShape(Dimens.CornerRadiusLarge),
+                        elevation = CardDefaults.cardElevation(defaultElevation = Dimens.ElevationMedium)
                     ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            val isError = statusMsg?.contains("fail", ignoreCase = true) == true || statusMsg?.contains("error", ignoreCase = true) == true
-                            val icon = if (isError) Icons.Outlined.Warning else Icons.Outlined.CloudDownload
-                            val iconColor = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-                            Icon(
-                                imageVector = icon,
-                                contentDescription = "TTS Download Status",
-                                tint = iconColor,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Text(
-                                text = if (isError) "Voice Setup Error" else "Acoustic Model Download",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            if (amyProgress != null && amyProgress in 0f..1f) {
-                                Text(
-                                    text = "${(amyProgress * 100).toInt()}%",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                            IconButton(
-                                onClick = { isDismissed = true },
-                                modifier = Modifier.size(24.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Close,
-                                    contentDescription = "Dismiss",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                        }
-                    }
-                    
-                    Text(
-                        text = statusMsg ?: "",
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        lineHeight = 16.sp
-                    )
-                    
-                    if (amyProgress != null && amyProgress in 0f..1f) {
-                        LinearProgressIndicator(
-                            progress = amyProgress,
+                        Column(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .height(6.dp)
-                                .clip(CircleShape),
-                            color = MaterialTheme.colorScheme.primary,
-                            trackColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
+                                .padding(Dimens.GapLarge)
+                                .fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(Dimens.GapSmall)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(Dimens.GapSmall),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    val isError = statusMsg?.contains("fail", ignoreCase = true) == true || statusMsg?.contains("error", ignoreCase = true) == true
+                                    val icon = if (isError) Icons.Outlined.Warning else Icons.Outlined.CloudDownload
+                                    val iconColor = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = "TTS Download Status",
+                                        tint = iconColor,
+                                        modifier = Modifier.size(Dimens.IconMedium)
+                                    )
+                                    Text(
+                                        text = if (isError) "Voice Setup Error" else "Acoustic Model Download",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(Dimens.GapTiny)
+                                ) {
+                                    if (amyProgress != null && amyProgress in 0f..1f) {
+                                        Text(
+                                            text = "${(amyProgress * 100).toInt()}%",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = { isDismissed = true },
+                                        modifier = Modifier.size(Dimens.IconStandard)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Close,
+                                            contentDescription = "Dismiss",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(Dimens.IconSmall)
+                                        )
+                                    }
+                                }
+                            }
+                            
+                            Text(
+                                text = statusMsg ?: "",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            
+                            if (amyProgress != null && amyProgress in 0f..1f) {
+                                LinearProgressIndicator(
+                                    progress = amyProgress,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(Dimens.GapSmall)
+                                        .clip(CircleShape),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                                )
+                            }
+                        }
                     }
                 }
-            }
+            )
         }
     }
 

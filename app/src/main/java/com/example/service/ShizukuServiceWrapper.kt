@@ -56,6 +56,25 @@ class ShizukuServiceWrapper(private val context: Context) {
 
     fun toggleBluetooth(enable: Boolean): ServiceTaskResult = executeTask("svc bluetooth ${if (enable) "enable" else "disable"} || cmd bluetooth_manager ${if (enable) "enable" else "disable"}")
 
+    fun toggleMobileData(enable: Boolean): ServiceTaskResult = executeTask("svc data ${if (enable) "enable" else "disable"}")
+
+    fun toggleHotspot(enable: Boolean): ServiceTaskResult = executeTask("cmd connectivity tethering ${if (enable) "start" else "stop"} wifi || cmd tethering ${if (enable) "start" else "stop"} wifi")
+
+    fun toggleAirplaneMode(enable: Boolean): ServiceTaskResult = executeTask("settings put global airplane_mode_on ${if (enable) 1 else 0} && am broadcast -a android.intent.action.AIRPLANE_MODE --ez state ${if (enable) true else false}")
+
+    fun toggleLocation(enable: Boolean): ServiceTaskResult = executeTask("settings put secure location_mode ${if (enable) 3 else 0}")
+
+    fun toggleBatterySaver(enable: Boolean): ServiceTaskResult = executeTask("cmd power set-mode ${if (enable) 1 else 0} || settings put global low_power ${if (enable) 1 else 0}")
+
+    fun toggleDoNotDisturb(enable: Boolean): ServiceTaskResult = executeTask("settings put global zen_mode ${if (enable) 1 else 0}")
+
+    fun setScreenTimeout(seconds: Int): ServiceTaskResult {
+        val ms = seconds * 1000
+        return executeTask("settings put system screen_off_timeout $ms")
+    }
+
+    fun toggleScreenRotation(autoRotate: Boolean): ServiceTaskResult = executeTask("settings put system accelerometer_rotation ${if (autoRotate) 1 else 0}")
+
     fun setBrightness(percent: Int): ServiceTaskResult {
         val clampedPct = percent.coerceIn(0, 100)
         val value = (clampedPct * 255) / 100
@@ -83,7 +102,38 @@ class ShizukuServiceWrapper(private val context: Context) {
 
     fun openPowerMenu(): ServiceTaskResult = executeTask("input keyevent --longpress 26")
 
+    fun systemNavigation(target: String): ServiceTaskResult {
+        val keycode = when (target.lowercase()) {
+            "home" -> 3
+            "back" -> 4
+            "recents", "recent" -> 187
+            else -> 3
+        }
+        return executeTask("input keyevent $keycode")
+    }
+
     fun launchApp(packageName: String): ServiceTaskResult = executeTask("monkey -p $packageName -c android.intent.category.LAUNCHER 1")
+
+    fun forceStopApp(packageName: String): ServiceTaskResult = executeTask("am force-stop $packageName")
+
+    fun clearAppCache(packageName: String): ServiceTaskResult = executeTask("pm trim-caches 100M")
+
+    fun uninstallApp(packageName: String): ServiceTaskResult = executeTask("pm uninstall $packageName")
+
+    fun grantPermission(packageName: String, permission: String): ServiceTaskResult = executeTask("pm grant $packageName $permission")
+
+    fun revokePermission(packageName: String, permission: String): ServiceTaskResult = executeTask("pm revoke $packageName $permission")
+
+    fun reboot(): ServiceTaskResult = executeTask("svc power reboot || reboot")
+
+    fun shutdown(): ServiceTaskResult = executeTask("svc power shutdown || reboot -p")
+
+    fun inputText(text: String): ServiceTaskResult {
+        val sanitized = text.replace(" ", "%s").replace("\"", "\\\"")
+        return executeTask("input text \"$sanitized\"")
+    }
+
+    fun simulateTap(x: Int, y: Int): ServiceTaskResult = executeTask("input tap $x $y")
 }
 
 sealed class ServiceTaskResult {

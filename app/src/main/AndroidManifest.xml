@@ -85,6 +85,19 @@
             android:process=":assistant"
             android:exported="true" />
 
+        <service
+            android:name=".service.ShizukuVoiceExecutionService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.example.ACTION_EXECUTE_SHIZUKU_VOICE_COMMAND" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name=".service.ActiveListeningService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

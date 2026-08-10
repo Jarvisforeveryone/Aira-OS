@@ -47,6 +47,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import com.example.data.Action
 import com.example.ui.theme.success
 import com.example.ui.theme.warning
+import com.example.ui.theme.Dimens
 import com.example.data.Command
 import com.example.data.Reminder
 import com.example.data.VoiceCommandManager
@@ -148,8 +149,8 @@ fun AutomationHomeScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(scrollState)
-                .padding(24.dp), // Outer Screen Padding: 24dp
-            verticalArrangement = Arrangement.spacedBy(28.dp) // Between Sections: 28dp
+                .padding(Dimens.responsiveScreenPadding),
+            verticalArrangement = Arrangement.spacedBy(Dimens.SectionSpacing)
         ) {
             // ================== GOOGLE ASSISTANT INTEGRATION ==================
             AssistantGoogleControlCard(viewModel = viewModel)
@@ -200,17 +201,17 @@ fun AutomationHomeScreen(
                                         .weight(1f)
                                         .height(40.dp)
                                         .testTag("flash_on_btn"),
-                                    contentPadding = PaddingValues(horizontal = 4.dp),
-                                    shape = RoundedCornerShape(12.dp)
+                                    contentPadding = PaddingValues(horizontal = Dimens.GapSmall),
+                                    shape = RoundedCornerShape(Dimens.CornerRadiusMedium)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.FlashOn,
                                         contentDescription = "ON",
                                         tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(Dimens.IconSmall)
                                     )
-                                    Spacer(Modifier.width(4.dp))
-                                    Text("On", fontSize = 13.sp, fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onPrimary)
+                                    Spacer(Modifier.width(Dimens.GapTiny))
+                                    Text("On", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onPrimary)
                                 }
                                 Button(
                                     onClick = { viewModel.toggleFlashlight(false) },
@@ -219,17 +220,17 @@ fun AutomationHomeScreen(
                                         .weight(1f)
                                         .height(40.dp)
                                         .testTag("flash_off_btn"),
-                                    contentPadding = PaddingValues(horizontal = 4.dp),
-                                    shape = RoundedCornerShape(12.dp)
+                                    contentPadding = PaddingValues(horizontal = Dimens.GapSmall),
+                                    shape = RoundedCornerShape(Dimens.CornerRadiusMedium)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.FlashOff,
                                         contentDescription = "OFF",
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(Dimens.IconSmall)
                                     )
-                                    Spacer(Modifier.width(4.dp))
-                                    Text("Off", fontSize = 13.sp, fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Spacer(Modifier.width(Dimens.GapTiny))
+                                    Text("Off", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
                         }
@@ -2276,24 +2277,22 @@ fun VoiceCommandScreen(
                                             ) {
                                                 Text(
                                                     text = cmd.triggerPhrase,
-                                                    fontSize = 16.sp, // Body
+                                                    style = MaterialTheme.typography.titleMedium,
                                                     fontWeight = FontWeight.Medium,
-                                                    fontFamily = FontFamily.SansSerif,
                                                     color = MaterialTheme.colorScheme.primary
                                                 )
 
                                                 // Badge priority
                                                 Box(
                                                     modifier = Modifier
-                                                        .clip(RoundedCornerShape(6.dp))
+                                                        .clip(RoundedCornerShape(Dimens.CornerRadiusSmall))
                                                         .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
-                                                        .border(0.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
-                                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                        .border(0.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), RoundedCornerShape(Dimens.CornerRadiusSmall))
+                                                        .padding(horizontal = Dimens.GapSmall, vertical = Dimens.GapMicro)
                                                 ) {
                                                     Text(
                                                         text = "P${cmd.priority}",
-                                                        fontSize = 11.sp, // Labels / Small indicators
-                                                        fontFamily = FontFamily.SansSerif,
+                                                        style = MaterialTheme.typography.labelSmall,
                                                         fontWeight = FontWeight.Medium,
                                                         color = MaterialTheme.colorScheme.primary
                                                     )
@@ -2307,16 +2306,14 @@ fun VoiceCommandScreen(
 
                                             Text(
                                                 text = "Action sequence: " + cmd.actionIdsJson,
-                                                fontSize = 14.sp, // Caption
-                                                fontFamily = FontFamily.SansSerif,
+                                                style = MaterialTheme.typography.bodySmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
 
                                             if (cmd.conditionsJson.isNotEmpty()) {
                                                 Text(
                                                     text = "Conditions constraints: " + cmd.conditionsJson,
-                                                    fontSize = 13.sp, // Labels
-                                                    fontFamily = FontFamily.SansSerif,
+                                                    style = MaterialTheme.typography.bodySmall,
                                                     color = MaterialTheme.colorScheme.warning.copy(alpha = 0.7f),
                                                     fontWeight = FontWeight.Medium
                                                 )
@@ -2324,8 +2321,7 @@ fun VoiceCommandScreen(
 
                                             Text(
                                                 text = "Used ${cmd.useCount} times",
-                                                fontSize = 13.sp, // Labels
-                                                fontFamily = FontFamily.SansSerif,
+                                                style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                                                 fontWeight = FontWeight.SemiBold
                                             )

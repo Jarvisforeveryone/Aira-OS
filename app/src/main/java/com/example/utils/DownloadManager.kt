@@ -2,6 +2,7 @@ package com.example.utils
 
 import android.content.Context
 import android.util.Log
+import android.widget.Toast
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -37,7 +38,12 @@ object DownloadManager {
 
     const val PIPER_URL = "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/amy/medium/en_US-amy-medium.onnx"
     const val PIPER_CONFIG_URL = "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/amy/medium/en_US-amy-medium.onnx.json"
-    const val VOSK_URL = "https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.22.zip"
+    
+    // Vosk model URLs (0.15 is the standard wideband model)
+    const val VOSK_URL_PRIMARY = "https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip"
+    const val VOSK_URL_SECONDARY = "https://huggingface.co/rhasspy/vosk-models/resolve/main/en/vosk-model-small-en-us-0.15.zip"
+    const val VOSK_URL = VOSK_URL_PRIMARY
+
     const val LLAMA_URL = "https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf"
 
     // Target expected size bounds for verification
@@ -55,6 +61,13 @@ object DownloadManager {
             .connectTimeout(60, TimeUnit.SECONDS)
             .readTimeout(120, TimeUnit.SECONDS)
             .writeTimeout(120, TimeUnit.SECONDS)
+            .build()
+    }
+
+    private fun createRequest(url: String): Request {
+        return Request.Builder()
+            .url(url)
+            .header("User-Agent", "Mozilla/5.0 (Android; Mobile; rv:109.0) Gecko/109.0 Firefox/119.0")
             .build()
     }
 
@@ -99,8 +112,9 @@ object DownloadManager {
             return@withContext true
         }
 
-        if (showProgressPopup) {
-            withContext(Dispatchers.Main) {
+        withContext(Dispatchers.Main) {
+            Toast.makeText(context, "Downloading Amy Voice in background...", Toast.LENGTH_SHORT).show()
+            if (showProgressPopup) {
                 _popupState.value = DownloadPopupState(
                     showPopup = true,
                     isPromptState = false,
@@ -124,7 +138,7 @@ object DownloadManager {
                 val tempModelFile = File(modelFile.absolutePath + ".tmp")
 
                 // 1. Download Model ONNX
-                val request = Request.Builder().url(PIPER_URL).build()
+                val request = createRequest(PIPER_URL)
                 client.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) throw Exception("HTTP Error ${response.code}")
                     val body = response.body ?: throw Exception("Empty response body")
@@ -166,7 +180,7 @@ object DownloadManager {
 
                 // 2. Download Model Config JSON
                 try {
-                    val configRequest = Request.Builder().url(PIPER_CONFIG_URL).build()
+                    val configRequest = createRequest(PIPER_CONFIG_URL)
                     client.newCall(configRequest).execute().use { resp ->
                         if (resp.isSuccessful && resp.body != null) {
                             FileOutputStream(configFile).use { out ->
@@ -184,9 +198,10 @@ object DownloadManager {
             }
         }
 
-        if (showProgressPopup) {
-            withContext(Dispatchers.Main) {
-                if (success) {
+        withContext(Dispatchers.Main) {
+            if (success) {
+                Toast.makeText(context, "Amy Voice ready!", Toast.LENGTH_SHORT).show()
+                if (showProgressPopup) {
                     _popupState.value = DownloadPopupState(
                         showPopup = true,
                         title = "Download complete",
@@ -197,7 +212,10 @@ object DownloadManager {
                     )
                     kotlinx.coroutines.delay(1000L)
                     dismissPopup()
-                } else {
+                }
+            } else {
+                Toast.makeText(context, "Amy Voice download failed.", Toast.LENGTH_SHORT).show()
+                if (showProgressPopup) {
                     _popupState.value = DownloadPopupState(
                         showPopup = true,
                         title = "Download failed",
@@ -208,9 +226,8 @@ object DownloadManager {
                     )
                 }
             }
+            onResult(success)
         }
-
-        withContext(Dispatchers.Main) { onResult(success) }
         return@withContext success
     }
 
@@ -242,14 +259,15 @@ object DownloadManager {
             return@withContext true
         }
 
-        if (showProgressPopup) {
-            withContext(Dispatchers.Main) {
+        withContext(Dispatchers.Main) {
+            Toast.makeText(context, "Downloading STT Model in background...", Toast.LENGTH_SHORT).show()
+            if (showProgressPopup) {
                 _popupState.value = DownloadPopupState(
                     showPopup = true,
                     isPromptState = false,
                     title = "Downloading STT Model",
                     progressPercent = 0,
-                    statusText = "Connecting to Alphacephei (Vosk STT)...",
+                    statusText = "Connecting to Vosk repository...",
                     isFailed = false,
                     isComplete = false,
                     failedComponent = DownloadComponent.VOSK_STT
@@ -259,13 +277,18 @@ object DownloadManager {
 
         var success = false
         var attempts = 0
+        val urlsToTry = listOf(VOSK_URL_PRIMARY, VOSK_URL_SECONDARY)
+
         while (attempts < 3 && !success) {
             attempts++
+            val url = urlsToTry[(attempts - 1) % urlsToTry.size]
+            Log.i(TAG, "Vosk STT Download Attempt $attempts using URL: $url")
+            
             try {
-                val zipFile = File(context.cacheDir, "vosk-model-small-en-us-0.22.zip")
+                val zipFile = File(context.cacheDir, "vosk-model-small-en-us-0.15.zip")
                 if (zipFile.exists()) zipFile.delete()
 
-                val request = Request.Builder().url(VOSK_URL).build()
+                val request = createRequest(url)
                 client.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) throw Exception("HTTP Error ${response.code}")
                     val body = response.body ?: throw Exception("Empty response body")
@@ -297,7 +320,7 @@ object DownloadManager {
                 if (showProgressPopup) {
                     withContext(Dispatchers.Main) {
                         _popupState.value = _popupState.value.copy(
-                            statusText = "Extracting Vosk Model..."
+                            statusText = "Extracting Vosk STT Model..."
                         )
                     }
                 }
@@ -310,7 +333,7 @@ object DownloadManager {
                 if (tempExtractDir.exists()) tempExtractDir.deleteRecursively()
                 tempExtractDir.mkdirs()
 
-                ZipInputStream(zipFile.inputStream()).use { zipInput ->
+                ZipInputStream(zipFile.inputStream().buffered()).use { zipInput ->
                     var entry = zipInput.nextEntry
                     while (entry != null) {
                         val entryFile = File(tempExtractDir, entry.name)
@@ -327,11 +350,23 @@ object DownloadManager {
                     }
                 }
 
-                val subDirs = tempExtractDir.listFiles { f -> f.isDirectory }
-                if (subDirs != null && subDirs.isNotEmpty()) {
-                    subDirs[0].renameTo(targetDir)
-                } else {
-                    tempExtractDir.renameTo(targetDir)
+                // Locate directory containing conf/model.conf
+                var modelFolder: File? = null
+                tempExtractDir.walkTopDown().forEach { file ->
+                    if (file.isDirectory && File(file, "conf/model.conf").exists()) {
+                        modelFolder = file
+                        return@forEach
+                    }
+                }
+
+                val sourceFolder = modelFolder ?: tempExtractDir
+                sourceFolder.listFiles()?.forEach { file ->
+                    val dest = File(targetDir, file.name)
+                    if (file.isDirectory) {
+                        file.copyRecursively(dest, overwrite = true)
+                    } else {
+                        file.copyTo(dest, overwrite = true)
+                    }
                 }
 
                 if (tempExtractDir.exists()) tempExtractDir.deleteRecursively()
@@ -341,18 +376,20 @@ object DownloadManager {
                 val confFile = File(targetDir, "conf/model.conf")
                 if (!confFile.exists() || totalExtracted < VOSK_MIN_EXTRACTED_BYTES) {
                     targetDir.deleteRecursively()
-                    throw Exception("Extracted Vosk model is incomplete ($totalExtracted bytes)")
+                    throw Exception("Extracted Vosk model is incomplete ($totalExtracted bytes extracted)")
                 }
 
+                Log.i(TAG, "Vosk STT Model successfully extracted & verified ($totalExtracted bytes)")
                 success = true
             } catch (e: Exception) {
-                Log.e(TAG, "Attempt $attempts failed to download Vosk STT: ${e.message}", e)
+                Log.e(TAG, "Attempt $attempts failed to download Vosk STT from $url: ${e.message}", e)
             }
         }
 
-        if (showProgressPopup) {
-            withContext(Dispatchers.Main) {
-                if (success) {
+        withContext(Dispatchers.Main) {
+            if (success) {
+                Toast.makeText(context, "Vosk STT Model Ready!", Toast.LENGTH_SHORT).show()
+                if (showProgressPopup) {
                     _popupState.value = DownloadPopupState(
                         showPopup = true,
                         title = "Download complete",
@@ -363,7 +400,10 @@ object DownloadManager {
                     )
                     kotlinx.coroutines.delay(1000L)
                     dismissPopup()
-                } else {
+                }
+            } else {
+                Toast.makeText(context, "Vosk STT Download Failed.", Toast.LENGTH_SHORT).show()
+                if (showProgressPopup) {
                     _popupState.value = DownloadPopupState(
                         showPopup = true,
                         title = "Download failed",
@@ -374,9 +414,8 @@ object DownloadManager {
                     )
                 }
             }
+            onResult(success)
         }
-
-        withContext(Dispatchers.Main) { onResult(success) }
         return@withContext success
     }
 
@@ -413,8 +452,9 @@ object DownloadManager {
             return@withContext true
         }
 
-        if (showProgressPopup) {
-            withContext(Dispatchers.Main) {
+        withContext(Dispatchers.Main) {
+            Toast.makeText(context, "Downloading Llama 3.2 AI in background...", Toast.LENGTH_SHORT).show()
+            if (showProgressPopup) {
                 _popupState.value = DownloadPopupState(
                     showPopup = true,
                     isPromptState = false,
@@ -436,7 +476,7 @@ object DownloadManager {
                 val modelFile = getLlamaModelFile(context)
                 val tempModelFile = File(modelFile.absolutePath + ".tmp")
 
-                val request = Request.Builder().url(LLAMA_URL).build()
+                val request = createRequest(LLAMA_URL)
                 client.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) throw Exception("HTTP Error ${response.code}")
                     val body = response.body ?: throw Exception("Empty response body")
@@ -482,9 +522,10 @@ object DownloadManager {
             }
         }
 
-        if (showProgressPopup) {
-            withContext(Dispatchers.Main) {
-                if (success) {
+        withContext(Dispatchers.Main) {
+            if (success) {
+                Toast.makeText(context, "Llama 3.2 AI Ready!", Toast.LENGTH_SHORT).show()
+                if (showProgressPopup) {
                     _popupState.value = DownloadPopupState(
                         showPopup = true,
                         title = "Download complete",
@@ -495,7 +536,10 @@ object DownloadManager {
                     )
                     kotlinx.coroutines.delay(1000L)
                     dismissPopup()
-                } else {
+                }
+            } else {
+                Toast.makeText(context, "Llama 3.2 AI download failed.", Toast.LENGTH_SHORT).show()
+                if (showProgressPopup) {
                     _popupState.value = DownloadPopupState(
                         showPopup = true,
                         title = "Download failed",
@@ -506,9 +550,8 @@ object DownloadManager {
                     )
                 }
             }
+            onResult(success)
         }
-
-        withContext(Dispatchers.Main) { onResult(success) }
         return@withContext success
     }
 
@@ -588,3 +631,4 @@ object DownloadManager {
         }
     }
 }
+

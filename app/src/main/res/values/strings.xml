@@ -17,8 +17,11 @@
     <string name="thinking_status">Thinking</string>
     <string name="ready_status">Ready to help</string>
 
-    <!-- Memory Settings -->
-    <string name="memory_settings_title">Saved Info</string>
+    <!-- Memory Settings & Memory Bank -->
+    <string name="memory_settings_title">Memory Bank</string>
+    <string name="memory_bank_subtitle">Extracted User Facts &amp; Local Memory Storage</string>
+    <string name="clear_all_memories_confirm_title">Clear All Memories?</string>
+    <string name="clear_all_memories_confirm_desc">Are you sure you want to delete all saved memories from Room local database? This action cannot be undone.</string>
     <string name="edit_memory_title">Edit Memory</string>
     <string name="add_memory_title">Add Memory</string>
     <string name="add_memory">Add Memory</string>

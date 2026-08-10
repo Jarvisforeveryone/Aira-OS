@@ -38,7 +38,12 @@ import coil.request.ImageRequest
 import com.example.R
 import com.example.ui.components.AiraCard
 import com.example.ui.components.AiraBadge
+import com.example.ui.components.SkeletonCard
+import com.example.ui.components.SkeletonList
+import com.example.ui.components.LoadingInlineIndicator
 import com.example.ui.theme.bounceClick
+import com.example.ui.theme.staggeredEntry
+import com.example.ui.theme.Dimens
 
 @Composable
 fun ExtrasScreen(
@@ -58,9 +63,9 @@ fun ExtrasScreen(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(24.dp) // Outer Screen Padding: 24dp
+            .padding(Dimens.responsiveScreenPadding)
             .verticalScroll(scrollState),
-        verticalArrangement = Arrangement.spacedBy(28.dp) // Between Sections: 28dp
+        verticalArrangement = Arrangement.spacedBy(Dimens.SectionSpacing)
     ) {
         // Large Screen Title
         Text(
@@ -402,7 +407,7 @@ fun ExtrasScreen(
                             label = {
                                 Text(
                                     text = cat,
-                                    fontSize = 12.sp,
+                                    style = MaterialTheme.typography.labelMedium,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                 )
                             },
@@ -412,32 +417,16 @@ fun ExtrasScreen(
                                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                                 labelColor = MaterialTheme.colorScheme.onSurface
                             ),
-                            shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier.height(32.dp)
+                            shape = RoundedCornerShape(Dimens.CornerRadiusLarge),
+                            modifier = Modifier.padding(horizontal = Dimens.GapTiny)
                         )
                     }
                 }
 
                 if (isNewsLoading) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 16.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(22.dp),
-                            color = MaterialTheme.colorScheme.primary,
-                            strokeWidth = 2.dp
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = "Fetching $selectedCategoryName news...",
-                            fontSize = 14.sp,
-                            fontFamily = FontFamily.SansSerif,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                        )
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        LoadingInlineIndicator(message = "Fetching $selectedCategoryName news...")
+                        SkeletonList(count = 2)
                     }
                 } else if (newsError != null && newsItems.isEmpty()) {
                     Column(
@@ -479,14 +468,15 @@ fun ExtrasScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .staggeredEntry(index = i)
                                     .minimumInteractiveComponentSize()
-                                    .clip(RoundedCornerShape(12.dp))
+                                    .clip(RoundedCornerShape(Dimens.CornerRadiusMedium))
                                     .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.03f))
                                     .clickable {
                                         selectedArticleForDialog = Pair(item.title, dialogDetail)
                                     }
-                                    .padding(10.dp),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    .padding(Dimens.GapMedium),
+                                horizontalArrangement = Arrangement.spacedBy(Dimens.GapMedium),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 if (item.imageUrl.isNotBlank()) {

@@ -131,6 +131,7 @@ class MainActivity : ComponentActivity() {
             val viewModel: AiraViewModel = viewModel()
             activeViewModel = viewModel
             
+            var showSplash by remember { mutableStateOf(true) }
             val themeIndex by viewModel.themeIndex.collectAsState()
             val appTheme by viewModel.appTheme.collectAsState()
             val hasCompletedOnboarding by viewModel.hasCompletedOnboarding.collectAsState()
@@ -138,7 +139,11 @@ class MainActivity : ComponentActivity() {
             AiraTheme(themeIndex = themeIndex, appTheme = appTheme) {
                 com.example.ui.components.ModelDownloadPopup()
 
-                if (!hasCompletedOnboarding) {
+                if (showSplash) {
+                    com.example.ui.components.SplashScreen(
+                        onSplashFinished = { showSplash = false }
+                    )
+                } else if (!hasCompletedOnboarding) {
                     OnboardingScreen(
                         viewModel = viewModel,
                         onFinish = { viewModel.setOnboardingCompleted(true) }

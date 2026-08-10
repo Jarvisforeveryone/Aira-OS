@@ -127,29 +127,81 @@ class ChatKeyManager private constructor(private val context: Context) {
         }
     }
 
-    fun getGroqKey(): String {
-        val secureKey = sharedPreferences.getString("groq_api_key", "")?.trim() ?: ""
+    fun getGroqKey(): String = getProviderKey("groq_api_key")
+    fun saveGroqKey(key: String) = saveProviderKey("groq_api_key", key)
+
+    fun getOpenAiKey(): String = getProviderKey("openai_api_key")
+    fun saveOpenAiKey(key: String) = saveProviderKey("openai_api_key", key)
+
+    fun getClaudeKey(): String = getProviderKey("claude_api_key")
+    fun saveClaudeKey(key: String) = saveProviderKey("claude_api_key", key)
+
+    fun getOpenRouterKey(): String = getProviderKey("openrouter_api_key")
+    fun saveOpenRouterKey(key: String) = saveProviderKey("openrouter_api_key", key)
+
+    fun getMistralKey(): String = getProviderKey("mistral_api_key")
+    fun saveMistralKey(key: String) = saveProviderKey("mistral_api_key", key)
+
+    fun getCohereKey(): String = getProviderKey("cohere_api_key")
+    fun saveCohereKey(key: String) = saveProviderKey("cohere_api_key", key)
+
+    fun getHuggingFaceKey(): String = getProviderKey("huggingface_api_key")
+    fun saveHuggingFaceKey(key: String) = saveProviderKey("huggingface_api_key", key)
+
+    fun getProviderKey(prefKey: String): String {
+        val secureKey = sharedPreferences.getString(prefKey, "")?.trim() ?: ""
         if (secureKey.isNotEmpty()) return secureKey
-        val fallbackKey = try {
+        return try {
             val fallbackPrefs = context.getSharedPreferences("aira_settings", Context.MODE_PRIVATE)
-            fallbackPrefs.getString("groq_api_key", "")?.trim() ?: ""
+            fallbackPrefs.getString(prefKey, "")?.trim() ?: ""
         } catch (e: Exception) {
             ""
         }
-        return fallbackKey
     }
 
-    fun saveGroqKey(key: String) {
+    fun saveProviderKey(prefKey: String, key: String) {
         val trimmed = key.trim()
-        sharedPreferences.edit().putString("groq_api_key", trimmed).apply()
+        sharedPreferences.edit().putString(prefKey, trimmed).apply()
         try {
             val fallbackPrefs = context.getSharedPreferences("aira_settings", Context.MODE_PRIVATE)
-            fallbackPrefs.edit().putString("groq_api_key", trimmed).apply()
+            fallbackPrefs.edit().putString(prefKey, trimmed).apply()
         } catch (e: Exception) {
-            Log.e("ChatKeyManager", "Failed saving groq key to fallback prefs: ", e)
+            Log.e("ChatKeyManager", "Failed saving $prefKey: ", e)
         }
         if (trimmed.isNotEmpty()) {
             cooldowns.remove(trimmed)
+        }
+    }
+
+    fun getSelectedProvider(): String {
+        val prov = sharedPreferences.getString("active_api_provider", "GEMINI")?.trim() ?: "GEMINI"
+        return if (prov.isBlank()) "GEMINI" else prov
+    }
+
+    fun setSelectedProvider(providerName: String) {
+        sharedPreferences.edit().putString("active_api_provider", providerName).apply()
+        try {
+            val fallbackPrefs = context.getSharedPreferences("aira_settings", Context.MODE_PRIVATE)
+            fallbackPrefs.edit().putString("active_api_provider", providerName).apply()
+        } catch (e: Exception) {
+            Log.e("ChatKeyManager", "Failed saving active provider", e)
+        }
+    }
+
+    fun getSelectedModel(providerName: String, defaultModel: String): String {
+        val key = "model_for_${providerName.lowercase()}"
+        val model = sharedPreferences.getString(key, defaultModel)?.trim() ?: defaultModel
+        return if (model.isBlank()) defaultModel else model
+    }
+
+    fun setSelectedModel(providerName: String, modelName: String) {
+        val key = "model_for_${providerName.lowercase()}"
+        sharedPreferences.edit().putString(key, modelName.trim()).apply()
+        try {
+            val fallbackPrefs = context.getSharedPreferences("aira_settings", Context.MODE_PRIVATE)
+            fallbackPrefs.edit().putString(key, modelName.trim()).apply()
+        } catch (e: Exception) {
+            Log.e("ChatKeyManager", "Failed saving model for $providerName", e)
         }
     }
 

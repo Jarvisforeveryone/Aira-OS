@@ -29,13 +29,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
 
     fun handleVoiceCommand(input: String) {
         try {
-            val parsedCommand = CommandParser.parse(input)
-            val responseText = if (parsedCommand != null) {
-                CommandParser.execute(context.applicationContext, parsedCommand, null)
-            } else {
-                "Command not recognized: $input"
-            }
-            ttsManager.speak(responseText)
+            val response = ShizukuVoiceExecutionService.executeVoiceCommand(context.applicationContext, input)
+            ttsManager.speak(response.responseMessage)
         } catch (e: Exception) {
             Log.e("AssistantSession", "Error processing assistant voice command: $input", e)
             ttsManager.speak("Sorry, I could not process that command.")

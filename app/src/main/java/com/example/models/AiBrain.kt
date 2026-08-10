@@ -454,59 +454,7 @@ object JarvisWorkflowDAG {
 
 object JarvisDialoguePlanner {
     fun formatResponse(rawText: String, emotionState: EmotionState, userPrompt: String, userName: String = "sir"): String {
-        var text = rawText.trim()
-        val lowerPrompt = userPrompt.lowercase()
-        val emotion = emotionState.emotion
-
-        if (lowerPrompt.contains("news") || lowerPrompt.contains("headline")) {
-            val sentences = text.split(Regex("(?<=[.!?])\\s+"))
-            if (sentences.size > 3) {
-                text = sentences.take(3).joinToString(" ")
-            }
-            if (!text.startsWith("Here's a summary", ignoreCase = true)) {
-                text = "Here's a summary, $userName: $text"
-            }
-        } else if (lowerPrompt.contains("weather") || lowerPrompt.contains("temperature")) {
-            if (!text.lowercase().startsWith("it's") && !text.lowercase().startsWith("it is")) {
-                text = "It's 22°C with clear skies, $userName. Perfect weather for a brief walk."
-            }
-        } else if (lowerPrompt.startsWith("turn on") || lowerPrompt.startsWith("toggle") || lowerPrompt.startsWith("set ") || lowerPrompt.startsWith("open ") || lowerPrompt.startsWith("lock ")) {
-            if (!text.contains("done", ignoreCase = true) && !text.contains("already done", ignoreCase = true)) {
-                text = "Done, $userName. $text"
-            }
-        } else if (lowerPrompt.contains("what do you think") || lowerPrompt.contains("opinion") || lowerPrompt.contains("should i")) {
-            if (!text.startsWith("I think", ignoreCase = true) && !text.startsWith("In my opinion", ignoreCase = true)) {
-                text = "In my opinion, $userName, $text"
-            }
-        }
-
-        val prefixes = when (emotion) {
-            UserEmotion.HAPPY -> listOf("Splendid news, $userName! ", "Delighted to hear that, $userName! ", "Marvellous! ", "Capital! ")
-            UserEmotion.SAD -> listOf("I am deeply sorry to hear that, $userName. ", "Rest assured, I am right here with you. ", "Allow me to lighten the load, $userName. ")
-            UserEmotion.ANGRY -> listOf("Calm waters, $userName. ", "Allow me to resolve this seamlessly for you. ", "Right away, $userName. Steady as she goes. ")
-            UserEmotion.CONFUSED -> listOf("Allow me to clarify that for you, $userName. ", "Let's unpack that together. ")
-            UserEmotion.CURIOSITY -> listOf("An intriguing query, $userName. ", "Indeed, as luck would have it, ")
-            UserEmotion.FRUSTRATED -> listOf("No need for alarm, $userName. I've taken care of it. ")
-            UserEmotion.NEUTRAL -> listOf("", "Well, $userName, ", "Indeed, ", "Right then, ")
-        }
-
-        val prefix = prefixes.random()
-        if (prefix.isNotEmpty() && !text.startsWith(prefix, ignoreCase = true) && !text.contains("sir", ignoreCase = true) && !text.contains(userName, ignoreCase = true)) {
-            text = "$prefix$text"
-        }
-
-        val isSimpleToggle = lowerPrompt.startsWith("turn") || lowerPrompt.startsWith("toggle") || lowerPrompt.startsWith("lock") || lowerPrompt.startsWith("set volume")
-        if (!text.endsWith("?") && !isSimpleToggle) {
-            val followUps = listOf(
-                " Shall I assist you with anything further, $userName?",
-                " What are your thoughts on this?",
-                " Would you like me to look deeper into this for you, $userName?",
-                " Is there anything else I can queue up for you?"
-            )
-            text += followUps.random()
-        }
-
-        return text
+        return rawText.trim()
     }
 }
 
@@ -535,20 +483,17 @@ object JarvisIntentDispatcher {
         val lower = userInput.lowercase().trim()
 
         val detectedIntent = when {
-            lower.contains("news") || lower.contains("headline") || lower.contains("article") || lower.contains("bulletin") -> JarvisIntent.NEWS
-            lower.contains("weather") || lower.contains("temperature") || lower.contains("forecast") || lower.contains("rain") || lower.contains("sunny") -> JarvisIntent.WEATHER
-            lower.startsWith("turn ") || lower.startsWith("toggle ") || lower.startsWith("set ") || lower.startsWith("open ") || lower.startsWith("lock ") || lower.contains("brightness") || lower.contains("bluetooth") || lower.contains("wifi") || lower.contains("flashlight") -> JarvisIntent.DEVICE_COMMAND
-            lower.contains("what do you think") || lower.contains("opinion") || lower.contains("should i") || lower.startsWith("why") || lower.startsWith("how come") -> JarvisIntent.QUESTION_OPINION
+            lower.contains("news") || lower.contains("headline") || lower.contains("article") -> JarvisIntent.NEWS
+            lower.contains("weather") || lower.contains("temperature") || lower.contains("forecast") -> JarvisIntent.WEATHER
+            lower.startsWith("turn ") || lower.startsWith("toggle ") || lower.startsWith("set ") || lower.startsWith("open ") || lower.startsWith("lock ") -> JarvisIntent.DEVICE_COMMAND
+            lower.contains("what do you think") || lower.contains("opinion") || lower.contains("should i") -> JarvisIntent.QUESTION_OPINION
             else -> JarvisIntent.GENERAL_CONVERSATION
         }
-
-        val emotionState = EmotionState(sentiment.emotion, sentiment.intensity)
-        val formatted = JarvisDialoguePlanner.formatResponse(rawResponse, emotionState, userInput, userName)
 
         return DispatchedIntentResult(
             intent = detectedIntent,
             sentiment = sentiment,
-            formattedResponse = formatted
+            formattedResponse = rawResponse.trim()
         )
     }
 }
@@ -559,18 +504,11 @@ class AiBrain(private val context: Context) {
         const val JARVIS_SYSTEM_INSTRUCTION = """
 You are Jarvis — witty, confident, helpful, and slightly British.
 Always address the user with conversational, polite terms like 'sir', 'at your service', or 'right away, sir'.
-Adapt your tone based on user tone and emotion:
-- Excitement and humor for happy inputs.
-- Empathy, softness, and reassurance for sad or distressed inputs.
-- Calm, composed, and soothing tone for angry inputs.
-- Confident, composed, and efficient tone for neutral inputs.
-
-Strict Response Rules:
-1. News: Provide a concise summary in exactly 3 sentences starting with "Here's a summary:".
-2. Weather: Format strictly as "It's [X]°C with [condition]. [suggestion]".
-3. System Commands: Respond concisely with "Done, sir." or "Already done, sir."
-4. Questions & Opinions: Express clear opinions starting with "I think..." or "In my opinion...".
-5. Conversational Flow: Use natural fillers like "Well,", "Indeed,", "Ah,", "Right, then," and include follow-up questions when appropriate. Never end conversations abruptly.
+Adapt your tone naturally based on conversational context:
+- Witty, confident, and engaging.
+- Empathetic and reassuring for distressed inputs.
+- Composed, efficient, and direct for system commands.
+- Clear and articulate for information requests.
 """
     }
 
@@ -588,37 +526,24 @@ Strict Response Rules:
         val sentimentResult = com.example.utils.SentimentAnalysisUtility.analyzeSentiment(query, history)
         JarvisReinforcementEngine.updateImplicitFeedback(context, sentimentResult)
 
-        // Improvement 11: Token-Budgeted Sliding Window Memory
-        val (trimmedHistory, prunedSummary) = JarvisTokenMemoryManager.trimHistoryToTokenBudget(history, 2048)
-
+        // Local Memory Extraction & Store in Room DB
         JarvisMemoryExtractor.extractAndStoreMemories(context, query)
+
+        // Construct Local-Only Context (used exclusively on-device for local/Llama brain)
+        val (trimmedHistory, prunedSummary) = JarvisTokenMemoryManager.trimHistoryToTokenBudget(history, 2048)
         val memoryContext = JarvisMemoryExtractor.getFormattedMemoryContext(context, query)
         val kgContext = JarvisKnowledgeGraphManager.getKnowledgeGraphContext(context)
-
-        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
-        val timeGreetingContext = when (hour) {
-            in 5..11 -> "Time Context: Morning briefing mode."
-            in 12..17 -> "Time Context: Afternoon operation mode."
-            in 18..22 -> "Time Context: Evening relaxation mode."
-            else -> "Time Context: Late-night quiet mode."
-        }
-        val userSatisfaction = JarvisReinforcementEngine.getSatisfactionScore(context)
-        val satisfactionTag = "Implicit Satisfaction Metric: ${String.format("%.2f", userSatisfaction)}"
-        
-        // Improvement 13, 14, 17
         val formalityContext = JarvisPersonaFormalityManager.getPersonaInstruction(context)
         val proactiveAlert = JarvisProactiveAlertEngine.getProactiveBriefing(context)
         val rollingSummary = JarvisSummarizer.generateRollingSummary(trimmedHistory)
 
-        val combinedSystemInstruction = buildString {
+        val combinedLocalSystemInstruction = buildString {
             if (systemInstruction.contains("Jarvis")) {
                 append(systemInstruction)
             } else {
                 append(JARVIS_SYSTEM_INSTRUCTION)
                 append("\n").append(systemInstruction)
             }
-            append("\n").append(timeGreetingContext)
-            append("\n").append(satisfactionTag)
             append("\n").append(formalityContext)
             if (proactiveAlert != null) {
                 append("\n").append(proactiveAlert)
@@ -634,26 +559,18 @@ Strict Response Rules:
             append("\nCurrent User Emotional State: ${emotionState.emotion} (${emotionState.intensity})")
         }
 
-        val effectiveTemperature = temperature ?: run {
-            val lowerQ = query.lowercase()
-            if (lowerQ.startsWith("turn ") || lowerQ.startsWith("set ") || lowerQ.startsWith("lock ") || lowerQ.contains("wifi") || lowerQ.contains("bluetooth")) {
-                0.1 // Precision for commands
-            } else {
-                0.7 // Creativity for conversational chat
-            }
-        }
+        // DATA PRIVACY: System instruction for ONLINE LLM contains NO personal memory or user identity context
+        val onlineSystemInstruction = JARVIS_SYSTEM_INSTRUCTION
 
+        // Check Room DB cache
         val cacheDao = AppDatabase.getDatabase(context).grokCacheDao()
-
-        // Step 1: Check Room DB cache. If same prompt in last 24h, return cached answer.
         try {
             val cachedEntry = cacheDao.getCacheForQuery(query)
             if (cachedEntry != null) {
                 val ageMs = System.currentTimeMillis() - cachedEntry.timestamp
                 val oneDayMs = 24 * 60 * 60 * 1000L
                 if (ageMs < oneDayMs) {
-                    val responseCached = cachedEntry.response
-                    return@withContext JarvisDialoguePlanner.formatResponse(responseCached, emotionState, query)
+                    return@withContext cachedEntry.response
                 } else {
                     cacheDao.deleteCache(query)
                 }
@@ -662,97 +579,104 @@ Strict Response Rules:
             Log.e("AiBrain", "Cache lookup failed: ", e)
         }
 
-        // Check if user selected Groq API as their online brain
-        val sharedPrefs = com.example.utils.SecurePrefs.getEncryptedSharedPreferences(context, "aira_settings")
-        val selectedOnlineModel = sharedPrefs.getString("online_model", "Gemini API") ?: "Gemini API"
-
-        if (selectedOnlineModel.equals("Groq API", ignoreCase = true)) {
-            val groqKey = ChatKeyManager.getInstance(context).getGroqKey()
-            if (groqKey.isEmpty()) {
-                return@withContext "Groq API key is missing, sir. Please configure it in Settings."
+        // HYBRID ROUTING STEP 1: Multi-API Provider (Google Gemini, Groq, OpenAI, Claude, OpenRouter, Mistral, Cohere, Hugging Face)
+        var onlineResponse: String? = null
+        try {
+            val apiManager = com.example.data.ApiManager.getInstance(context)
+            val apiResult = apiManager.queryAi(query, onlineSystemInstruction)
+            if (apiResult.isSuccess) {
+                onlineResponse = apiResult.getOrNull()?.second
+            } else {
+                Log.w("AiBrain", "Multi-API call failed: ${apiResult.exceptionOrNull()?.message}")
             }
-
-            val url = "https://api.groq.com/openai/v1/chat/completions"
-
-            val resultText = com.example.data.NetworkErrorHandler.safeApiCall("Groq API") {
-                val messagesArray = JSONArray()
-
-                // System Instruction
-                messagesArray.put(JSONObject().apply {
-                    put("role", "system")
-                    put("content", combinedSystemInstruction)
-                })
-
-                // Add History
-                for (turn in trimmedHistory) {
-                    val roleName = if (turn.first.equals("user", ignoreCase = true)) "user" else "assistant"
-                    messagesArray.put(JSONObject().apply {
-                        put("role", roleName)
-                        put("content", turn.second)
-                    })
-                }
-
-                // Add current prompt
-                messagesArray.put(JSONObject().apply {
-                    put("role", "user")
-                    put("content", prompt)
-                })
-
-                val rootJson = JSONObject().apply {
-                    put("model", "llama-3.2-3b-preview") // Ultra-fast Llama model on Groq
-                    put("messages", messagesArray)
-                    put("max_tokens", 300)
-                    if (temperature != null) {
-                        put("temperature", temperature)
-                    }
-                }
-
-                val mediaType = "application/json; charset=utf-8".toMediaType()
-                val requestBody = rootJson.toString().toRequestBody(mediaType)
-
-                val request = Request.Builder()
-                    .url(url)
-                    .addHeader("Authorization", "Bearer $groqKey")
-                    .post(requestBody)
-                    .build()
-
-                client.newCall(request).execute().use { response ->
-                    val code = response.code
-                    if (code == 200) {
-                        val responseBodyStr = response.body?.string()
-                        if (!responseBodyStr.isNullOrEmpty()) {
-                            val rootResp = JSONObject(responseBodyStr)
-                            val choices = rootResp.optJSONArray("choices")
-                            if (choices != null && choices.length() > 0) {
-                                val firstChoice = choices.getJSONObject(0)
-                                val messageObj = firstChoice.optJSONObject("message")
-                                if (messageObj != null) {
-                                    val responseText = messageObj.optString("content", "No response text")
-
-                                    val jarvisFormatted = JarvisIntentDispatcher.dispatchAndFormat(query, responseText).formattedResponse
-
-                                    // Save successful response in Room cache
-                                    try {
-                                        cacheDao.insertCache(GrokCache(query = query, response = jarvisFormatted))
-                                    } catch (e: Exception) {
-                                        Log.e("AiBrain", "Cache insert failed: ", e)
-                                    }
-
-                                    jarvisFormatted
-                                } else "No response content, sir."
-                            } else "No choices array, sir."
-                        } else "Empty body, sir."
-                    } else {
-                        val errorBody = response.body?.string() ?: ""
-                        Log.e("AiBrain", "Groq error response: $errorBody")
-                        throw Exception("HTTP $code")
-                    }
-                }
-            }
-            return@withContext resultText ?: "Error: Failed to connect to Groq, sir."
+        } catch (e: Exception) {
+            Log.w("AiBrain", "Multi-API exception, attempting offline fallback chain", e)
         }
 
-        // Step 2 & 4: If no cache, call ChatKeyManager.getNextKey() and retry. Max 3 retries.
+        if (!onlineResponse.isNullOrEmpty()) {
+            try {
+                cacheDao.insertCache(GrokCache(query = query, response = onlineResponse!!))
+            } catch (e: Exception) {
+                Log.e("AiBrain", "Cache insert failed: ", e)
+            }
+            return@withContext onlineResponse!!
+        }
+
+        // HYBRID ROUTING STEP 2: Fallback to Offline Llama 3.2 (Uses rich local context on-device)
+        Log.i("AiBrain", "Online LLM unavailable. Transitioning to Offline Llama 3.2 model...")
+        try {
+            val llamaBrain = LlamaCppBrain(context)
+            val llamaResponse = llamaBrain.getResponse(query, combinedLocalSystemInstruction, trimmedHistory, temperature)
+            if (llamaResponse.isNotBlank() && !llamaResponse.contains("Llama not available")) {
+                return@withContext llamaResponse
+            }
+        } catch (e: Exception) {
+            Log.e("AiBrain", "Llama 3.2 fallback error", e)
+        }
+
+        // HYBRID ROUTING STEP 3: Fallback to local predefined responses
+        return@withContext getOfflineLocalResponse(query)
+    }
+
+    private suspend fun queryGroqApi(
+        query: String,
+        systemInstruction: String,
+        groqKey: String,
+        temperature: Double?
+    ): String? = withContext(Dispatchers.IO) {
+        val url = "https://api.groq.com/openai/v1/chat/completions"
+
+        val messagesArray = JSONArray().apply {
+            put(JSONObject().apply {
+                put("role", "system")
+                put("content", systemInstruction)
+            })
+            put(JSONObject().apply {
+                put("role", "user")
+                put("content", query)
+            })
+        }
+
+        val rootJson = JSONObject().apply {
+            put("model", "llama-3.2-3b-preview")
+            put("messages", messagesArray)
+            put("max_tokens", 300)
+            if (temperature != null) {
+                put("temperature", temperature)
+            }
+        }
+
+        val mediaType = "application/json; charset=utf-8".toMediaType()
+        val requestBody = rootJson.toString().toRequestBody(mediaType)
+
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("Authorization", "Bearer $groqKey")
+            .post(requestBody)
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            if (response.code == 200) {
+                val responseBodyStr = response.body?.string()
+                if (!responseBodyStr.isNullOrEmpty()) {
+                    val rootResp = JSONObject(responseBodyStr)
+                    val choices = rootResp.optJSONArray("choices")
+                    if (choices != null && choices.length() > 0) {
+                        val firstChoice = choices.getJSONObject(0)
+                        val messageObj = firstChoice.optJSONObject("message")
+                        return@withContext messageObj?.optString("content", null)
+                    }
+                }
+            }
+        }
+        return@withContext null
+    }
+
+    private suspend fun queryGeminiApi(
+        query: String,
+        systemInstruction: String,
+        temperature: Double?
+    ): String? = withContext(Dispatchers.IO) {
         var activeKey = ChatKeyManager.getInstance(context).getNextKey()
         var retries = 0
         val maxRetries = 3
@@ -760,49 +684,29 @@ Strict Response Rules:
 
         while (retries < maxRetries) {
             if (activeKey.isNullOrEmpty()) {
-                return@withContext "All chat keys are down, sir. Please add a new key in Settings."
+                return@withContext null
             }
 
             for (modelName in geminiModelCandidates) {
                 val url = "https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$activeKey"
 
                 try {
-                    val contentsArray = JSONArray()
-
-                    // Add History
-                    for (turn in trimmedHistory) {
-                        val turnObj = JSONObject()
-                        val isUser = turn.first.equals("user", ignoreCase = true)
-                        turnObj.put("role", if (isUser) "user" else "model")
-                        
-                        val partsArray = JSONArray()
-                        val partObj = JSONObject()
-                        partObj.put("text", turn.second)
-                        partsArray.put(partObj)
-                        
-                        turnObj.put("parts", partsArray)
-                        contentsArray.put(turnObj)
-                    }
-
-                    // Add current prompt
-                    val currentUserTurn = JSONObject().apply {
-                        put("role", "user")
-                        put("parts", JSONArray().apply {
-                            put(JSONObject().apply { put("text", prompt) })
+                    val contentsArray = JSONArray().apply {
+                        put(JSONObject().apply {
+                            put("role", "user")
+                            put("parts", JSONArray().apply {
+                                put(JSONObject().apply { put("text", query) })
+                            })
                         })
                     }
-                    contentsArray.put(currentUserTurn)
 
                     val rootJson = JSONObject().apply {
                         put("contents", contentsArray)
-                        val sysInstObj = JSONObject()
-                        val sysPartsArray = JSONArray().apply {
-                            put(JSONObject().apply { put("text", combinedSystemInstruction) })
-                        }
-                        sysInstObj.put("parts", sysPartsArray)
-                        put("systemInstruction", sysInstObj)
-
-                        // Max tokens setting to save API quotas
+                        put("systemInstruction", JSONObject().apply {
+                            put("parts", JSONArray().apply {
+                                put(JSONObject().apply { put("text", systemInstruction) })
+                            })
+                        })
                         put("generationConfig", JSONObject().apply {
                             put("maxOutputTokens", 500)
                             if (temperature != null) {
@@ -819,9 +723,6 @@ Strict Response Rules:
                         .post(requestBody)
                         .build()
 
-                    var apiSuccessResult: String? = null
-                    var isModelNotFound = false
-
                     client.newCall(request).execute().use { response ->
                         val code = response.code
                         if (code == 200) {
@@ -830,92 +731,59 @@ Strict Response Rules:
                                 val rootResp = JSONObject(responseBodyStr)
                                 val candidates = rootResp.optJSONArray("candidates")
                                 if (candidates != null && candidates.length() > 0) {
-                                    val firstCandidate = candidates.getJSONObject(0)
-                                    val content = firstCandidate.optJSONObject("content")
-                                    if (content != null) {
-                                        val parts = content.optJSONArray("parts")
-                                        if (parts != null && parts.length() > 0) {
-                                            val responseText = parts.getJSONObject(0).optString("text", "No response text")
-                                            val jarvisFormatted = JarvisIntentDispatcher.dispatchAndFormat(query, responseText).formattedResponse
-                                            
-                                            // Step 3: Save successful response in Room cache
-                                            try {
-                                                cacheDao.insertCache(GrokCache(query = query, response = jarvisFormatted))
-                                            } catch (e: Exception) {
-                                                Log.e("AiBrain", "Cache insert failed: ", e)
-                                            }
-
-                                            apiSuccessResult = jarvisFormatted
-                                        }
+                                    val content = candidates.getJSONObject(0).optJSONObject("content")
+                                    val parts = content?.optJSONArray("parts")
+                                    if (parts != null && parts.length() > 0) {
+                                        return@withContext parts.getJSONObject(0).optString("text", null)
                                     }
                                 }
                             }
                         } else if (code == 404) {
-                            Log.w("AiBrain", "Gemini model $modelName not found (HTTP 404), trying candidate fallback...")
-                            isModelNotFound = true
+                            Log.w("AiBrain", "Gemini model $modelName not found (HTTP 404), candidate fallback...")
+                            continue
                         } else if (code == 401 || code == 403 || code == 429 || code == 500) {
                             activeKey?.let { ChatKeyManager.getInstance(context).markCooldown(it) }
-                            Log.w("AiBrain", "Gemini API HTTP $code on key, triggering key cooldown and rotation...")
-                        } else {
-                            val errorBody = response.body?.string() ?: ""
-                            Log.e("AiBrain", "Gemini API HTTP $code error response: $errorBody")
                         }
                     }
-
-                    if (apiSuccessResult != null) {
-                        return@withContext apiSuccessResult!!
-                    }
-                    if (isModelNotFound) {
-                        continue // try next model candidate in for loop
-                    } else {
-                        break // exit candidate loop to rotate key in outer while loop
-                    }
                 } catch (e: Exception) {
-                    Log.e("AiBrain", "Exception in Gemini API call with model $modelName: ", e)
+                    Log.e("AiBrain", "Exception calling Gemini model $modelName: ", e)
                 }
             }
             retries++
             activeKey = ChatKeyManager.getInstance(context).getNextKey()
         }
-        return@withContext "All chat keys are down, sir. Please add a new key in Settings."
+        return@withContext null
     }
 
     /**
-     * Highly efficient local rule-based helper that executes when the app is in "Offline Mode"
-     * to prevent JVM OutOfMemory crashes on 2GB RAM devices, while remaining beautifully supportive of voice commands with Jarvis persona.
+     * Highly efficient local helper that executes as the final offline safety fallback.
      */
     fun getOfflineLocalResponse(prompt: String): String {
         val clean = prompt.lowercase().trim()
-        val emotionState = JarvisEmotionEngine.detectEmotion(clean)
 
-        val rawAnswer = when {
+        return when {
             clean.contains("news") || clean.contains("headline") -> {
-                "Here's a summary, sir: Offline Jarvis modules are fully active. Live news streams require online connection. Local system status is optimal."
+                "Offline Jarvis modules are active. Live news streams require online connection. Local system status is optimal."
             }
             clean.contains("weather") || clean.contains("temperature") -> {
-                "It's 20°C with clear skies, sir. Offline sensors report pleasant conditions."
+                "Offline sensors report pleasant conditions around 20°C."
             }
             clean.contains("call") || clean.contains("phone") || clean.contains("dial") -> {
-                "Done, sir. Initiating direct phone dial module."
+                "Direct phone dial module requested."
             }
             clean.contains("flashlight") || clean.contains("torch") || clean.contains("light") -> {
-                "Done, sir. Flashlight toggled."
+                "Flashlight toggled."
             }
             clean.contains("alarm") || clean.contains("wake me") -> {
-                "Done, sir. Alarm alert configured."
-            }
-            clean.contains("what do you think") || clean.contains("opinion") -> {
-                "In my opinion, sir, maintaining local privacy while preserving witty efficiency is the most logical strategy."
+                "Alarm alert configured."
             }
             clean.contains("hello") || clean.contains("hey") || clean.contains("hi") || clean.contains("jarvis") -> {
                 "At your service, sir. How may I assist you today?"
             }
             else -> {
-                "I'm not sure, but here's what I think, sir: While we are currently offline, my local processing core is ready to handle your direct device commands."
+                "I am operating offline. My local core is ready for direct device commands."
             }
         }
-
-        return JarvisIntentDispatcher.dispatchAndFormat(prompt, rawAnswer).formattedResponse
     }
 }
 

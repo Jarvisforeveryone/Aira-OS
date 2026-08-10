@@ -31,8 +31,12 @@ import androidx.compose.ui.res.colorResource
 import com.example.R
 import com.example.ui.components.AiraCard
 import com.example.ui.components.AiraBadge
+import com.example.ui.components.SkeletonCard
+import com.example.ui.components.LoadingCard
+import com.example.ui.components.LoadingInlineIndicator
 import com.example.ui.components.VoskDiagnosticPanel
 import com.example.ui.theme.bounceClick
+import com.example.ui.theme.Dimens
 import com.example.util.NativeLibraryLoader
 import kotlinx.coroutines.launch
 
@@ -120,8 +124,8 @@ fun OfflineStatusDashboardScreen(
             modifier = modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 24.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .padding(horizontal = Dimens.responsiveScreenPadding, vertical = Dimens.GapSmall),
+            verticalArrangement = Arrangement.spacedBy(Dimens.GapLarge)
         ) {
             // SYSTEM DIAGNOSTIC PANEL: GEMINI API CONNECTIVITY & SIMULATED LOCAL PROCESSING
             item {
