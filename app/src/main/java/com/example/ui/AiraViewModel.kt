@@ -3573,6 +3573,11 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         }
         _isOfflineBrain.value = isOffline
         sharedPrefs.edit().putBoolean("offline_brain", isOffline).apply()
+        if (isOffline && !com.example.utils.DownloadManager.isLlamaModelDownloaded(getApplication())) {
+            viewModelScope.launch {
+                com.example.utils.DownloadManager.downloadLlamaModel(getApplication())
+            }
+        }
         val suffix = if (isOffline) "Active (Llama 3.2 local engine active)" else "Inactive (Online Brain active)"
         speakText("Aira offline brain mode configured to $suffix")
     }

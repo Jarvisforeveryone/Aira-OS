@@ -61,18 +61,14 @@ class LlamaCppBrain(private val context: Context) {
      * Retrieves the path where the .gguf model file should reside.
      */
     fun getModelFile(): File {
-        val modelsDir = File(context.filesDir, "models")
-        if (!modelsDir.exists()) {
-            modelsDir.mkdirs()
-        }
-        return File(modelsDir, DEFAULT_MODEL_FILE)
+        return com.example.utils.DownloadManager.getLlamaModelFile(context)
     }
 
     /**
      * Returns whether the actual .gguf model file is present on the device.
      */
     fun isModelFileDownloaded(): Boolean {
-        return getModelFile().exists() && getModelFile().length() > 10 * 1024 * 1024 // Greater than 10MB to verify it's a real model
+        return com.example.utils.DownloadManager.isLlamaModelDownloaded(context)
     }
 
     /**

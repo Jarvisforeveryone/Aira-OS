@@ -1356,7 +1356,7 @@ fun VoiceSettingsScreen(
                                         contentColor = MaterialTheme.colorScheme.onPrimary
                                     )
                                 ) {
-                                    Text(text = "Download Amy Voice ~50MB", fontFamily = FontFamily.SansSerif)
+                                    Text(text = "Download Voice Model (Amy ~63MB)", fontFamily = FontFamily.SansSerif)
                                 }
                             }
                         }
@@ -1578,6 +1578,23 @@ fun VoiceSettingsScreen(
                                     fontFamily = FontFamily.SansSerif,
                                     lineHeight = 17.sp
                                 )
+                                val currentContext = LocalContext.current
+                                val scope = rememberCoroutineScope()
+                                val isVoskDownloaded = com.example.utils.DownloadManager.isVoskModelDownloaded(currentContext)
+                                if (!isVoskDownloaded) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Button(
+                                        onClick = {
+                                            scope.launch {
+                                                com.example.utils.DownloadManager.downloadVoskModel(currentContext)
+                                            }
+                                        },
+                                        modifier = Modifier.fillMaxWidth().testTag("download_stt_button"),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Text("Download STT Model (Vosk ~40MB)", fontFamily = FontFamily.SansSerif)
+                                    }
+                                }
                             }
                         }
                     }
@@ -2448,6 +2465,24 @@ fun SystemSettingsScreen(
                             ),
                             modifier = Modifier.testTag("offline_brain_switch")
                         )
+                    }
+
+                    val currentContext = LocalContext.current
+                    val scope = rememberCoroutineScope()
+                    val isLlamaDownloaded = com.example.utils.DownloadManager.isLlamaModelDownloaded(currentContext)
+                    if (isDeviceMemoryCapable && isOfflineSupported && !isLlamaDownloaded) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    com.example.utils.DownloadManager.downloadLlamaModel(currentContext)
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth().testTag("download_offline_ai_button"),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Download Offline AI (Llama 3.2 ~1.5GB)", fontFamily = FontFamily.SansSerif)
+                        }
                     }
 
                     HorizontalDivider(
