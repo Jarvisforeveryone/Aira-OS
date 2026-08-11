@@ -11,7 +11,7 @@ class GeminiClient {
 
     fun generateText(apiKey: String, model: String, prompt: String, systemInstruction: String? = null): Result<String> {
         return try {
-            val modelName = if (model.isBlank()) "gemini-2.5-flash" else model
+            val modelName = if (model.isBlank()) "gemini-3.6-flash" else model
             val url = "https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$apiKey"
 
             val contentsArray = JSONArray().apply {

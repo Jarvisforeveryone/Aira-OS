@@ -15,12 +15,12 @@ plugins {
 
 android {
   namespace = "com.example"
-  compileSdk { version = release(36) { minorApiLevel = 1 } }
+  compileSdk = 36
 
   defaultConfig {
     applicationId = "com.aistudio.aira.axrtpw"
-    minSdk = 24
-    targetSdk = 36
+    minSdk = 26
+    targetSdk = 35
     versionCode = 1
     versionName = "1.0"
 
@@ -77,7 +77,7 @@ android {
   testOptions { unitTests { isIncludeAndroidResources = true } }
   sourceSets {
     getByName("main") {
-      jniLibs.srcDir("src/main/jniLibs")
+      jniLibs.directories.add("src/main/jniLibs")
     }
   }
 }
@@ -145,6 +145,7 @@ dependencies {
   androidTestImplementation(libs.androidx.runner)
   debugImplementation(libs.androidx.compose.ui.test.manifest)
   debugImplementation(libs.androidx.compose.ui.tooling)
+  debugImplementation(libs.leakcanary.android)
   implementation(libs.androidx.security.crypto)
   implementation(libs.androidx.work.runtime.ktx)
   "ksp"(libs.androidx.room.compiler)

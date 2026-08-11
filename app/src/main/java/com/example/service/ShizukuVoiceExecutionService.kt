@@ -92,6 +92,35 @@ class ShizukuVoiceExecutionService : Service() {
             val shizukuWrapper = ShizukuServiceWrapper.getInstance(context)
             val isShizukuAvailable = shizukuWrapper.isServiceAvailable()
 
+            // 0. Custom Voice Command Macro Trigger Check
+            try {
+                val macroResult = kotlinx.coroutines.runBlocking {
+                    com.example.utils.MacroManager.processMacro(context, trimmed)
+                }
+                if (macroResult.executed) {
+                    val log = ExecutionLog(
+                        voiceInput = trimmed,
+                        commandType = "MACRO_SEQUENCE",
+                        executionResult = macroResult.summary,
+                        isShizukuElevated = isShizukuAvailable,
+                        isSuccess = true
+                    )
+                    val currentLogs = _executionHistory.value.toMutableList()
+                    currentLogs.add(0, log)
+                    if (currentLogs.size > 30) currentLogs.removeAt(currentLogs.size - 1)
+                    _executionHistory.value = currentLogs
+                    _lastExecutionLog.value = log
+
+                    return VoiceExecutionResponse(
+                        isSuccess = true,
+                        responseMessage = macroResult.summary,
+                        usedShizuku = isShizukuAvailable
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error checking macro execution: ${e.message}")
+            }
+
             // 1. Direct Shizuku-specific high commands parsing
             val lower = trimmed.lowercase(Locale.ROOT)
 

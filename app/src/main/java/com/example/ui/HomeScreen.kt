@@ -62,6 +62,7 @@ import com.example.ui.components.SkeletonCard
 import com.example.ui.components.SkeletonText
 import com.example.ui.components.LoadingCard
 import com.example.ui.components.LoadingInlineIndicator
+import com.example.ui.components.AiraVoiceOrb
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -376,9 +377,15 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(Dimens.GapExtraLarge)) // Section spacing
 
-            // Hero Orb with real-time audio input volume reactivity
-            AudioReactiveHeroOrb(
+            val isProcessing = statusText.contains("Processing", ignoreCase = true) || 
+                statusText.contains("Analyzing", ignoreCase = true) || 
+                statusText.contains("Transitioning", ignoreCase = true) ||
+                statusText.contains("Thinking", ignoreCase = true)
+
+            // AIRA Voice Orb (180dp core, 3 concentric glow rings, gradient fill, dynamic state reactivity)
+            AiraVoiceOrb(
                 isListening = isListening,
+                isProcessing = isProcessing,
                 isSpeaking = isSpeaking,
                 audioAmp = audioAmp,
                 reduceAnimations = reduceAnimations,
@@ -694,6 +701,8 @@ fun HomeScreen(
                                 .fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(Dimens.GapSmall)
                         ) {
+                            val isError = statusMsg?.contains("fail", ignoreCase = true) == true || statusMsg?.contains("error", ignoreCase = true) == true
+
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -703,7 +712,6 @@ fun HomeScreen(
                                     horizontalArrangement = Arrangement.spacedBy(Dimens.GapSmall),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    val isError = statusMsg?.contains("fail", ignoreCase = true) == true || statusMsg?.contains("error", ignoreCase = true) == true
                                     val icon = if (isError) Icons.Outlined.Warning else Icons.Outlined.CloudDownload
                                     val iconColor = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                                     Icon(
@@ -746,13 +754,43 @@ fun HomeScreen(
                                 }
                             }
                             
+                            val cleanExplanation = if (isError) {
+                                when {
+                                    statusMsg?.contains("404") == true -> "Acoustic voice model files not found on server."
+                                    statusMsg?.contains("network") == true || statusMsg?.contains("connection") == true -> "Network timeout while downloading voice pack."
+                                    else -> "Voice synthesis model failed to initialize. System Speech API remains active."
+                                }
+                            } else {
+                                statusMsg ?: ""
+                            }
+
                             Text(
-                                text = statusMsg ?: "",
+                                text = cleanExplanation,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             
-                            if (amyProgress != null && amyProgress in 0f..1f) {
+                            if (isError) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(Dimens.GapSmall)
+                                ) {
+                                    OutlinedButton(
+                                        onClick = { viewModel.piperTtsManager.startDownload() },
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier.weight(1f).height(36.dp)
+                                    ) {
+                                        Text("Retry Setup", fontSize = 12.sp, fontFamily = FontFamily.SansSerif)
+                                    }
+                                    Button(
+                                        onClick = { isDismissed = true },
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier.weight(1f).height(36.dp)
+                                    ) {
+                                        Text("Use System Voice", fontSize = 12.sp, fontFamily = FontFamily.SansSerif)
+                                    }
+                                }
+                            } else if (amyProgress != null && amyProgress in 0f..1f) {
                                 LinearProgressIndicator(
                                     progress = amyProgress,
                                     modifier = Modifier
@@ -1391,159 +1429,6 @@ fun RecentConversationRow(
                     queryText = queryText,
                     viewModel = viewModel,
                     onPromptNegativeFeedback = onPromptNegativeFeedback
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun AudioReactiveHeroOrb(
-    isListening: Boolean,
-    isSpeaking: Boolean,
-    audioAmp: Float,
-    reduceAnimations: Boolean,
-    derivedStatus: String,
-    onOrbClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    // Smooth continuous phase animation for fluid wave motion
-    val infiniteTransition = rememberInfiniteTransition(label = "wave_phase_transition")
-    val wavePhase by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = (2 * Math.PI).toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(if (reduceAnimations) 6000 else 2500, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "wave_phase"
-    )
-
-    // Smooth transition for audio amplitude sensitivity without scaling boxes
-    val animatedAmp by animateFloatAsState(
-        targetValue = when {
-            isListening -> (audioAmp * 1.2f + 0.25f).coerceIn(0.25f, 1.0f)
-            isSpeaking -> (audioAmp * 0.9f + 0.20f).coerceIn(0.20f, 0.85f)
-            else -> 0.10f
-        },
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioLowBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "animated_audio_amp"
-    )
-
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val secondaryColor = MaterialTheme.colorScheme.secondary
-    val tertiaryColor = MaterialTheme.colorScheme.tertiary
-
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(150.dp)
-            .semantics {
-                contentDescription = if (isListening) {
-                    "Voice Assistant Visualizer, listening to microphone input. Tap to stop."
-                } else {
-                    "Voice Assistant Visualizer, idle. Tap to start talking."
-                }
-                role = Role.Button
-                stateDescription = derivedStatus
-                onClick(label = if (isListening) "Stop voice detection" else "Start voice listening") {
-                    onOrbClick()
-                    true
-                }
-            }
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null
-            ) {
-                onOrbClick()
-            },
-        contentAlignment = Alignment.Center
-    ) {
-        Canvas(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(140.dp)
-                .testTag("waveform_visualizer_canvas")
-        ) {
-            val width = size.width
-            val height = size.height
-            val midY = height / 2f
-
-            if (width <= 0 || height <= 0) return@Canvas
-
-            // Define wave specs (3 overlapping organic fluid sine/bezier waves)
-            data class WaveSpec(
-                val color: Color,
-                val strokeWidth: Float,
-                val frequency: Float,
-                val phaseOffset: Float,
-                val ampMultiplier: Float,
-                val alpha: Float
-            )
-
-            val waves = listOf(
-                WaveSpec(
-                    color = primaryColor,
-                    strokeWidth = 3.5.dp.toPx(),
-                    frequency = 2.2f,
-                    phaseOffset = 0f,
-                    ampMultiplier = 1.0f,
-                    alpha = if (isListening) 0.95f else if (isSpeaking) 0.90f else 0.70f
-                ),
-                WaveSpec(
-                    color = secondaryColor,
-                    strokeWidth = 2.5.dp.toPx(),
-                    frequency = 3.1f,
-                    phaseOffset = 1.2f,
-                    ampMultiplier = 0.75f,
-                    alpha = if (isListening) 0.85f else if (isSpeaking) 0.80f else 0.55f
-                ),
-                WaveSpec(
-                    color = tertiaryColor,
-                    strokeWidth = 2.0.dp.toPx(),
-                    frequency = 1.5f,
-                    phaseOffset = 2.4f,
-                    ampMultiplier = 0.55f,
-                    alpha = if (isListening) 0.75f else if (isSpeaking) 0.70f else 0.45f
-                )
-            )
-
-            val maxWaveAmp = (height / 2.2f) * animatedAmp
-
-            waves.forEach { wave ->
-                val path = Path()
-                val stepCount = 80
-                val dx = width / stepCount
-
-                for (i in 0..stepCount) {
-                    val x = i * dx
-                    val normalizedX = x / width
-
-                    // Envelope function: sin(PI * x / width) keeps wave centered and smoothly tapers to zero at left & right edges
-                    val envelope = kotlin.math.sin(Math.PI * normalizedX).toFloat()
-
-                    val currentPhase = wavePhase + wave.phaseOffset
-                    val sineVal = kotlin.math.sin((normalizedX * wave.frequency * 2 * Math.PI) + currentPhase).toFloat()
-
-                    val y = midY + (sineVal * maxWaveAmp * wave.ampMultiplier * envelope)
-
-                    if (i == 0) {
-                        path.moveTo(x, y)
-                    } else {
-                        path.lineTo(x, y)
-                    }
-                }
-
-                drawPath(
-                    path = path,
-                    color = wave.color.copy(alpha = wave.alpha),
-                    style = Stroke(
-                        width = wave.strokeWidth,
-                        cap = StrokeCap.Round
-                    )
                 )
             }
         }

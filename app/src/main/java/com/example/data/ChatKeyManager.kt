@@ -14,139 +14,87 @@ import java.util.concurrent.ConcurrentHashMap
  */
 class ChatKeyManager private constructor(private val context: Context) {
 
+    private val multiKeyManager = MultiKeyManager.getInstance(context)
     private val sharedPreferences: SharedPreferences = com.example.utils.SecurePrefs.getEncryptedSharedPreferences(context, "aira_secure_api_keys")
 
-    // Stores timestamps when keys will emerge from cooldown state (one hour limits)
-    private val cooldowns = ConcurrentHashMap<String, Long>()
-
     /**
-     * Scans keys from 1 to 20 and returns the first configured key that is not under cooldown.
-     * Returns null if no active keys are available or all keys are in cooldown state.
+     * Scans keys for GEMINI from MultiKeyManager and returns next valid key.
      */
     fun getNextKey(): String? {
-        val currentTime = System.currentTimeMillis()
-        
-        // 1. Check indexed keys 1..20
-        for (i in 1..20) {
-            val key = sharedPreferences.getString("chat_api_$i", "")?.trim() ?: ""
-            if (key.isNotEmpty()) {
-                val cooldownTime = cooldowns[key] ?: 0L
-                if (currentTime >= cooldownTime) {
-                    return key
-                }
-            }
-        }
-        
-        // 2. Check unindexed key alias slots in secure prefs
+        val multiKey = multiKeyManager.getNextKey("GEMINI")
+        if (!multiKey.isNullOrBlank()) return multiKey
+
+        // Fallback check legacy key aliases
         val keyAliases = listOf("gemini_api_key", "gemini_key", "api_key", "user_api_key")
         for (alias in keyAliases) {
             val key = sharedPreferences.getString(alias, "")?.trim() ?: ""
-            if (key.isNotEmpty()) {
-                val cooldownTime = cooldowns[key] ?: 0L
-                if (currentTime >= cooldownTime) {
-                    return key
-                }
-            }
+            if (key.isNotEmpty()) return key
         }
 
-        // 3. Fallback to standard preferences if stored there
-        try {
-            val fallbackPrefs = context.getSharedPreferences("aira_settings", Context.MODE_PRIVATE)
-            for (i in 1..20) {
-                val key = fallbackPrefs.getString("chat_api_$i", "")?.trim() ?: ""
-                if (key.isNotEmpty()) {
-                    val cooldownTime = cooldowns[key] ?: 0L
-                    if (currentTime >= cooldownTime) {
-                        return key
-                    }
-                }
-            }
-            for (alias in keyAliases) {
-                val key = fallbackPrefs.getString(alias, "")?.trim() ?: ""
-                if (key.isNotEmpty()) {
-                    val cooldownTime = cooldowns[key] ?: 0L
-                    if (currentTime >= cooldownTime) {
-                        return key
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Log.e("ChatKeyManager", "Fallback prefs check exception: ", e)
-        }
-
-        // 4. Check BuildConfig env variable
+        // Fallback to BuildConfig
         val envKey = com.example.BuildConfig.GEMINI_API_KEY
-        if (envKey.isNotBlank() && !envKey.startsWith("MY_") && (cooldowns[envKey] ?: 0L) <= currentTime) {
+        if (envKey.isNotBlank() && !envKey.startsWith("MY_")) {
             return envKey
         }
         return null
     }
 
-    /**
-     * Flags a failing key to enter cooldown state for exactly 1 hour.
-     */
     fun markCooldown(key: String) {
-        if (key.isNotEmpty()) {
-            cooldowns[key] = System.currentTimeMillis() + 3600000L // 1 Hour in milliseconds
-        }
+        multiKeyManager.markCooldown("GEMINI", key)
     }
 
     fun saveKey(index: Int, key: String) {
-        val trimmed = key.trim()
-        if (index in 1..20) {
-            sharedPreferences.edit()
-                .putString("chat_api_$index", trimmed)
-                .putString("gemini_api_key", trimmed)
-                .apply()
-
-            try {
-                val fallbackPrefs = context.getSharedPreferences("aira_settings", Context.MODE_PRIVATE)
-                fallbackPrefs.edit()
-                    .putString("chat_api_$index", trimmed)
-                    .putString("gemini_api_key", trimmed)
-                    .apply()
-            } catch (e: Exception) {
-                Log.e("ChatKeyManager", "Failed saving to fallback prefs: ", e)
-            }
-
-            // Instantly clear any cooldown flags on new configs
-            if (trimmed.isNotEmpty()) {
-                cooldowns.remove(trimmed)
-            }
+        if (key.isNotBlank()) {
+            multiKeyManager.addKey("GEMINI", key)
         }
     }
 
     fun getKey(index: Int): String {
-        val secureKey = sharedPreferences.getString("chat_api_$index", "")?.trim() ?: ""
-        if (secureKey.isNotEmpty()) return secureKey
-        return try {
-            val fallbackPrefs = context.getSharedPreferences("aira_settings", Context.MODE_PRIVATE)
-            fallbackPrefs.getString("chat_api_$index", "")?.trim() ?: ""
-        } catch (e: Exception) {
-            ""
-        }
+        val keys = multiKeyManager.getKeys("GEMINI")
+        return keys.getOrNull(index - 1) ?: ""
     }
 
-    fun getGroqKey(): String = getProviderKey("groq_api_key")
-    fun saveGroqKey(key: String) = saveProviderKey("groq_api_key", key)
+    fun getGroqKey(): String = multiKeyManager.getNextKey("GROQ") ?: getProviderKey("groq_api_key")
+    fun saveGroqKey(key: String) {
+        saveProviderKey("groq_api_key", key)
+        multiKeyManager.addKey("GROQ", key)
+    }
 
-    fun getOpenAiKey(): String = getProviderKey("openai_api_key")
-    fun saveOpenAiKey(key: String) = saveProviderKey("openai_api_key", key)
+    fun getOpenAiKey(): String = multiKeyManager.getNextKey("OPENAI") ?: getProviderKey("openai_api_key")
+    fun saveOpenAiKey(key: String) {
+        saveProviderKey("openai_api_key", key)
+        multiKeyManager.addKey("OPENAI", key)
+    }
 
-    fun getClaudeKey(): String = getProviderKey("claude_api_key")
-    fun saveClaudeKey(key: String) = saveProviderKey("claude_api_key", key)
+    fun getClaudeKey(): String = multiKeyManager.getNextKey("CLAUDE") ?: getProviderKey("claude_api_key")
+    fun saveClaudeKey(key: String) {
+        saveProviderKey("claude_api_key", key)
+        multiKeyManager.addKey("CLAUDE", key)
+    }
 
-    fun getOpenRouterKey(): String = getProviderKey("openrouter_api_key")
-    fun saveOpenRouterKey(key: String) = saveProviderKey("openrouter_api_key", key)
+    fun getOpenRouterKey(): String = multiKeyManager.getNextKey("OPENROUTER") ?: getProviderKey("openrouter_api_key")
+    fun saveOpenRouterKey(key: String) {
+        saveProviderKey("openrouter_api_key", key)
+        multiKeyManager.addKey("OPENROUTER", key)
+    }
 
-    fun getMistralKey(): String = getProviderKey("mistral_api_key")
-    fun saveMistralKey(key: String) = saveProviderKey("mistral_api_key", key)
+    fun getMistralKey(): String = multiKeyManager.getNextKey("MISTRAL") ?: getProviderKey("mistral_api_key")
+    fun saveMistralKey(key: String) {
+        saveProviderKey("mistral_api_key", key)
+        multiKeyManager.addKey("MISTRAL", key)
+    }
 
-    fun getCohereKey(): String = getProviderKey("cohere_api_key")
-    fun saveCohereKey(key: String) = saveProviderKey("cohere_api_key", key)
+    fun getCohereKey(): String = multiKeyManager.getNextKey("COHERE") ?: getProviderKey("cohere_api_key")
+    fun saveCohereKey(key: String) {
+        saveProviderKey("cohere_api_key", key)
+        multiKeyManager.addKey("COHERE", key)
+    }
 
-    fun getHuggingFaceKey(): String = getProviderKey("huggingface_api_key")
-    fun saveHuggingFaceKey(key: String) = saveProviderKey("huggingface_api_key", key)
+    fun getHuggingFaceKey(): String = multiKeyManager.getNextKey("HUGGINGFACE") ?: getProviderKey("huggingface_api_key")
+    fun saveHuggingFaceKey(key: String) {
+        saveProviderKey("huggingface_api_key", key)
+        multiKeyManager.addKey("HUGGINGFACE", key)
+    }
 
     fun getProviderKey(prefKey: String): String {
         val secureKey = sharedPreferences.getString(prefKey, "")?.trim() ?: ""
@@ -167,9 +115,6 @@ class ChatKeyManager private constructor(private val context: Context) {
             fallbackPrefs.edit().putString(prefKey, trimmed).apply()
         } catch (e: Exception) {
             Log.e("ChatKeyManager", "Failed saving $prefKey: ", e)
-        }
-        if (trimmed.isNotEmpty()) {
-            cooldowns.remove(trimmed)
         }
     }
 

@@ -323,7 +323,7 @@ fun AutomationHomeScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Text(
-                            text = "Set Chronos Trigger",
+                            text = "Set Alarm",
                             fontSize = 18.sp, // Card Title
                             fontWeight = FontWeight.Medium,
                             fontFamily = FontFamily.SansSerif,
@@ -350,7 +350,7 @@ fun AutomationHomeScreen(
                                     cursorColor = MaterialTheme.colorScheme.primary
                                 ),
                                 shape = RoundedCornerShape(16.dp),
-                                label = { Text("Hour (24h)", fontSize = 13.sp, fontFamily = FontFamily.SansSerif) }
+                                label = { Text("Hour (24h)", fontSize = 12.sp, fontFamily = FontFamily.SansSerif, maxLines = 1, overflow = TextOverflow.Visible) }
                             )
                             TextField(
                                 value = alarmMinute,
@@ -367,7 +367,7 @@ fun AutomationHomeScreen(
                                     cursorColor = MaterialTheme.colorScheme.primary
                                 ),
                                 shape = RoundedCornerShape(16.dp),
-                                label = { Text("Minute", fontSize = 13.sp, fontFamily = FontFamily.SansSerif) }
+                                label = { Text("Minute", fontSize = 12.sp, fontFamily = FontFamily.SansSerif, maxLines = 1, overflow = TextOverflow.Visible) }
                             )
 
                             Button(
@@ -375,13 +375,13 @@ fun AutomationHomeScreen(
                                     val h = alarmHour.toIntOrNull() ?: 7
                                     val m = alarmMinute.toIntOrNull() ?: 0
                                     viewModel.setSystemAlarm(h, m, "Aira Scheduled Alert")
-                                    viewModel.speakText("Scheduled Chronos Alarm for $h:$m successfully")
+                                    viewModel.speakText("Alarm scheduled for %02d:%02d successfully".format(h, m))
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier
                                     .wrapContentWidth()
-                                    .defaultMinSize(minWidth = 120.dp)
+                                    .defaultMinSize(minWidth = 110.dp)
                                     .height(54.dp)
                                     .testTag("set_alarm_btn")
                             ) {
@@ -423,7 +423,7 @@ fun AutomationHomeScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Text(
-                            text = "Add Memory Task",
+                            text = "Add Reminder",
                             fontSize = 18.sp, // Card Title
                             fontWeight = FontWeight.Medium,
                             fontFamily = FontFamily.SansSerif,
@@ -2465,7 +2465,7 @@ fun AssistantGoogleControlCard(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 AssistantStatusRow(
                     label = "System Default Digital Assistant",
-                    statusText = "VoiceInteraction Ready",
+                    statusText = "Voice Interaction Ready",
                     isGranted = true
                 )
                 AssistantStatusRow(

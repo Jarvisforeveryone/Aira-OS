@@ -638,7 +638,7 @@ Adapt your tone naturally based on conversational context:
         }
 
         val rootJson = JSONObject().apply {
-            put("model", "llama-3.2-3b-preview")
+            put("model", "llama-3.3-70b-versatile")
             put("messages", messagesArray)
             put("max_tokens", 300)
             if (temperature != null) {
@@ -664,7 +664,8 @@ Adapt your tone naturally based on conversational context:
                     if (choices != null && choices.length() > 0) {
                         val firstChoice = choices.getJSONObject(0)
                         val messageObj = firstChoice.optJSONObject("message")
-                        return@withContext messageObj?.optString("content", null)
+                        val content = messageObj?.optString("content", "")
+                        return@withContext if (content.isNullOrBlank()) null else content
                     }
                 }
             }
@@ -680,7 +681,7 @@ Adapt your tone naturally based on conversational context:
         var activeKey = ChatKeyManager.getInstance(context).getNextKey()
         var retries = 0
         val maxRetries = 3
-        val geminiModelCandidates = listOf("gemini-3.5-flash", "gemini-2.5-flash", "gemini-flash-latest")
+        val geminiModelCandidates = listOf("gemini-3.6-flash", "gemini-3.5-flash", "gemini-2.5-flash", "gemini-2.5-flash-lite")
 
         while (retries < maxRetries) {
             if (activeKey.isNullOrEmpty()) {
@@ -734,7 +735,8 @@ Adapt your tone naturally based on conversational context:
                                     val content = candidates.getJSONObject(0).optJSONObject("content")
                                     val parts = content?.optJSONArray("parts")
                                     if (parts != null && parts.length() > 0) {
-                                        return@withContext parts.getJSONObject(0).optString("text", null)
+                                        val text = parts.getJSONObject(0).optString("text", "")
+                                        if (text.isNotBlank()) return@withContext text
                                     }
                                 }
                             }

@@ -23,16 +23,28 @@ class AiraAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
-        val eventType = event.eventType
         val pkg = event.packageName?.toString() ?: ""
-        
-        Log.d("AiraAccessibility", "Accessibility Event: $eventType Package: $pkg")
+
+        // Memory Safety Guard for Low-RAM devices: Skip processing if no pending action and package is not targeted
+        val isSystemUiAction = (pendingAction != PendingAction.NONE && pkg == "com.android.systemui")
+        val isClockApp = (pkg.contains("clock") || pkg.contains("alarm"))
+
+        if (!isSystemUiAction && !isClockApp) {
+            // Early return to prevent calling rootInActiveWindow and allocating node trees
+            return
+        }
+
+        // Avoid node tree allocations if system is in low memory state
+        if (com.example.utils.MemoryManager.isLowMemory(applicationContext)) {
+            Log.w("AiraAccessibility", "System low memory state detected. Skipping accessibility node traversal.")
+            return
+        }
 
         val rootNode = rootInActiveWindow ?: return
 
         try {
             // 1. QUICK SETTINGS AUTOMATION FOR WIFI & BLUETOOTH
-            if (pendingAction != PendingAction.NONE && pkg == "com.android.systemui") {
+            if (isSystemUiAction) {
                 val targets = when (pendingAction) {
                     PendingAction.TOGGLE_WIFI -> listOf("wi-fi", "wifi", "wlan", "wi fi", "internet")
                     PendingAction.TOGGLE_BLUETOOTH -> listOf("bluetooth", "bt")
@@ -52,7 +64,7 @@ class AiraAccessibilityService : AccessibilityService() {
             }
 
             // 2. AUTO-SAVE SYSTEM ALARMS (Triggered from clock application)
-            if (pkg.contains("clock") || pkg.contains("alarm")) {
+            if (isClockApp) {
                 val alarmTargets = listOf("save", "done", "ok", "create", "confirm", "add")
                 val clicked = findAndClickNodeByTextOrContent(rootNode, alarmTargets)
                 if (clicked) {

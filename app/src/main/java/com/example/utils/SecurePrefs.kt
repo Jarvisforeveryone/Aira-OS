@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKeys
+import androidx.security.crypto.MasterKey
 
 /**
  * Utility for getting EncryptedSharedPreferences backed by Android Keystore.
@@ -17,11 +17,14 @@ object SecurePrefs {
         val encryptedName = "sec_$name"
 
         return try {
-            val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
+            val masterKey = MasterKey.Builder(appContext)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+
             val encryptedPrefs = EncryptedSharedPreferences.create(
-                encryptedName,
-                masterKeyAlias,
                 appContext,
+                encryptedName,
+                masterKey,
                 EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             )
@@ -56,11 +59,13 @@ object SecurePrefs {
             Log.e("SecurePrefs", "Failed to initialize EncryptedSharedPreferences for $name", e)
             try {
                 appContext.deleteSharedPreferences(encryptedName)
-                val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
+                val masterKey = MasterKey.Builder(appContext)
+                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                    .build()
                 EncryptedSharedPreferences.create(
-                    encryptedName,
-                    masterKeyAlias,
                     appContext,
+                    encryptedName,
+                    masterKey,
                     EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                     EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
                 )

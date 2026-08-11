@@ -123,7 +123,7 @@ fun MultiApiSettingsCard() {
                             label = { Text("Primary API Provider") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = providerDropdownExpanded) },
                             modifier = Modifier
-                                .menuAnchor()
+                                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
                                 .fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp)
                         )
@@ -176,7 +176,7 @@ fun MultiApiSettingsCard() {
                             label = { Text("Selected Model") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = modelDropdownExpanded) },
                             modifier = Modifier
-                                .menuAnchor()
+                                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
                                 .fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp)
                         )
@@ -214,9 +214,16 @@ fun MultiApiSettingsCard() {
                                     withContext(Dispatchers.Main) {
                                         isTesting = false
                                         testResultMsg = if (result.isSuccess) {
-                                            result.getOrNull() ?: "Connected!"
+                                            result.getOrNull() ?: "Connected successfully!"
                                         } else {
-                                            "Failed: ${result.exceptionOrNull()?.message}"
+                                            val rawErr = result.exceptionOrNull()?.message ?: "Unknown error"
+                                            val cleanErr = when {
+                                                rawErr.contains("401") || rawErr.contains("403") || rawErr.contains("Key") -> "Invalid API Key. Please verify your API key in the settings below."
+                                                rawErr.contains("404") -> "Model unavailable. Please select another model or provider."
+                                                rawErr.contains("429") -> "Rate limit reached. Please wait a moment or switch provider."
+                                                else -> "Unable to reach ${activeProvider.displayName}. Please check your network connection."
+                                            }
+                                            "Connection Failed: $cleanErr"
                                         }
                                     }
                                 }
@@ -259,15 +266,15 @@ fun MultiApiSettingsCard() {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
 
                     Text(
-                        text = "API Key Vault (All Providers)",
+                        text = "API Key Vault (Unlimited Keys per Provider)",
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
                         color = MaterialTheme.colorScheme.primary
                     )
 
-                    // Individual Provider Key Fields
+                    // Unlimited Multi-Key Provider Vault
                     ApiProvider.values().forEach { provider ->
-                        ProviderKeyInputField(
+                        ProviderMultiKeyVaultField(
                             provider = provider,
                             apiManager = apiManager
                         )
@@ -279,16 +286,24 @@ fun MultiApiSettingsCard() {
 }
 
 @Composable
-private fun ProviderKeyInputField(
+private fun ProviderMultiKeyVaultField(
     provider: ApiProvider,
     apiManager: ApiManager
 ) {
-    var keyText by remember(provider) { mutableStateOf(apiManager.getKeyForProvider(provider)) }
-    var passwordVisible by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val multiKeyManager = remember { com.example.data.MultiKeyManager.getInstance(context) }
+    val scope = rememberCoroutineScope()
+
+    var keyList by remember(provider) { mutableStateOf(multiKeyManager.getKeys(provider.name)) }
+    var newKeyInput by remember { mutableStateOf("") }
+    var isAddingKey by remember { mutableStateOf(false) }
+    var testingKeyMap by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
 
     Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -296,39 +311,170 @@ private fun ProviderKeyInputField(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "${provider.displayName} Key",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
+                text = "${provider.displayName} (${keyList.size} keys)",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Text(
-                text = if (keyText.isNotBlank()) "Configured" else "Not set",
-                fontSize = 11.sp,
-                color = if (keyText.isNotBlank()) Color(0xFF2E7D32) else Color.Gray
-            )
+            IconButton(
+                onClick = { isAddingKey = !isAddingKey },
+                modifier = Modifier.size(28.dp)
+            ) {
+                Icon(
+                    imageVector = if (isAddingKey) Icons.Default.Close else Icons.Default.Add,
+                    contentDescription = "Add key",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
         }
 
-        OutlinedTextField(
-            value = keyText,
-            onValueChange = { newValue ->
-                keyText = newValue
-                apiManager.saveKeyForProvider(provider, newValue)
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("api_key_input_${provider.name.lowercase()}"),
-            placeholder = { Text("Enter ${provider.displayName} API key") },
-            singleLine = true,
-            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-            trailingIcon = {
-                IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                    Icon(
-                        imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                        contentDescription = "Toggle key visibility"
-                    )
+        if (isAddingKey) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = newKeyInput,
+                    onValueChange = { newKeyInput = it },
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("new_key_input_${provider.name.lowercase()}"),
+                    placeholder = { Text("Paste new ${provider.displayName} key") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
+                )
+                Button(
+                    onClick = {
+                        val trimmed = newKeyInput.trim()
+                        if (trimmed.isNotBlank()) {
+                            multiKeyManager.addKey(provider.name, trimmed)
+                            apiManager.saveKeyForProvider(provider, trimmed)
+                            keyList = multiKeyManager.getKeys(provider.name)
+                            newKeyInput = ""
+                            isAddingKey = false
+
+                            // Auto-verify newly added key
+                            scope.launch(Dispatchers.IO) {
+                                com.example.network.api.ApiTest.testKey(context, provider, trimmed, apiManager.getSelectedModel(provider))
+                                withContext(Dispatchers.Main) {
+                                    keyList = multiKeyManager.getKeys(provider.name)
+                                }
+                            }
+                        }
+                    },
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Add")
                 }
-            },
-            shape = RoundedCornerShape(14.dp)
-        )
+            }
+        }
+
+        // Display List of Configured Keys
+        if (keyList.isEmpty()) {
+            Text(
+                text = "No keys configured",
+                fontSize = 12.sp,
+                color = Color.Gray
+            )
+        } else {
+            keyList.forEachIndexed { index, key ->
+                val status = multiKeyManager.getKeyStatus(provider.name, key)
+                val isTestingKey = testingKeyMap[key] == true
+
+                val maskedKey = if (key.length > 8) {
+                    "****" + key.takeLast(4)
+                } else {
+                    "****"
+                }
+
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text = if (status.isSuccess) "🟢" else "🔴",
+                                fontSize = 12.sp
+                            )
+                            Column {
+                                Text(
+                                    text = maskedKey,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                                Text(
+                                    text = status.message,
+                                    fontSize = 11.sp,
+                                    color = if (status.isSuccess) Color(0xFF2E7D32) else Color(0xFFC62828)
+                                )
+                            }
+                        }
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Test Key Button
+                            OutlinedButton(
+                                onClick = {
+                                    scope.launch(Dispatchers.IO) {
+                                        testingKeyMap = testingKeyMap + (key to true)
+                                        com.example.network.api.ApiTest.testKey(
+                                            context = context,
+                                            provider = provider,
+                                            apiKey = key,
+                                            model = apiManager.getSelectedModel(provider)
+                                        )
+                                        withContext(Dispatchers.Main) {
+                                            testingKeyMap = testingKeyMap - key
+                                            keyList = multiKeyManager.getKeys(provider.name)
+                                        }
+                                    }
+                                },
+                                enabled = !isTestingKey,
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                if (isTestingKey) {
+                                    CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 2.dp)
+                                } else {
+                                    Text("Test", fontSize = 11.sp)
+                                }
+                            }
+
+                            // Delete Key Button
+                            IconButton(
+                                onClick = {
+                                    multiKeyManager.removeKey(provider.name, index)
+                                    keyList = multiKeyManager.getKeys(provider.name)
+                                },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Delete key",
+                                    tint = Color(0xFFD32F2F),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

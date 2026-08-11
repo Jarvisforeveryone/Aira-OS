@@ -532,11 +532,70 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     private var isUsingGoogleSTT = false
     private var hasSpeechStarted = false
     private val handler = Handler(Looper.getMainLooper())
-    private val timeoutRunnable = Runnable {
-        if (isUsingGoogleSTT && !hasSpeechStarted) {
-            Log.d("AiraViewModel", "Google STT 4.0s timeout. Switching to Offline Vosk.")
-            switchToOfflineVosk()
+    private val timeoutRunnable = Runnable {}
+
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private var wasOnline: Boolean? = null
+
+    private fun registerNetworkMonitoring() {
+        try {
+            val cm = getApplication<Application>().getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            if (cm != null) {
+                wasOnline = isInternetAvailable()
+                val callback = object : ConnectivityManager.NetworkCallback() {
+                    override fun onAvailable(network: android.net.Network) {
+                        viewModelScope.launch(Dispatchers.Main) {
+                            if (wasOnline == false) {
+                                wasOnline = true
+                                onInternetRestored()
+                            }
+                        }
+                    }
+
+                    override fun onLost(network: android.net.Network) {
+                        viewModelScope.launch(Dispatchers.Main) {
+                            if (wasOnline == true || wasOnline == null) {
+                                wasOnline = false
+                                onInternetLost()
+                            }
+                        }
+                    }
+                }
+                networkCallback = callback
+                val request = android.net.NetworkRequest.Builder()
+                    .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                    .build()
+                cm.registerNetworkCallback(request, callback)
+            }
+        } catch (e: Exception) {
+            Log.e("AiraViewModel", "Error registering network callback", e)
         }
+    }
+
+    fun onInternetLost() {
+        Log.i("AiraViewModel", "Network state changed: Offline")
+        _sttEngineStatus.value = "Offline"
+        if (_isDeviceMemoryCapable.value && com.example.utils.MemoryManager.isOfflineSupported(getApplication())) {
+            _selectedSttEngine.value = SttEngine.VOSK_OFFLINE
+            _selectedTtsEngine.value = TtsEngine.PIPER_OFFLINE
+            piperTtsManager.selectedTtsEngine = TtsEngine.PIPER_OFFLINE.name
+            if (_isListening.value) {
+                switchToOfflineVosk()
+            }
+        }
+        Toast.makeText(getApplication(), "No internet. Using offline STT.", Toast.LENGTH_SHORT).show()
+        Toast.makeText(getApplication(), "No internet. Using offline voice.", Toast.LENGTH_SHORT).show()
+    }
+
+    fun onInternetRestored() {
+        Log.i("AiraViewModel", "Network state changed: Online")
+        _sttEngineStatus.value = "Online"
+        _selectedSttEngine.value = SttEngine.AUTO
+        _selectedTtsEngine.value = TtsEngine.GOOGLE_TTS
+        piperTtsManager.selectedTtsEngine = TtsEngine.GOOGLE_TTS.name
+        isUsingGoogleSTT = true
+        Toast.makeText(getApplication(), "Internet back. Using Google STT.", Toast.LENGTH_SHORT).show()
+        Toast.makeText(getApplication(), "Internet back. Using online voice.", Toast.LENGTH_SHORT).show()
     }
 
     private val _isSpeaking = MutableStateFlow(false)
@@ -1450,6 +1509,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             }
             refreshShizukuStatus()
             initSpeechRecognizer()
+            registerNetworkMonitoring()
             startIdleMemoryCleanupWatchdog()
 
             // DEFERRED HEAVY INIT (5-second post-startup delay for 0-lag cold start and binder safety)
@@ -1815,18 +1875,15 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                     putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
                     putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
 
-                    // Allow reasonable silence threshold before finalizing input
-                    putExtra("android.speech.extras.SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS", 2000L)
-                    putExtra("android.speech.extras.SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS", 2000L)
+                    // Allow generous silence threshold so user can pause freely while speaking
+                    putExtra("android.speech.extras.SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS", 10000L)
+                    putExtra("android.speech.extras.SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS", 10000L)
+                    putExtra("android.speech.extras.SPEECH_INPUT_MINIMUM_LENGTH_MILLIS", 5000L)
                 }
 
                 try {
                     recognizer.cancel()
                     recognizer.startListening(intent)
-
-                    // Set 10s fallback timeout to allow Google STT network connection to settle
-                    handler.removeCallbacks(timeoutRunnable)
-                    handler.postDelayed(timeoutRunnable, 10000L)
                 } catch (e: Exception) {
                     Log.e("AiraViewModel", "Failed to start Google STT, falling back to Vosk", e)
                     switchToOfflineVosk()
@@ -2031,8 +2088,8 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
 
                 override fun onError(exception: Exception) {
                     com.example.utils.VoskLogManager.logError("Vosk listener error: ${exception.message}", exception)
-                    _currentStatus.value = "Offline Error"
-                    _voskTriggerStatus.value = "Vosk Listener Error: ${exception.message}"
+                    _currentStatus.value = "Voice Engine Paused"
+                    _voskTriggerStatus.value = "Offline voice processing issue: ${exception.localizedMessage ?: "Microphone busy"}"
                     consecutiveSpeechErrors++
                     if (consecutiveSpeechErrors >= 3) {
                         consecutiveSpeechErrors = 0
@@ -2188,6 +2245,16 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             Log.d("AiraViewModel", "Processing input: $userInput")
             // Insert user speech to local SQLite via Room
             chatDao.insertMessage(ChatMessage(sender = "user", message = userInput))
+
+            // Check for Macro trigger match first
+            val macroResult = com.example.utils.MacroManager.processMacro(getApplication(), userInput)
+            if (macroResult.executed) {
+                val reply = macroResult.summary
+                chatDao.insertMessage(ChatMessage(sender = "aira", message = reply))
+                addVoiceCommandLog(userInput, macroResult.macroName, "SUCCESS", reply)
+                processAIResponse(reply)
+                return@launch
+            }
 
             // Check for manual save command first
             val manualFactText = checkManualSaveMemory(userInput)
@@ -3212,7 +3279,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         val lat = customLat ?: userLoc?.first ?: 37.7749
         val lon = customLon ?: userLoc?.second ?: -122.4194
 
-        val omUrl = "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true"
+        val omUrl = "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true&daily=temperature_2m_max,temperature_2m_min&timezone=auto"
         val weatherResult = com.example.data.NetworkErrorHandler.safeApiCall("Open-Meteo Weather API") {
             val request = Request.Builder().url(omUrl).build()
             okHttpClient.newCall(request).execute().use { response ->
@@ -3228,6 +3295,18 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                         val isDay = current.optInt("is_day", 1) == 1
                         val condition = mapWeatherCodeToDescription(wCode)
 
+                        var forecastStr = ""
+                        val daily = json.optJSONObject("daily")
+                        if (daily != null) {
+                            val maxTemps = daily.optJSONArray("temperature_2m_max")
+                            val minTemps = daily.optJSONArray("temperature_2m_min")
+                            if (maxTemps != null && minTemps != null && maxTemps.length() > 0 && minTemps.length() > 0) {
+                                val max = maxTemps.getDouble(0)
+                                val min = minTemps.getDouble(0)
+                                forecastStr = " • High ${max.toInt()}°C / Low ${min.toInt()}°C"
+                            }
+                        }
+
                         val locName = when {
                             !customName.isNullOrEmpty() -> customName
                             isExactLocation -> reverseGeocode(lat, lon) ?: "Current Location"
@@ -3237,7 +3316,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
 
                         val locationLabel = if (countryStr.isNotEmpty()) "$locName, $countryStr" else locName
                         val badge = if (isExactLocation) " (GPS)" else if (!customName.isNullOrEmpty()) "" else " (Default)"
-                        val formattedStr = "$locationLabel$badge: ${temp.toInt()}°C, $condition • Wind ${wind.toInt()} km/h"
+                        val formattedStr = "$locationLabel$badge: ${temp.toInt()}°C, $condition • Wind ${wind.toInt()} km/h$forecastStr"
 
                         val dataObj = OpenMeteoWeatherData(
                             locationName = locName,
@@ -3917,6 +3996,11 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     override fun onCleared() {
         super.onCleared()
         try {
+            handler.removeCallbacksAndMessages(null)
+        } catch (e: Exception) {
+            Log.e("AiraViewModel", "Error clearing handler messages in onCleared", e)
+        }
+        try {
             releaseAllNativeModels()
         } catch (e: Exception) {
             Log.e("AiraViewModel", "Error in releaseAllNativeModels in onCleared", e)
@@ -3931,49 +4015,35 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         } catch (e: Exception) {
             Log.e("AiraViewModel", "Error unregistering prefChangeListener", e)
         }
+        try {
+            networkCallback?.let {
+                val cm = getApplication<Application>().getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+                cm?.unregisterNetworkCallback(it)
+            }
+        } catch (e: Exception) {
+            Log.e("AiraViewModel", "Error unregistering networkCallback", e)
+        }
         speechRecognizer?.destroy()
     }
 
     private fun loadVoiceCommandLogs() {
-        val jsonStr = sharedPrefs.getString("voice_command_logs_json", "[]") ?: "[]"
-        try {
-            val jsonArray = org.json.JSONArray(jsonStr)
-            val list = mutableListOf<VoiceCommandLog>()
-            for (i in 0 until jsonArray.length()) {
-                val obj = jsonArray.getJSONObject(i)
-                list.add(
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val dbLogs = db.voiceCommandLogDao().getRecentLogs()
+                val list = dbLogs.map {
                     VoiceCommandLog(
-                        id = obj.optString("id", java.util.UUID.randomUUID().toString()),
-                        command = obj.optString("command", ""),
-                        matchedTrigger = if (obj.isNull("matchedTrigger")) null else obj.optString("matchedTrigger"),
-                        timestamp = obj.optString("timestamp", ""),
-                        status = obj.optString("status", "SUCCESS"),
-                        details = obj.optString("details", "")
+                        id = it.id,
+                        command = it.command,
+                        matchedTrigger = it.matchedTrigger,
+                        timestamp = it.timestamp,
+                        status = it.status,
+                        details = it.details
                     )
-                )
+                }
+                _voiceCommandLogs.value = list
+            } catch (e: Exception) {
+                Log.e("AiraViewModel", "Error loading voice command logs from Room DB", e)
             }
-            _voiceCommandLogs.value = list
-        } catch (e: Exception) {
-            Log.e("AiraViewModel", "Error loading voice command logs", e)
-        }
-    }
-
-    private fun saveVoiceCommandLogs(list: List<VoiceCommandLog>) {
-        try {
-            val jsonArray = org.json.JSONArray()
-            for (log in list) {
-                val obj = org.json.JSONObject()
-                obj.put("id", log.id)
-                obj.put("command", log.command)
-                obj.put("matchedTrigger", log.matchedTrigger)
-                obj.put("timestamp", log.timestamp)
-                obj.put("status", log.status)
-                obj.put("details", log.details)
-                jsonArray.put(obj)
-            }
-            sharedPrefs.edit().putString("voice_command_logs_json", jsonArray.toString()).apply()
-        } catch (e: Exception) {
-            Log.e("AiraViewModel", "Error saving voice command logs", e)
         }
     }
 
@@ -3987,15 +4057,37 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             status = status,
             details = details
         )
-        // Keep last 30 logs
+        // Keep last 30 logs in UI state
         val updatedList = (listOf(newLog) + _voiceCommandLogs.value).take(30)
         _voiceCommandLogs.value = updatedList
-        saveVoiceCommandLogs(updatedList)
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                db.voiceCommandLogDao().insertLog(
+                    com.example.data.VoiceCommandLogEntity(
+                        id = newLog.id,
+                        command = newLog.command,
+                        matchedTrigger = newLog.matchedTrigger,
+                        timestamp = newLog.timestamp,
+                        status = newLog.status,
+                        details = newLog.details
+                    )
+                )
+            } catch (e: Exception) {
+                Log.e("AiraViewModel", "Error saving voice command log to Room DB", e)
+            }
+        }
     }
 
     fun clearVoiceCommandLogs() {
         _voiceCommandLogs.value = emptyList()
-        saveVoiceCommandLogs(emptyList())
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                db.voiceCommandLogDao().clearLogs()
+            } catch (e: Exception) {
+                Log.e("AiraViewModel", "Error clearing voice command logs in Room DB", e)
+            }
+        }
     }
 }
 

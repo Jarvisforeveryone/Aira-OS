@@ -11,7 +11,7 @@ class OpenRouterClient {
 
     fun generateText(apiKey: String, model: String, prompt: String, systemInstruction: String? = null): Result<String> {
         return try {
-            val modelName = if (model.isBlank()) "meta-llama/llama-3.3-70b-instruct" else model
+            val modelName = if (model.isBlank()) "nvidia/nemotron-3-ultra-550b-a55b:free" else model
             val url = "https://openrouter.ai/api/v1/chat/completions"
 
             val messages = JSONArray().apply {

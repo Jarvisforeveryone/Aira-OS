@@ -12,10 +12,28 @@
 # Keep project classes and models
 -keep class com.example.aira.** { *; }
 -keep class com.aira.voice.** { *; }
--keep class com.example.ai.** { *; }
--keep class com.example.** { *; }
 -keep class org.vosk.** { *; }
+-keep class com.tencent.piperncnn.** { *; }
+-keep class com.example.utils.** { *; }
+-keep class com.example.models.** { *; }
+-keep class com.example.service.** { *; }
+-keep class com.example.data.** { *; }
+-keep class com.example.ui.** { *; }
+-keep class com.example.** { *; }
 -keep class com.google.** { *; }
+
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+
+-keepclassmembers class * implements java.io.Serializable {
+    static final long serialVersionUID;
+    private static final java.io.ObjectStreamField[] serialPersistentFields;
+    private void writeObject(java.io.ObjectOutputStream);
+    private void readObject(java.io.ObjectInputStream);
+    java.lang.Object writeReplace();
+    java.lang.Object readResolve();
+}
 
 -dontwarn org.xmlpull.v1.**
 -dontwarn javax.xml.stream.**

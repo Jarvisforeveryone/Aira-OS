@@ -23,27 +23,15 @@ class AssistantService : VoiceInteractionService() {
     override fun onCreate() {
         super.onCreate()
         Log.d("AssistantService", "AIRA AssistantService onCreate called.")
-        com.example.utils.MemoryDebugger.startMonitoring(this, intervalMs = 100L, durationMs = 10000L)
     }
 
     override fun onReady() {
         super.onReady()
-
-        // Memory safety check - prevent OOM
-        val runtime = Runtime.getRuntime()
-        val maxMemory = runtime.maxMemory() / (1024 * 1024)
-        val totalMemory = runtime.totalMemory() / (1024 * 1024)
-        val usedMemory = totalMemory - (runtime.freeMemory() / (1024 * 1024))
-        val availableHeap = maxMemory - usedMemory
-
-        Log.d("AssistantService", "Heap - Max: ${maxMemory}MB, Used: ${usedMemory}MB, Available: ${availableHeap}MB")
-
-        if (availableHeap < 30) {
-            Log.e("AssistantService", "INSUFFICIENT HEAP SPACE: ${availableHeap}MB available (need 30MB)")
-            return // Silently fail - prevent crash
+        // FIX 3.1: onReady MUST ONLY call super.onReady() and do zero heavy work to avoid system binding timeout crashes
+        // Check RAM guard safely without blocking system thread
+        if (com.example.utils.MemoryManager.isLowMemory(applicationContext)) {
+            Log.w("AssistantService", "Low RAM detected (<20MB available). AssistantService running in ultra-lean mode.")
         }
-
-        Log.d("AssistantService", "AssistantService ready - Heap OK")
     }
 
     override fun onShutdown() {

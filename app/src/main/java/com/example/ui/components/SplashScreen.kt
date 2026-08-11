@@ -99,16 +99,14 @@ fun SplashScreen(
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
-                    .size(110.dp)
+                    .size(160.dp)
                     .scale(scale.value * pulseScale)
                     .alpha(alpha.value)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
             ) {
                 Image(
-                    painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                    contentDescription = "AIRA App Icon",
-                    modifier = Modifier.size(90.dp)
+                    painter = painterResource(id = R.drawable.aira_brand_icon),
+                    contentDescription = "AIRA Logo Ring",
+                    modifier = Modifier.size(150.dp)
                 )
             }
 
@@ -119,16 +117,18 @@ fun SplashScreen(
                 style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
-                letterSpacing = 2.sp,
+                letterSpacing = 4.sp,
                 fontFamily = FontFamily.SansSerif,
                 modifier = Modifier.alpha(alpha.value)
             )
 
+            Spacer(modifier = Modifier.height(8.dp))
+
             Text(
-                text = "AI Reasoning & System Assistant",
+                text = "Your Private AI Assistant",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 14.sp,
+                fontSize = 15.sp,
                 fontFamily = FontFamily.SansSerif,
                 modifier = Modifier.alpha(alpha.value)
             )

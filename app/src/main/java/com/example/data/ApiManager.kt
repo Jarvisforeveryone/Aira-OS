@@ -7,6 +7,7 @@ import com.example.network.api.*
 class ApiManager private constructor(private val context: Context) {
 
     private val keyManager = ChatKeyManager.getInstance(context)
+    private val multiKeyManager = MultiKeyManager.getInstance(context)
 
     private val geminiClient = GeminiClient()
     private val groqClient = GroqClient()
@@ -40,6 +41,9 @@ class ApiManager private constructor(private val context: Context) {
     }
 
     fun getKeyForProvider(provider: ApiProvider): String {
+        val multiKey = multiKeyManager.getNextKey(provider.name)
+        if (!multiKey.isNullOrBlank()) return multiKey
+
         return when (provider) {
             ApiProvider.GEMINI -> keyManager.getNextKey() ?: ""
             ApiProvider.GROQ -> keyManager.getGroqKey()
@@ -53,6 +57,7 @@ class ApiManager private constructor(private val context: Context) {
     }
 
     fun saveKeyForProvider(provider: ApiProvider, key: String) {
+        multiKeyManager.addKey(provider.name, key)
         when (provider) {
             ApiProvider.GEMINI -> keyManager.saveKey(1, key)
             ApiProvider.GROQ -> keyManager.saveGroqKey(key)
@@ -66,10 +71,13 @@ class ApiManager private constructor(private val context: Context) {
     }
 
     /**
-     * Executes AI prompt request using primary selected provider,
-     * and automatically failover through configured fallbacks if primary fails.
+     * Executes AI prompt request using task-based auto-selected model or active provider,
+     * with multi-key rotation and automatic failover chain across keys and providers.
      */
     fun queryAi(prompt: String, systemInstruction: String? = null): Result<Pair<ApiProvider, String>> {
+        val taskType = com.example.utils.TaskDetector.detectTaskType(prompt)
+        Log.d("ApiManager", "Detected Task Type: $taskType for prompt")
+
         val primary = getActiveProvider()
         val allProviders = ApiProvider.values().toList()
 
@@ -77,25 +85,69 @@ class ApiManager private constructor(private val context: Context) {
         val providerOrder = listOf(primary) + allProviders.filter { it != primary }
 
         for (provider in providerOrder) {
-            val apiKey = getKeyForProvider(provider)
-            if (apiKey.isBlank()) continue
+            // Retrieve all configured keys for provider
+            val keys = multiKeyManager.getKeys(provider.name).ifEmpty {
+                val legacy = getKeyForProvider(provider)
+                if (legacy.isNotBlank()) listOf(legacy) else emptyList()
+            }
 
-            val model = getSelectedModel(provider)
-            Log.d("ApiManager", "Attempting request via ${provider.displayName} ($model)...")
+            if (keys.isEmpty()) continue
 
-            val result = executeCall(provider, apiKey, model, prompt, systemInstruction)
-            if (result.isSuccess) {
-                val text = result.getOrNull() ?: ""
-                if (text.isNotBlank()) {
-                    Log.d("ApiManager", "Success via ${provider.displayName}")
-                    return Result.success(Pair(provider, text))
+            // Determine model based on task type mapping
+            val model = resolveModelForTask(provider, taskType)
+            Log.d("ApiManager", "Attempting request via ${provider.displayName} ($model) for task $taskType...")
+
+            for (apiKey in keys) {
+                val result = executeCall(provider, apiKey, model, prompt, systemInstruction)
+                if (result.isSuccess) {
+                    val text = result.getOrNull() ?: ""
+                    if (text.isNotBlank()) {
+                        Log.d("ApiManager", "Success via ${provider.displayName} ($model)")
+                        return Result.success(Pair(provider, text))
+                    }
+                } else {
+                    val err = result.exceptionOrNull()?.message ?: "Unknown error"
+                    Log.w("ApiManager", "${provider.displayName} key failed: $err. Trying next key/provider...")
+                    multiKeyManager.markCooldown(provider.name, apiKey)
                 }
-            } else {
-                Log.w("ApiManager", "${provider.displayName} request failed: ${result.exceptionOrNull()?.message}. Trying fallback...")
             }
         }
 
-        return Result.failure(Exception("All Multi-API providers failed or no API keys configured."))
+        return Result.failure(Exception("All Multi-API providers and keys failed or no API keys configured."))
+    }
+
+    private fun resolveModelForTask(provider: ApiProvider, taskType: com.example.utils.TaskType): String {
+        val userConfigured = getSelectedModel(provider)
+        val defaultList = ApiDefaults.modelsMap[provider] ?: emptyList()
+
+        return when (taskType) {
+            com.example.utils.TaskType.CODE -> when (provider) {
+                ApiProvider.MISTRAL -> if (defaultList.contains("codestral-latest")) "codestral-latest" else userConfigured
+                ApiProvider.GROQ -> if (defaultList.contains("gpt-oss-120b")) "gpt-oss-120b" else userConfigured
+                ApiProvider.GEMINI -> if (defaultList.contains("gemini-3.6-flash")) "gemini-3.6-flash" else userConfigured
+                else -> userConfigured
+            }
+            com.example.utils.TaskType.CREATIVE -> when (provider) {
+                ApiProvider.CLAUDE -> if (defaultList.contains("claude-3-5-sonnet-20241022")) "claude-3-5-sonnet-20241022" else userConfigured
+                ApiProvider.MISTRAL -> if (defaultList.contains("mistral-large-latest")) "mistral-large-latest" else userConfigured
+                else -> userConfigured
+            }
+            com.example.utils.TaskType.COMMAND -> when (provider) {
+                ApiProvider.GEMINI -> if (defaultList.contains("gemini-2.5-flash")) "gemini-2.5-flash" else userConfigured
+                ApiProvider.GROQ -> if (defaultList.contains("llama-3.1-8b-instant")) "llama-3.1-8b-instant" else userConfigured
+                else -> userConfigured
+            }
+            com.example.utils.TaskType.RESEARCH -> when (provider) {
+                ApiProvider.GEMINI -> if (defaultList.contains("gemini-3.6-flash")) "gemini-3.6-flash" else userConfigured
+                ApiProvider.GROQ -> if (defaultList.contains("llama-3.3-70b-versatile")) "llama-3.3-70b-versatile" else userConfigured
+                else -> userConfigured
+            }
+            com.example.utils.TaskType.CHAT -> when (provider) {
+                ApiProvider.GEMINI -> if (defaultList.contains("gemini-2.5-flash-lite")) "gemini-2.5-flash-lite" else userConfigured
+                ApiProvider.MISTRAL -> if (defaultList.contains("mistral-small-latest")) "mistral-small-latest" else userConfigured
+                else -> userConfigured
+            }
+        }
     }
 
     private fun executeCall(
@@ -122,13 +174,7 @@ class ApiManager private constructor(private val context: Context) {
      */
     fun testConnection(provider: ApiProvider, apiKey: String, model: String): Result<String> {
         if (apiKey.isBlank()) return Result.failure(Exception("API Key cannot be blank"))
-        val testPrompt = "Respond with 'AIRA OK' to confirm API connection."
-        val result = executeCall(provider, apiKey, model, testPrompt, null)
-        return if (result.isSuccess) {
-            Result.success("${provider.displayName} connection verified successfully! ✅")
-        } else {
-            Result.failure(result.exceptionOrNull() ?: Exception("Connection test failed"))
-        }
+        return com.example.network.api.ApiTest.testKey(context, provider, apiKey, model)
     }
 
     companion object {

@@ -1,64 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    
-    <!-- Outer Emissive Neon Glow (10% opacity) -->
-    <path
-        android:strokeColor="@color/aira_primary"
-        android:strokeAlpha="0.1"
-        android:strokeWidth="8"
-        android:strokeLineCap="round"
-        android:pathData="M 54,22 A 32,32 0 1,1 53.99,22" />
-
-    <!-- Mid Emissive Neon Glow (30% opacity) -->
-    <path
-        android:strokeColor="@color/aira_primary"
-        android:strokeAlpha="0.3"
-        android:strokeWidth="4"
-        android:strokeLineCap="round"
-        android:pathData="M 54,22 A 32,32 0 1,1 53.99,22" />
-
-    <!-- Sharp Inner Neon Ring (100% opacity) -->
-    <path
-        android:strokeColor="@color/aira_primary"
-        android:strokeWidth="2"
-        android:strokeLineCap="round"
-        android:pathData="M 54,22 A 32,32 0 1,1 53.99,22" />
-
-    <!-- Typography: A I R A (Crisp stark white) -->
-    <!-- First 'A' (inverted V shape, no crossbar) -->
-    <path
-        android:strokeColor="@color/aira_surface_light"
-        android:strokeWidth="2"
-        android:strokeLineCap="butt"
-        android:strokeLineJoin="miter"
-        android:pathData="M 36,59 L 40,49 L 44,59" />
-
-    <!-- 'I' (simple vertical rectangle) -->
-    <path
-        android:strokeColor="@color/aira_surface_light"
-        android:strokeWidth="2"
-        android:strokeLineCap="butt"
-        android:strokeLineJoin="miter"
-        android:pathData="M 49,49 L 49,59" />
-
-    <!-- 'R' (angular joints and geometric right-angled leg instead of curves) -->
-    <path
-        android:strokeColor="@color/aira_surface_light"
-        android:strokeWidth="2"
-        android:strokeLineCap="butt"
-        android:strokeLineJoin="miter"
-        android:pathData="M 54,59 L 54,49 L 59,49 L 59,54 L 54,54 M 56.5,54 L 59,59" />
-
-    <!-- Second 'A' (inverted V shape, no crossbar) -->
-    <path
-        android:strokeColor="@color/aira_surface_light"
-        android:strokeWidth="2"
-        android:strokeLineCap="butt"
-        android:strokeLineJoin="miter"
-        android:pathData="M 64,59 L 68,49 L 72,59" />
-
-</vector>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:width="66dp"
+        android:height="66dp"
+        android:drawable="@drawable/aira_app_icon_512"
+        android:gravity="center" />
+</layer-list>

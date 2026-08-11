@@ -19,10 +19,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Article
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Article
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Home
@@ -33,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -206,31 +213,41 @@ class MainActivity : ComponentActivity() {
                         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
                         bottomBar = {
                             Surface(
-                                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp), // Radius.Navigation: 24dp
-                                tonalElevation = 4.dp, // Soft elevation
-                                color = MaterialTheme.colorScheme.surface, // Premium dark surface matching status card
+                                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                                tonalElevation = 4.dp,
+                                color = MaterialTheme.colorScheme.surface,
                                 modifier = Modifier
-                                    .height(72.dp) // Height: 72dp
                                     .fillMaxWidth()
-                                    .windowInsetsPadding(WindowInsets.navigationBars)
+                                    .wrapContentHeight()
                             ) {
                                 NavigationBar(
                                     modifier = Modifier
-                                        .fillMaxSize()
+                                        .fillMaxWidth()
+                                        .heightIn(min = 80.dp)
                                         .testTag("bottom_nav_bar"),
                                     containerColor = Color.Transparent,
-                                    tonalElevation = 0.dp
+                                    tonalElevation = 0.dp,
+                                    windowInsets = WindowInsets.navigationBars
                                 ) {
                                     NavigationBarItem(
                                         selected = selectedTab == NavRoutes.TAB_ASSISTANT,
                                         onClick = { selectedTab = NavRoutes.TAB_ASSISTANT },
-                                        icon = { Icon(Icons.Outlined.Home, contentDescription = "Assistant Hub", modifier = Modifier.size(Dimensions.IconSizeLarge)) },
+                                        alwaysShowLabel = true,
+                                        icon = { 
+                                            Icon(
+                                                imageVector = if (selectedTab == NavRoutes.TAB_ASSISTANT) Icons.Filled.Home else Icons.Outlined.Home, 
+                                                contentDescription = "Assistant Hub", 
+                                                modifier = Modifier.size(Dimensions.IconSizeLarge)
+                                            ) 
+                                        },
                                         label = {
                                             Text(
                                                 text = "Home",
-                                                fontFamily = FontFamily.SansSerif, // Never use monospace
-                                                fontWeight = if (selectedTab == NavRoutes.TAB_ASSISTANT) FontWeight.Medium else FontWeight.Normal,
-                                                fontSize = 11.sp
+                                                fontFamily = FontFamily.SansSerif,
+                                                fontWeight = if (selectedTab == NavRoutes.TAB_ASSISTANT) FontWeight.Bold else FontWeight.Normal,
+                                                fontSize = 12.sp,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
                                             )
                                         },
                                         colors = NavigationBarItemDefaults.colors(
@@ -245,16 +262,25 @@ class MainActivity : ComponentActivity() {
                                     NavigationBarItem(
                                         selected = selectedTab == NavRoutes.TAB_COMMANDS,
                                         onClick = { selectedTab = NavRoutes.TAB_COMMANDS },
-                                        icon = { Icon(Icons.Outlined.AutoAwesome, contentDescription = "Command Deck", modifier = Modifier.size(Dimensions.IconSizeLarge)) },
+                                        alwaysShowLabel = true,
+                                        icon = { 
+                                            Icon(
+                                                imageVector = if (selectedTab == NavRoutes.TAB_COMMANDS) Icons.Filled.AutoAwesome else Icons.Outlined.AutoAwesome, 
+                                                contentDescription = "Command Deck", 
+                                                modifier = Modifier.size(Dimensions.IconSizeLarge)
+                                            ) 
+                                        },
                                         label = {
                                             Text(
                                                 text = "Automation",
-                                                fontFamily = FontFamily.SansSerif, // Never use monospace
-                                                fontWeight = if (selectedTab == NavRoutes.TAB_COMMANDS) FontWeight.Medium else FontWeight.Normal,
-                                                fontSize = 11.sp
+                                                fontFamily = FontFamily.SansSerif,
+                                                fontWeight = if (selectedTab == NavRoutes.TAB_COMMANDS) FontWeight.Bold else FontWeight.Normal,
+                                                fontSize = 12.sp,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
                                             )
                                         },
-                                         colors = NavigationBarItemDefaults.colors(
+                                        colors = NavigationBarItemDefaults.colors(
                                             selectedIconColor = IconColors.TabActive,
                                             selectedTextColor = IconColors.TabActive,
                                             unselectedIconColor = IconColors.TabInactive,
@@ -266,13 +292,22 @@ class MainActivity : ComponentActivity() {
                                     NavigationBarItem(
                                         selected = selectedTab == NavRoutes.TAB_FEEDS,
                                         onClick = { selectedTab = NavRoutes.TAB_FEEDS },
-                                        icon = { Icon(Icons.Outlined.Article, contentDescription = "Climate News Feed", modifier = Modifier.size(Dimensions.IconSizeLarge)) },
+                                        alwaysShowLabel = true,
+                                        icon = { 
+                                            Icon(
+                                                imageVector = if (selectedTab == NavRoutes.TAB_FEEDS) Icons.Filled.Article else Icons.Outlined.Article, 
+                                                contentDescription = "Climate News Feed", 
+                                                modifier = Modifier.size(Dimensions.IconSizeLarge)
+                                            ) 
+                                        },
                                         label = {
                                             Text(
                                                 text = "Feeds",
-                                                fontFamily = FontFamily.SansSerif, // Never use monospace
-                                                fontWeight = if (selectedTab == NavRoutes.TAB_FEEDS) FontWeight.Medium else FontWeight.Normal,
-                                                fontSize = 11.sp
+                                                fontFamily = FontFamily.SansSerif,
+                                                fontWeight = if (selectedTab == NavRoutes.TAB_FEEDS) FontWeight.Bold else FontWeight.Normal,
+                                                fontSize = 12.sp,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
                                             )
                                         },
                                         colors = NavigationBarItemDefaults.colors(
@@ -287,13 +322,22 @@ class MainActivity : ComponentActivity() {
                                     NavigationBarItem(
                                         selected = selectedTab == NavRoutes.TAB_CONFIG,
                                         onClick = { selectedTab = NavRoutes.TAB_CONFIG },
-                                        icon = { Icon(Icons.Outlined.Settings, contentDescription = "Module Configurations", modifier = Modifier.size(Dimensions.IconSizeLarge)) },
+                                        alwaysShowLabel = true,
+                                        icon = { 
+                                            Icon(
+                                                imageVector = if (selectedTab == NavRoutes.TAB_CONFIG) Icons.Filled.Settings else Icons.Outlined.Settings, 
+                                                contentDescription = "Module Configurations", 
+                                                modifier = Modifier.size(Dimensions.IconSizeLarge)
+                                            ) 
+                                        },
                                         label = {
                                             Text(
                                                 text = "Settings",
-                                                fontFamily = FontFamily.SansSerif, // Never use monospace
-                                                fontWeight = if (selectedTab == NavRoutes.TAB_CONFIG) FontWeight.Medium else FontWeight.Normal,
-                                                fontSize = 11.sp
+                                                fontFamily = FontFamily.SansSerif,
+                                                fontWeight = if (selectedTab == NavRoutes.TAB_CONFIG) FontWeight.Bold else FontWeight.Normal,
+                                                fontSize = 12.sp,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
                                             )
                                         },
                                         colors = NavigationBarItemDefaults.colors(
