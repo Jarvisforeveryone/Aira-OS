@@ -1746,27 +1746,40 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     private fun initSpeechRecognizer() {
         try {
             val context = getApplication<Application>()
+            try {
+                speechRecognizer?.destroy()
+            } catch (_: Throwable) {}
+            speechRecognizer = null
+
             if (SpeechRecognizer.isRecognitionAvailable(context)) {
+                // Check if Google Search package is actually installed
+                var isGoogleAppInstalled = false
                 try {
-                    speechRecognizer?.destroy()
-                } catch (_: Throwable) {}
-                speechRecognizer = null
+                    val pm = context.packageManager
+                    pm.getPackageInfo("com.google.android.googlequicksearchbox", 0)
+                    isGoogleAppInstalled = true
+                } catch (_: Throwable) {
+                    isGoogleAppInstalled = false
+                }
 
-                val googleComponent = android.content.ComponentName(
-                    "com.google.android.googlequicksearchbox",
-                    "com.google.android.voicesearch.service.SpeechRecognitionService"
-                )
-
-                speechRecognizer = try {
-                    SpeechRecognizer.createSpeechRecognizer(context, googleComponent)
-                } catch (e: Throwable) {
-                    Log.d("AiraViewModel", "Google explicit component SpeechRecognizer fallback to default", e)
+                speechRecognizer = if (isGoogleAppInstalled) {
+                    val googleComponent = android.content.ComponentName(
+                        "com.google.android.googlequicksearchbox",
+                        "com.google.android.voicesearch.service.SpeechRecognitionService"
+                    )
+                    try {
+                        SpeechRecognizer.createSpeechRecognizer(context, googleComponent)
+                    } catch (e: Throwable) {
+                        Log.d("AiraViewModel", "Google explicit component SpeechRecognizer fallback to default", e)
+                        SpeechRecognizer.createSpeechRecognizer(context)
+                    }
+                } else {
                     SpeechRecognizer.createSpeechRecognizer(context)
                 }
 
                 if (speechRecognizer != null) {
                     speechRecognizer?.setRecognitionListener(this)
-                    Log.d("AiraViewModel", "Google SpeechRecognizer initialized successfully")
+                    Log.d("AiraViewModel", "SpeechRecognizer initialized successfully (GoogleAppPresent=$isGoogleAppInstalled)")
                 } else {
                     Log.w("AiraViewModel", "SpeechRecognizer.createSpeechRecognizer returned null")
                 }
@@ -1968,6 +1981,11 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         }
         Log.i("STTFlow", "STEP 1 PASSED: RECORD_AUDIO permission granted.")
 
+        // Acquire audio focus for microphone recording
+        com.example.utils.AiraAudioFocusManager.getInstance(getApplication()).requestSttFocus {
+            stopListening()
+        }
+
         _isListening.value = true
         updateSttState(SttState.LISTENING)
         hasSpeechStarted = false
@@ -2032,6 +2050,8 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         }
         voskWaveJob?.cancel()
         _audioAmplitude.value = 0f
+
+        com.example.utils.AiraAudioFocusManager.getInstance(getApplication()).releaseSttFocus()
 
         try {
             speechRecognizer?.stopListening()
@@ -4185,6 +4205,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         handler.removeCallbacks(timeoutRunnable)
         _isListening.value = false
         _audioAmplitude.value = 0f
+        com.example.utils.AiraAudioFocusManager.getInstance(getApplication()).releaseSttFocus()
 
         val msg = when (error) {
             SpeechRecognizer.ERROR_AUDIO -> "Audio recording error."
@@ -4201,6 +4222,13 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
 
         _currentStatus.value = msg
         Log.e("STTFlow", "STAGE 1 FAILED: Google SpeechRecognizer error code $error ($msg)")
+
+        if (error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY || error == SpeechRecognizer.ERROR_CLIENT) {
+            try {
+                speechRecognizer?.destroy()
+            } catch (_: Throwable) {}
+            speechRecognizer = null
+        }
 
         if (isUsingGoogleSTT && error != SpeechRecognizer.ERROR_NO_MATCH) {
             Log.w("STTFlow", "STAGE 1 FAILED: Triggering STAGE 2 (Vosk STT) fallback due to Google STT error code $error")
@@ -4233,6 +4261,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     }
 
     override fun onResults(results: Bundle?) {
+        com.example.utils.AiraAudioFocusManager.getInstance(getApplication()).releaseSttFocus()
         consecutiveSpeechErrors = 0
         val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
         val text = matches?.firstOrNull() ?: ""

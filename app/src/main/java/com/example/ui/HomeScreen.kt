@@ -85,6 +85,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.colorResource
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import androidx.compose.ui.platform.LocalContext
 import com.example.R
 import com.example.data.ChatMessage
 import kotlinx.coroutines.launch
@@ -94,6 +100,18 @@ fun HomeScreen(
     viewModel: AiraViewModel,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    var showRecordAudioRationale by remember { mutableStateOf(false) }
+
+    val audioPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            viewModel.startListening()
+        } else {
+            showRecordAudioRationale = true
+        }
+    }
     val isListening by viewModel.isListening.collectAsState()
     val isOfflineBrain by viewModel.isOfflineBrain.collectAsState()
     val onlineMode = !isOfflineBrain
@@ -362,10 +380,54 @@ fun HomeScreen(
                     if (isListening) {
                         viewModel.stopListening()
                     } else {
-                        viewModel.startListening()
+                        val hasPermission = ContextCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.RECORD_AUDIO
+                        ) == PackageManager.PERMISSION_GRANTED
+
+                        if (hasPermission) {
+                            viewModel.startListening()
+                        } else {
+                            audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        }
                     }
                 }
             )
+
+            if (showRecordAudioRationale) {
+                AlertDialog(
+                    onDismissRequest = { showRecordAudioRationale = false },
+                    title = {
+                        Text(
+                            text = "Microphone Permission Required",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    },
+                    text = {
+                        Text(
+                            text = "Aira requires access to your microphone to process voice commands and enable Speech-to-Text features. Please grant audio permission.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                showRecordAudioRationale = false
+                                audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            }
+                        ) {
+                            Text("Grant Permission")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showRecordAudioRationale = false }) {
+                            Text("Dismiss")
+                        }
+                    }
+                )
+            }
 
             Spacer(modifier = Modifier.height(Dimens.GapExtraLarge)) // Distance below orb
 

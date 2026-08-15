@@ -66,6 +66,7 @@ class PiperTtsManager(private val context: Context) {
 
     private var nativeTts: android.speech.tts.TextToSpeech? = null
     private var isNativeTtsReady = false
+    private val pendingUtteranceQueue = java.util.concurrent.ConcurrentLinkedQueue<Pair<String, Float>>()
     var isOfflineTtsEnabled = false
     var englishVoiceMode: String = "India"
     var selectedTtsEngine: String = "AUTO"
@@ -176,7 +177,7 @@ class PiperTtsManager(private val context: Context) {
     }
 
     fun ensureInitialized() {
-        if (isTtsInitialized) return
+        if (isTtsInitialized && nativeTts != null) return
         isTtsInitialized = true
         try {
             val sharedPrefs = com.example.utils.SecurePrefs.getEncryptedSharedPreferences(context, "aira_settings")
@@ -187,6 +188,17 @@ class PiperTtsManager(private val context: Context) {
             nativeTts = android.speech.tts.TextToSpeech(context) { status ->
                 if (status == android.speech.tts.TextToSpeech.SUCCESS) {
                     isNativeTtsReady = true
+                    try {
+                        nativeTts?.setAudioAttributes(
+                            android.media.AudioAttributes.Builder()
+                                .setUsage(android.media.AudioAttributes.USAGE_ASSISTANT)
+                                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                                .build()
+                        )
+                    } catch (e: Throwable) {
+                        Log.w("PiperTtsManager", "Could not set audio attributes on nativeTts", e)
+                    }
+
                     val savedLang = sharedPrefs.getString("google_tts_language", "en-US") ?: "en-US"
                     val savedVoice = sharedPrefs.getString("google_tts_voice", "") ?: ""
                     _googleTtsSelectedLanguage.value = savedLang
@@ -194,34 +206,51 @@ class PiperTtsManager(private val context: Context) {
                     updateGoogleTtsLanguagesAndVoices()
                     applyGoogleTtsSettings(savedLang, savedVoice)
                     
-                    // Setup utterance progress listener to trigger callbacks
+                    // Setup utterance progress listener to trigger callbacks and audio focus management
                     nativeTts?.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
                         override fun onStart(utteranceId: String?) {
+                            com.example.utils.AiraAudioFocusManager.getInstance(context).requestTtsFocus { stop() }
                             mainScope.launch { onStartSpeaking?.invoke() }
                         }
 
                         override fun onDone(utteranceId: String?) {
+                            com.example.utils.AiraAudioFocusManager.getInstance(context).releaseTtsFocus()
                             mainScope.launch { onStopSpeaking?.invoke() }
                         }
 
                         @Deprecated("Deprecated in Java")
                         override fun onError(utteranceId: String?) {
+                            com.example.utils.AiraAudioFocusManager.getInstance(context).releaseTtsFocus()
                             mainScope.launch { onStopSpeaking?.invoke() }
                         }
 
                         override fun onError(utteranceId: String?, errorCode: Int) {
+                            com.example.utils.AiraAudioFocusManager.getInstance(context).releaseTtsFocus()
                             mainScope.launch { onStopSpeaking?.invoke() }
                             Log.e("PiperTtsManager", "Utterance synthesis error code: $errorCode")
                         }
                     })
 
                     Log.d("PiperTtsManager", "Native TextToSpeech initialized successfully")
+
+                    // Flush any pending utterances requested while initializing
+                    flushPendingUtterances()
                 } else {
+                    isNativeTtsReady = false
                     Log.e("PiperTtsManager", "Native TextToSpeech initialization failed status: $status")
                 }
             }
         } catch (e: Exception) {
             Log.e("PiperTtsManager", "Failed to construct TextToSpeech", e)
+        }
+    }
+
+    private fun flushPendingUtterances() {
+        mainScope.launch {
+            while (!pendingUtteranceQueue.isEmpty()) {
+                val item = pendingUtteranceQueue.poll() ?: break
+                speak(item.first, item.second)
+            }
         }
     }
 
@@ -642,8 +671,15 @@ class PiperTtsManager(private val context: Context) {
         val langAvailability = nativeTts?.isLanguageAvailable(targetLocale) ?: android.speech.tts.TextToSpeech.LANG_NOT_SUPPORTED
         if (langAvailability == android.speech.tts.TextToSpeech.LANG_MISSING_DATA ||
             langAvailability == android.speech.tts.TextToSpeech.LANG_NOT_SUPPORTED) {
-            Log.w("PiperTtsManager", "Google TTS missing language data for $targetLocale.")
-            return false
+            Log.w("PiperTtsManager", "Google TTS missing language data for $targetLocale. Attempting default locale...")
+            val defaultLocale = java.util.Locale.getDefault()
+            val defAvailability = nativeTts?.isLanguageAvailable(defaultLocale) ?: android.speech.tts.TextToSpeech.LANG_NOT_SUPPORTED
+            if (defAvailability != android.speech.tts.TextToSpeech.LANG_MISSING_DATA &&
+                defAvailability != android.speech.tts.TextToSpeech.LANG_NOT_SUPPORTED) {
+                nativeTts?.language = defaultLocale
+            } else {
+                return false
+            }
         }
 
         val sentiment = com.example.utils.SentimentAnalysisUtility.analyzeSentiment(text)
@@ -781,7 +817,9 @@ class PiperTtsManager(private val context: Context) {
 
                 nativeTts?.speak(humanizedText, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "AiraOnlineFallbackTts")
             } else {
-                Log.w("PiperTtsManager", "Native TextToSpeech engine not ready yet for fallback speech.")
+                Log.w("PiperTtsManager", "Native TextToSpeech engine not ready yet for fallback speech. Enqueueing...")
+                pendingUtteranceQueue.add(Pair(text, 1.0f))
+                ensureInitialized()
             }
         } catch (e: Throwable) {
             Log.e("PiperTtsManager", "Critical: Fallback online TTS also failed", e)
@@ -918,6 +956,8 @@ class PiperTtsManager(private val context: Context) {
             if (nativeTts != null) {
                 nativeTts?.stop()
             }
+            com.example.utils.AiraAudioFocusManager.getInstance(context).releaseTtsFocus()
+            mainScope.launch { onStopSpeaking?.invoke() }
         } catch (e: Exception) {
             Log.e("PiperTtsManager", "Error stopping TextToSpeech", e)
         }

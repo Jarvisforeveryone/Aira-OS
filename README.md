@@ -85,12 +85,6 @@ cd REPO
 
 ---
 
-## 📸 Screenshots
-
-> Add your app screenshots here to showcase the UI
-
----
-
 ## 🤝 Contributing
 
 Found a bug? Have a feature idea?  
