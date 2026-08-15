@@ -148,6 +148,7 @@ dependencies {
   debugImplementation(libs.leakcanary.android)
   implementation(libs.androidx.security.crypto)
   implementation(libs.androidx.work.runtime.ktx)
+  implementation("androidx.profileinstaller:profileinstaller:1.3.1")
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
   

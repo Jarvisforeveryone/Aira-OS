@@ -8,12 +8,18 @@ import android.util.Log
 import com.example.service.PiperTtsManager
 import com.tencent.piperncnn.PiperNcnn
 import kotlinx.coroutines.*
+import java.util.concurrent.Executors
 
 class PiperTtsEngine(private val context: Context) {
     private var nativeLibsLoaded = false
     private var isInitialized = false
     private var piperNcnn: PiperNcnn? = null
     private var isModelLoaded = false
+
+    private val jniDispatcher = Executors.newFixedThreadPool(2).asCoroutineDispatcher()
+    private val engineScope = CoroutineScope(jniDispatcher + SupervisorJob())
+    private var activePlayJob: Job? = null
+    private var audioTrack: AudioTrack? = null
 
     private fun ensureLibrariesLoaded() {
         if (nativeLibsLoaded) return
@@ -26,11 +32,7 @@ class PiperTtsEngine(private val context: Context) {
         }
     }
 
-    private val engineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
-    private var activePlayJob: Job? = null
-    private var audioTrack: AudioTrack? = null
-
-    suspend fun initialize() = withContext(Dispatchers.IO) {
+    suspend fun initialize() = withContext(jniDispatcher) {
         ensureLibrariesLoaded()
         if (isModelLoaded) return@withContext
         com.example.utils.MemoryManager.loadModelOnDemand(context, com.example.utils.NativeModelType.PIPER_TTS) {
@@ -65,7 +67,7 @@ class PiperTtsEngine(private val context: Context) {
         Log.d("PiperTtsEngine", "Speak request: $text")
         stop()
 
-        activePlayJob = engineScope.launch(Dispatchers.Default) {
+        activePlayJob = engineScope.launch(jniDispatcher) {
             try {
                 if (!com.example.util.NativeLibraryLoader.isLoaded()) {
                     Log.w("PiperTtsEngine", "Native libraries not loaded, cannot speak via JNI")

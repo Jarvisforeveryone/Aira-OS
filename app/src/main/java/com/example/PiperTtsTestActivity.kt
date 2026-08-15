@@ -8,7 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.LibraryMusic
@@ -48,7 +48,7 @@ class PiperTtsTestActivity : ComponentActivity() {
                         title = { Text("Piper TTS JNI Diagnostic") },
                         navigationIcon = {
                             IconButton(onClick = { finish() }) {
-                                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                             }
                         }
                     )
@@ -81,7 +81,7 @@ class PiperTtsTestActivity : ComponentActivity() {
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
-                            Divider()
+                            HorizontalDivider()
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
@@ -141,7 +141,7 @@ class PiperTtsTestActivity : ComponentActivity() {
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
-                            Divider()
+                            HorizontalDivider()
                             OutlinedTextField(
                                 value = testText,
                                 onValueChange = { testText = it },

@@ -1,5 +1,10 @@
 package com.example.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -15,7 +20,12 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -23,6 +33,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.IconColors
+import com.example.ui.theme.bounceClick
+import com.example.ui.theme.highTechGlowPulse
 import com.example.utils.ScreenUtils
 
 /**
@@ -30,6 +42,7 @@ import com.example.utils.ScreenUtils
  * Single source of truth for text fields, query inputs, and settings controls across AIRA.
  * Integrates global typography, color scheme, error handling, clear buttons, and icons.
  * Automatically scales height and corner radius via ScreenUtils adaptive values.
+ * Features fluid high-tech focus glow motion and animated action triggers.
  */
 @Composable
 fun AiraInput(
@@ -55,12 +68,16 @@ fun AiraInput(
 ) {
     val adaptive = ScreenUtils.adaptiveValues()
     val isError = !errorMessage.isNullOrBlank()
+    var isFocused by remember { mutableStateOf(false) }
 
     Column(modifier = modifier.fillMaxWidth()) {
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { isFocused = it.isFocused }
+                .highTechGlowPulse(active = isFocused && !isError, glowColor = MaterialTheme.colorScheme.primary, maxAlpha = 0.4f),
             enabled = enabled,
             readOnly = isReadOnly,
             singleLine = singleLine,
@@ -72,23 +89,33 @@ fun AiraInput(
                     Icon(
                         imageVector = leadingIcon,
                         contentDescription = null,
-                        tint = IconColors.OnSurfaceVariant
+                        tint = if (isFocused) MaterialTheme.colorScheme.primary else IconColors.OnSurfaceVariant
                     )
                 }
             } else null,
             trailingIcon = {
                 if (showClearButton && value.isNotEmpty()) {
-                    IconButton(onClick = { onValueChange("") }) {
-                        Icon(
-                            imageVector = Icons.Default.Clear,
-                            contentDescription = "Clear text",
-                            tint = IconColors.OnSurfaceVariant
-                        )
+                    AnimatedVisibility(
+                        visible = value.isNotEmpty(),
+                        enter = fadeIn() + scaleIn(initialScale = 0.8f),
+                        exit = fadeOut() + scaleOut(targetScale = 0.8f)
+                    ) {
+                        IconButton(
+                            onClick = { onValueChange("") },
+                            modifier = Modifier.bounceClick(onClick = { onValueChange("") }, scaleDownFactor = 0.9f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Clear,
+                                contentDescription = "Clear text",
+                                tint = IconColors.OnSurfaceVariant
+                            )
+                        }
                     }
                 } else if (trailingIcon != null) {
                     IconButton(
                         onClick = { onTrailingIconClick?.invoke() },
-                        enabled = onTrailingIconClick != null
+                        enabled = onTrailingIconClick != null,
+                        modifier = if (onTrailingIconClick != null) Modifier.bounceClick(onClick = { onTrailingIconClick.invoke() }) else Modifier
                     ) {
                         Icon(
                             imageVector = trailingIcon,

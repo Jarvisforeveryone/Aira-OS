@@ -547,7 +547,7 @@ class PiperTtsManager(private val context: Context) {
         ensureInitialized()
         Log.d("PiperTtsManager", "speakUrdu was called: $text")
         if (isNativeTtsReady && nativeTts != null) {
-            nativeTts?.language = java.util.Locale("ur", "PK")
+            nativeTts?.language = java.util.Locale.forLanguageTag("ur-PK")
             nativeTts?.setPitch(1.0f)
             nativeTts?.setSpeechRate(1.0f)
             nativeTts?.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "AiraUrduTts")
@@ -621,16 +621,22 @@ class PiperTtsManager(private val context: Context) {
         val userLengthScale = userPrefs.getFloat("length_scale", 1.0f)
         val userSpeedFactor = if (userLengthScale > 0) 1.0f / userLengthScale else 1.0f
 
-        val (targetLocale, basePitch, baseSpeed) = when (voiceId) {
-            "google-lily", "en_US-lily", "lily" -> Triple(java.util.Locale.US, 1.3f, 1.1f)
-            "google-zara", "en_US-zara", "zara" -> Triple(java.util.Locale.US, 0.8f, 1.3f)
-            "google-ella", "en_US-ella", "ella" -> Triple(java.util.Locale.UK, 1.1f, 1.0f)
+        val (targetLocale, basePitch, baseSpeed) = when (voiceId.lowercase()) {
+            "google-lily", "en_us-lily", "lily" -> Triple(java.util.Locale.US, 1.3f, 1.1f)
+            "google-zara", "en_us-zara", "zara" -> Triple(java.util.Locale.US, 0.8f, 1.3f)
+            "google-ella", "en_uk-ella", "en_gb-ella", "ella" -> Triple(java.util.Locale.UK, 1.1f, 1.0f)
+            "jarvis", "classic-jarvis", "iron_man", "ironman", "google-jarvis", "male" -> Triple(java.util.Locale.UK, 0.92f, 1.08f)
+            "deep-armor" -> Triple(java.util.Locale.US, 0.78f, 0.95f)
+            "friday-tactical", "friday" -> Triple(java.util.Locale.UK, 1.25f, 1.15f)
             else -> Triple(java.util.Locale.US, 1.0f, 1.0f)
         }
 
         val effectivePitch = (basePitch * userPitchMultiplier).coerceIn(0.5f, 2.0f)
         val effectiveSpeed = (baseSpeed * userSpeedFactor * brainSpeedMultiplier).coerceIn(0.5f, 2.0f)
 
+        // ALWAYS apply voice profile / locale FIRST before setting custom pitch and speech rate,
+        // because setVoice() or setLanguage() in Android TextToSpeech resets pitch/rate back to 1.0.
+        applyVoiceProfile(voiceId)
         nativeTts?.language = targetLocale
 
         val langAvailability = nativeTts?.isLanguageAvailable(targetLocale) ?: android.speech.tts.TextToSpeech.LANG_NOT_SUPPORTED
@@ -662,13 +668,12 @@ class PiperTtsManager(private val context: Context) {
         val isQuestion = text.trim().endsWith("?")
         val questionPitchBoost = if (isQuestion) 1.06f else 1.00f
 
-        val humanizedPitch = (effectivePitch * prosodyPitchMultiplier * questionPitchBoost * (0.98f + (0.04f * Math.random().toFloat()))).coerceIn(0.7f, 1.5f)
-        val humanizedSpeed = (effectiveSpeed * prosodySpeedMultiplier * (0.98f + (0.04f * Math.random().toFloat()))).coerceIn(0.7f, 1.5f)
+        val humanizedPitch = (effectivePitch * prosodyPitchMultiplier * questionPitchBoost * (0.98f + (0.04f * Math.random().toFloat()))).coerceIn(0.5f, 2.0f)
+        val humanizedSpeed = (effectiveSpeed * prosodySpeedMultiplier * (0.98f + (0.04f * Math.random().toFloat()))).coerceIn(0.5f, 2.0f)
 
+        // Set pitch and rate AFTER applying voice profile so custom sliders and sentiment are respected
         nativeTts?.setPitch(humanizedPitch)
         nativeTts?.setSpeechRate(humanizedSpeed)
-
-        applyVoiceProfile(voiceId)
 
         val humanizedText = formatNaturalPauses(text, sentiment)
 
@@ -734,7 +739,13 @@ class PiperTtsManager(private val context: Context) {
         try {
             Log.d("PiperTtsManager", "Falling back to device online/system TTS: $text")
             if (isNativeTtsReady && nativeTts != null) {
-                nativeTts?.language = java.util.Locale.US
+                val userPrefs = com.example.utils.SecurePrefs.getEncryptedSharedPreferences(context, "voice_prefs")
+                val userPitch = userPrefs.getFloat("pitch", pitch)
+                val userLengthScale = userPrefs.getFloat("length_scale", length)
+                val userRate = if (userLengthScale > 0) 1.0f / userLengthScale else 1.0f
+
+                applyVoiceProfile(_activeVoice.value)
+
                 val sentiment = com.example.utils.SentimentAnalysisUtility.analyzeSentiment(text)
                 val valence = sentiment.valence
                 val emotion = sentiment.emotion
@@ -760,9 +771,8 @@ class PiperTtsManager(private val context: Context) {
                 val isQuestion = text.trim().endsWith("?")
                 val questionPitchBoost = if (isQuestion) 1.06f else 1.00f
 
-                val baseRate = if (length > 0) 1.0f / length else 1.0f
-                val humPitch = (pitch * prosodyPitchMultiplier * questionPitchBoost * (0.98f + (0.04f * Math.random().toFloat()))).coerceIn(0.7f, 1.5f)
-                val humRate = (baseRate * prosodySpeedMultiplier * (0.98f + (0.04f * Math.random().toFloat()))).coerceIn(0.7f, 1.5f)
+                val humPitch = (userPitch * prosodyPitchMultiplier * questionPitchBoost * (0.98f + (0.04f * Math.random().toFloat()))).coerceIn(0.5f, 2.0f)
+                val humRate = (userRate * prosodySpeedMultiplier * (0.98f + (0.04f * Math.random().toFloat()))).coerceIn(0.5f, 2.0f)
 
                 nativeTts?.setPitch(humPitch)
                 nativeTts?.setSpeechRate(humRate)
@@ -798,8 +808,9 @@ class PiperTtsManager(private val context: Context) {
         if (!isNativeTtsReady || nativeTts == null) return
         try {
             val voices = nativeTts?.voices
-            val targetLocale = when (voiceId) {
-                "google-ella", "en_UK-ella", "en_GB-ella" -> java.util.Locale.UK
+            val targetLocale = when (voiceId.lowercase()) {
+                "google-ella", "en_uk-ella", "en_gb-ella", "ella" -> java.util.Locale.UK
+                "jarvis", "classic-jarvis", "friday-tactical", "google-jarvis" -> java.util.Locale.UK
                 else -> java.util.Locale.US
             }
 
@@ -818,20 +829,26 @@ class PiperTtsManager(private val context: Context) {
                 return
             }
 
-            val selectedVoice = when (voiceId) {
-                "google-lily", "en_US-lily" -> {
+            val selectedVoice = when (voiceId.lowercase()) {
+                "jarvis", "classic-jarvis", "iron_man", "ironman", "deep-armor", "google-jarvis", "male" -> {
+                    localeVoices.find { v -> 
+                        val name = v.name.lowercase()
+                        name.contains("male") || name.contains("d-male") || name.contains("a-male") || name.contains("b-male") || name.contains("en-us-x") || name.contains("en-gb-x")
+                    } ?: localeVoices.firstOrNull()
+                }
+                "google-lily", "en_us-lily", "lily" -> {
                     localeVoices.find { v -> 
                         val name = v.name.lowercase()
                         name.contains("child") || name.contains("a-female") || name.contains("d-female") || name.contains("female")
                     } ?: localeVoices.firstOrNull()
                 }
-                "google-zara", "en_US-zara" -> {
+                "google-zara", "en_us-zara", "zara" -> {
                     localeVoices.find { v -> 
                         val name = v.name.lowercase()
                         name.contains("c-female") || name.contains("b-female") || name.contains("female")
                     } ?: localeVoices.firstOrNull()
                 }
-                "google-ella", "en_UK-ella", "en_GB-ella" -> {
+                "google-ella", "en_uk-ella", "en_gb-ella", "ella", "friday-tactical", "friday" -> {
                     localeVoices.find { v -> 
                         val name = v.name.lowercase()
                         name.contains("en-gb") || name.contains("uk") || name.contains("female")
@@ -840,7 +857,7 @@ class PiperTtsManager(private val context: Context) {
                 else -> {
                     localeVoices.find { v -> 
                         val name = v.name.lowercase()
-                        name.contains("ami") || name.contains("female")
+                        name.contains("male") || name.contains("ami") || name.contains("female")
                     } ?: localeVoices.firstOrNull()
                 }
             }
@@ -975,9 +992,9 @@ class PiperTtsManager(private val context: Context) {
             } else {
                 languagesSet.add(java.util.Locale.US)
                 languagesSet.add(java.util.Locale.UK)
-                languagesSet.add(java.util.Locale("en", "IN"))
-                languagesSet.add(java.util.Locale("ur", "PK"))
-                languagesSet.add(java.util.Locale("hi", "IN"))
+                languagesSet.add(java.util.Locale.forLanguageTag("en-IN"))
+                languagesSet.add(java.util.Locale.forLanguageTag("ur-PK"))
+                languagesSet.add(java.util.Locale.forLanguageTag("hi-IN"))
                 languagesSet.add(java.util.Locale.FRANCE)
                 languagesSet.add(java.util.Locale.GERMANY)
             }

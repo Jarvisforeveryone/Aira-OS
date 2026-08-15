@@ -1,0 +1,35 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00AFFF" />
+      <stop offset="100%" stop-color="#0066FF" />
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Centered Ring (r=300) -->
+  <circle cx="512" cy="440" r="300" fill="none" stroke="#00AFFF" stroke-width="30" opacity="0.6" filter="url(#glow)" />
+  <circle cx="512" cy="440" r="300" fill="none" stroke="url(#ringGrad)" stroke-width="24" />
+  <circle cx="512" cy="440" r="288" fill="none" stroke="#FFFFFF" stroke-width="4" opacity="0.75" />
+
+  <!-- Animation Dot at 45deg on ring (x = 512 + 300*0.7071 = 724, y = 440 - 300*0.7071 = 228) -->
+  <circle cx="724" cy="228" r="16" fill="#FFFFFF" filter="url(#glow)" />
+
+  <!-- AIRA Text Below Ring -->
+  <g fill="#FFFFFF" opacity="0.85" transform="translate(512, 840)">
+    <!-- A -->
+    <path d="M -150,38 L -105,-50 L -60,38 L -82,38 L -105,-10 L -128,38 Z" />
+    <!-- I -->
+    <rect x="-42" y="-50" width="22" height="88" rx="4" />
+    <!-- R -->
+    <path d="M 12,-50 L 62,-50 C 88,-50 102,-35 102,-20 C 102,-5 88,5 62,5 L 34,5 L 34,38 L 12,38 Z M 34,-32 L 60,-32 C 75,-32 78,-28 78,-20 C 78,-12 75,-8 60,-8 L 34,-8 Z M 52,0 L 92,38 L 66,38 L 32,5 Z" />
+    <!-- A -->
+    <path d="M 120,38 L 165,-50 L 210,38 L 188,38 L 165,-10 L 142,38 Z" />
+  </g>
+</svg>

@@ -1,0 +1,36 @@
+<svg width="1080" height="1920" viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00AFFF" />
+      <stop offset="100%" stop-color="#0066FF" />
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="14" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1080" height="1920" fill="#000000" />
+
+  <!-- Centered Ring Offset Vertically (-120px) -->
+  <g transform="translate(540, 840)">
+    <circle cx="0" cy="0" r="200" fill="none" stroke="#00AFFF" stroke-width="28" opacity="0.6" filter="url(#glow)" />
+    <circle cx="0" cy="0" r="200" fill="none" stroke="url(#ringGrad)" stroke-width="22" />
+    <circle cx="0" cy="0" r="189" fill="none" stroke="#FFFFFF" stroke-width="4" opacity="0.75" />
+  </g>
+
+  <!-- AIRA Text Below Ring -->
+  <g fill="#FFFFFF" transform="translate(540, 1180)">
+    <!-- A -->
+    <path d="M -120,30 L -85,-40 L -50,30 L -67,30 L -85,-8 L -103,30 Z" />
+    <!-- I -->
+    <rect x="-35" y="-40" width="18" height="70" rx="3" />
+    <!-- R -->
+    <path d="M 10,-40 L 50,-40 C 70,-40 82,-28 82,-16 C 82,-4 70,4 50,4 L 28,4 L 28,30 L 10,30 Z M 28,-26 L 48,-26 C 60,-26 62,-23 62,-16 C 62,-9 60,-7 48,-7 L 28,-7 Z M 42,0 L 74,30 L 53,30 L 26,4 Z" />
+    <!-- A -->
+    <path d="M 95,30 L 130,-40 L 165,30 L 148,30 L 130,-8 L 112,30 Z" />
+  </g>
+</svg>

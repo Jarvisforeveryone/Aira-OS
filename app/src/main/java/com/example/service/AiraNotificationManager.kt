@@ -134,7 +134,7 @@ object AiraNotificationManager {
         )
 
         val builder = NotificationCompat.Builder(context, CHANNEL_REMINDERS_ID)
-            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Aira Assistant Reminder")
             .setContentText(title)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -169,7 +169,7 @@ object AiraNotificationManager {
         )
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ALERTS_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("[$category] $title")
             .setContentText(content)
             .setStyle(NotificationCompat.BigTextStyle().bigText(content))

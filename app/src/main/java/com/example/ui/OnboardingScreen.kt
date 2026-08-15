@@ -26,6 +26,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -460,7 +461,7 @@ private fun OnboardingWakeWordStep(
         leadingIcon = { Icon(Icons.Default.Hearing, contentDescription = null, tint = primaryColor) },
         trailingIcon = {
             IconButton(onClick = { viewModel.speakText("Wake word set to $customInput") }) {
-                Icon(Icons.Default.VolumeUp, contentDescription = "Test Voice", tint = primaryColor)
+                Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = "Test Voice", tint = primaryColor)
             }
         },
         shape = RoundedCornerShape(16.dp),

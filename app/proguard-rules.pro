@@ -21,6 +21,14 @@
 -keep class com.example.ui.** { *; }
 -keep class com.example.** { *; }
 -keep class com.google.** { *; }
+-keep class rikka.shizuku.** { *; }
+-keep class dev.rikka.shizuku.** { *; }
+-dontwarn rikka.shizuku.**
+-dontwarn dev.rikka.shizuku.**
+-keep class okhttp3.** { *; }
+-keep class retrofit2.** { *; }
+-dontwarn okhttp3.**
+-dontwarn retrofit2.**
 
 -keepclasseswithmembernames class * {
     native <methods>;

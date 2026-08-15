@@ -9,7 +9,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
-enum class ApiProvider(val displayName: String, val isPaid: Boolean) {
+enum class ApiProviderType(val displayName: String, val isPaid: Boolean) {
     GEMINI("Google Gemini", false),
     GROQ("Groq", false),
     OPENAI("OpenAI", true),
@@ -22,11 +22,11 @@ enum class ApiProvider(val displayName: String, val isPaid: Boolean) {
 
 object ApiDefaults {
     val modelsMap = mapOf(
-        ApiProvider.GEMINI to listOf("gemini-3.6-flash", "gemini-3.5-flash", "gemini-2.5-flash", "gemini-2.5-flash-lite"),
-        ApiProvider.GROQ to listOf("llama-3.3-70b-versatile", "llama-3.1-8b-instant", "gemma2-9b-it", "gpt-oss-120b", "llama-4-scout-17b"),
-        ApiProvider.OPENAI to listOf("gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"),
-        ApiProvider.CLAUDE to listOf("claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"),
-        ApiProvider.OPENROUTER to listOf(
+        ApiProviderType.GEMINI to listOf("gemini-3.5-flash", "gemini-3.1-pro-preview", "gemini-3.1-flash-lite-preview", "gemini-3.6-flash", "gemini-2.5-flash"),
+        ApiProviderType.GROQ to listOf("llama-3.3-70b-versatile", "llama-3.1-8b-instant", "gemma2-9b-it", "gpt-oss-120b", "llama-4-scout-17b"),
+        ApiProviderType.OPENAI to listOf("gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"),
+        ApiProviderType.CLAUDE to listOf("claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"),
+        ApiProviderType.OPENROUTER to listOf(
             "nvidia/nemotron-3-ultra-550b-a55b:free",
             "google/gemma-4-31b-it:free",
             "inclusionai/ling-3.0-tiny:free",
@@ -34,9 +34,9 @@ object ApiDefaults {
             "poolside/laguna-s-2.1:free",
             "openai/gpt-oss-20b:free"
         ),
-        ApiProvider.MISTRAL to listOf("mistral-small-latest", "mistral-large-latest", "codestral-latest"),
-        ApiProvider.COHERE to listOf("command-r-plus", "command-a-111b"),
-        ApiProvider.HUGGINGFACE to listOf("meta-llama/Llama-3.3-70B-Instruct", "Qwen/Qwen2.5-72B-Instruct")
+        ApiProviderType.MISTRAL to listOf("mistral-small-latest", "mistral-large-latest", "codestral-latest"),
+        ApiProviderType.COHERE to listOf("command-r-plus", "command-a-111b"),
+        ApiProviderType.HUGGINGFACE to listOf("meta-llama/Llama-3.3-70B-Instruct", "Qwen/Qwen2.5-72B-Instruct")
     )
 }
 
@@ -45,8 +45,8 @@ object ApiDefaults {
  */
 val commonOkHttpClient: OkHttpClient by lazy {
     OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(15, TimeUnit.SECONDS)
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(10, TimeUnit.SECONDS)
+        .writeTimeout(10, TimeUnit.SECONDS)
         .build()
 }

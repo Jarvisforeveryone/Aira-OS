@@ -2081,7 +2081,7 @@ fun VoiceSettingsScreen(
                                     if (downloadProg != null) {
                                         Spacer(Modifier.height(8.dp))
                                         LinearProgressIndicator(
-                                            progress = downloadProg,
+                                            progress = { downloadProg },
                                             modifier = Modifier.fillMaxWidth().height(4.dp).clip(CircleShape),
                                             color = MaterialTheme.colorScheme.primary,
                                             trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
@@ -2274,6 +2274,9 @@ fun SystemSettingsScreen(
                 .padding(24.dp), // Outer Screen Padding
             verticalArrangement = Arrangement.spacedBy(28.dp) // Spacing between sections
         ) {
+            // CARD 1A: Select AI Provider
+            SelectAiProviderCard()
+
             // CARD 1B: Multi-API Settings (8 Providers, Model Selector, Key Vault & Connection Tester)
             com.example.ui.components.MultiApiSettingsCard()
 
@@ -3385,6 +3388,69 @@ fun ShizukuSettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 16.sp
                     )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SelectAiProviderCard() {
+    val context = LocalContext.current
+    val providerManager = remember { com.example.network.api.ProviderManager(context) }
+    var selectedProvider by remember { mutableStateOf(providerManager.getProvider().javaClass.simpleName.replace("Provider", "")) }
+    var expanded by remember { mutableStateOf(false) }
+
+    val providers = listOf("Gemini", "Groq", "Claude", "OpenAI", "OpenRouter")
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(22.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = "Select AI Provider",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium,
+                fontFamily = FontFamily.SansSerif,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = !expanded }
+            ) {
+                OutlinedTextField(
+                    value = selectedProvider,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Active Provider") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                    modifier = Modifier
+                        .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                        .fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp)
+                )
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    providers.forEach { provider ->
+                        DropdownMenuItem(
+                            text = { Text(provider) },
+                            onClick = {
+                                selectedProvider = provider
+                                providerManager.setProvider(provider)
+                                expanded = false
+                            }
+                        )
+                    }
                 }
             }
         }

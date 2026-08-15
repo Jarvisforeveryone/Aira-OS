@@ -1,0 +1,28 @@
+<svg width="432" height="432" viewBox="0 0 432 432" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="iconGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00C3FF" />
+      <stop offset="50%" stop-color="#0072FF" />
+      <stop offset="100%" stop-color="#00D2FF" />
+    </linearGradient>
+    <filter id="iconGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Glowing Outer Ring -->
+  <circle cx="216" cy="216" r="92" fill="none" stroke="#0099FF" stroke-width="16" opacity="0.5" filter="url(#iconGlow)" />
+  <!-- Main Blue Ring -->
+  <circle cx="216" cy="216" r="92" fill="none" stroke="url(#iconGrad)" stroke-width="14" />
+  <!-- Inner Highlight -->
+  <circle cx="216" cy="216" r="85" fill="none" stroke="#B3F0FF" stroke-width="2.5" opacity="0.75" />
+
+  <!-- Letter 'A' in Center -->
+  <g fill="#FFFFFF" transform="translate(216, 216)">
+    <path d="M -30,36 L 0,-36 L 30,36 L 14,36 L 0,2 L -14,36 Z M -9,12 L 9,12 L 0,-10 Z" />
+  </g>
+</svg>

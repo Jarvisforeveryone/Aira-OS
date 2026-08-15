@@ -17,7 +17,7 @@ object ApiTest {
     private val cohereClient = CohereClient()
     private val huggingFaceClient = HuggingFaceClient()
 
-    fun testKey(context: Context, provider: ApiProvider, apiKey: String, model: String): Result<String> {
+    fun testKey(context: Context, provider: ApiProviderType, apiKey: String, model: String): Result<String> {
         val trimmedKey = apiKey.trim()
         if (trimmedKey.isBlank()) {
             val err = "API Key cannot be blank"
@@ -32,14 +32,14 @@ object ApiTest {
         Log.d("ApiTest", "Testing key for ${provider.displayName} with model $targetModel...")
 
         val result = when (provider) {
-            ApiProvider.GEMINI -> geminiClient.generateText(trimmedKey, targetModel, TEST_PROMPT, null)
-            ApiProvider.GROQ -> groqClient.generateText(trimmedKey, targetModel, TEST_PROMPT, null)
-            ApiProvider.OPENAI -> openAIClient.generateText(trimmedKey, targetModel, TEST_PROMPT, null)
-            ApiProvider.CLAUDE -> claudeClient.generateText(trimmedKey, targetModel, TEST_PROMPT, null)
-            ApiProvider.OPENROUTER -> openRouterClient.generateText(trimmedKey, targetModel, TEST_PROMPT, null)
-            ApiProvider.MISTRAL -> mistralClient.generateText(trimmedKey, targetModel, TEST_PROMPT, null)
-            ApiProvider.COHERE -> cohereClient.generateText(trimmedKey, targetModel, TEST_PROMPT, null)
-            ApiProvider.HUGGINGFACE -> huggingFaceClient.generateText(trimmedKey, targetModel, TEST_PROMPT, null)
+            ApiProviderType.GEMINI -> geminiClient.generateText(trimmedKey, targetModel, TEST_PROMPT, null)
+            ApiProviderType.GROQ -> groqClient.generateText(trimmedKey, targetModel, TEST_PROMPT, null)
+            ApiProviderType.OPENAI -> openAIClient.generateText(trimmedKey, targetModel, TEST_PROMPT, null)
+            ApiProviderType.CLAUDE -> claudeClient.generateText(trimmedKey, targetModel, TEST_PROMPT, null)
+            ApiProviderType.OPENROUTER -> openRouterClient.generateText(trimmedKey, targetModel, TEST_PROMPT, null)
+            ApiProviderType.MISTRAL -> mistralClient.generateText(trimmedKey, targetModel, TEST_PROMPT, null)
+            ApiProviderType.COHERE -> cohereClient.generateText(trimmedKey, targetModel, TEST_PROMPT, null)
+            ApiProviderType.HUGGINGFACE -> huggingFaceClient.generateText(trimmedKey, targetModel, TEST_PROMPT, null)
         }
 
         return if (result.isSuccess) {

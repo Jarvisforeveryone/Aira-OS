@@ -4,6 +4,10 @@ import android.content.Context
 import com.example.data.AppDatabase
 import com.example.data.ChatKeyManager
 import com.example.data.ThemeRepository
+import com.example.data.repositories.QueryCacheRepository
+import com.example.data.repositories.QueryCacheRepositoryImpl
+import com.example.data.repositories.WeatherCacheRepository
+import com.example.data.repositories.WeatherCacheRepositoryImpl
 import com.example.network.api.commonOkHttpClient
 import okhttp3.OkHttpClient
 
@@ -15,6 +19,14 @@ class AppContainer(private val context: Context) {
 
     val database: AppDatabase by lazy {
         AppDatabase.getDatabase(context)
+    }
+
+    val weatherCacheRepository: WeatherCacheRepository by lazy {
+        WeatherCacheRepositoryImpl(database.weatherCacheDao())
+    }
+
+    val queryCacheRepository: QueryCacheRepository by lazy {
+        QueryCacheRepositoryImpl(database.queryCacheDao())
     }
 
     val chatKeyManager: ChatKeyManager by lazy {

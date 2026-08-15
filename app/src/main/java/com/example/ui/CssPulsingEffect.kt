@@ -40,10 +40,10 @@ fun CssPulsingEffect(
                 animationSpec = infiniteRepeatable(
                     animation = keyframes {
                         durationMillis = duration
-                        0f at 0 with LinearEasing
-                        0f at staggerDelay with EaseOutQuint
-                        1f at (staggerDelay + 1100).coerceAtMost(duration) with EaseOutQuad
-                        1f at duration with LinearEasing
+                        0f at 0 using LinearEasing
+                        0f at staggerDelay using EaseOutQuint
+                        1f at (staggerDelay + 1100).coerceAtMost(duration) using EaseOutQuad
+                        1f at duration using LinearEasing
                     },
                     repeatMode = RepeatMode.Restart
                 ),

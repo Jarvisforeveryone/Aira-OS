@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.sp
 import com.example.data.ApiManager
 import com.example.data.ChatKeyManager
 import com.example.network.api.ApiDefaults
-import com.example.network.api.ApiProvider
+import com.example.network.api.ApiProviderType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -131,7 +131,7 @@ fun MultiApiSettingsCard() {
                             expanded = providerDropdownExpanded,
                             onDismissRequest = { providerDropdownExpanded = false }
                         ) {
-                            ApiProvider.values().forEach { provider ->
+                            ApiProviderType.values().forEach { provider ->
                                 DropdownMenuItem(
                                     text = {
                                         Row(
@@ -273,7 +273,7 @@ fun MultiApiSettingsCard() {
                     )
 
                     // Unlimited Multi-Key Provider Vault
-                    ApiProvider.values().forEach { provider ->
+                    ApiProviderType.values().forEach { provider ->
                         ProviderMultiKeyVaultField(
                             provider = provider,
                             apiManager = apiManager
@@ -287,7 +287,7 @@ fun MultiApiSettingsCard() {
 
 @Composable
 private fun ProviderMultiKeyVaultField(
-    provider: ApiProvider,
+    provider: ApiProviderType,
     apiManager: ApiManager
 ) {
     val context = LocalContext.current

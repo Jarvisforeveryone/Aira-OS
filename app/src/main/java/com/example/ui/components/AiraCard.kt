@@ -37,13 +37,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.AiraMotion
 import com.example.ui.theme.Dimens
+import com.example.ui.theme.ambientLevitation
 import com.example.ui.theme.bounceClick
+import com.example.ui.theme.highTechGlowPulse
+import com.example.ui.theme.holographicLightSweep
 import com.example.utils.ScreenUtils
 
 /**
  * AIRA UNIFIED CARD COMPONENT (LOOP 1)
  * Standardizes card structures, headers, margins, borders, and micro-interactions across all screens.
  * Automatically adjusts padding, elevation, and corner radius based on ScreenUtils responsive layout scale.
+ * Supports high-tech cinematic motion effects like holographic light sweep and ambient levitation.
  */
 @Composable
 fun AiraCard(
@@ -59,6 +63,9 @@ fun AiraCard(
     borderColor: Color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
     contentPadding: Dp? = null,
     verticalSpacing: Dp = Dimens.ListVerticalSpacing,
+    showHoloSweep: Boolean = false,
+    enableFloating: Boolean = false,
+    highlightGlow: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val adaptive = ScreenUtils.adaptiveValues()
@@ -66,19 +73,23 @@ fun AiraCard(
     val effectiveShape = cornerShape ?: RoundedCornerShape(adaptive.cornerRadius)
     val effectiveElevation = adaptive.elevation
 
+    var baseModifier = modifier
+        .fillMaxWidth()
+        .ambientLevitation(enabled = enableFloating, floatDistanceDp = 4f, durationMs = 3600)
+        .holographicLightSweep(enabled = showHoloSweep)
+        .highTechGlowPulse(active = highlightGlow)
+
     val cardModifier = if (onClick != null) {
-        modifier
-            .fillMaxWidth()
-            .bounceClick(onClick = onClick)
+        baseModifier.bounceClick(onClick = onClick)
     } else {
-        modifier.fillMaxWidth()
+        baseModifier
     }
 
     Card(
         modifier = cardModifier,
         shape = effectiveShape,
         colors = CardDefaults.cardColors(containerColor = containerColor),
-        border = BorderStroke(1.dp, borderColor),
+        border = BorderStroke(if (highlightGlow) 1.5.dp else 1.dp, if (highlightGlow) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f) else borderColor),
         elevation = CardDefaults.cardElevation(defaultElevation = effectiveElevation)
     ) {
         Column(

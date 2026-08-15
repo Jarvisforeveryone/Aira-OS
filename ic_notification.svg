@@ -1,0 +1,8 @@
+<svg width="96" height="96" viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg">
+  <!-- White Ring -->
+  <circle cx="48" cy="48" r="38" fill="none" stroke="#FFFFFF" stroke-width="7" />
+  <!-- Letter 'A' in Center -->
+  <g fill="#FFFFFF" transform="translate(48, 48)">
+    <path d="M -15,18 L 0,-18 L 15,18 L 7,18 L 0,1 L -7,18 Z M -4,6 L 4,6 L 0,-5 Z" />
+  </g>
+</svg>

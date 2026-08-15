@@ -1,5 +1,7 @@
 package com.example.domain.usecases
 
+import com.example.data.WeatherCache
+import com.example.data.repositories.WeatherCacheRepository
 import com.example.domain.Result
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -9,11 +11,27 @@ import org.json.JSONObject
 import java.net.URLEncoder
 
 class GetWeatherUseCase(
-    private val client: OkHttpClient = OkHttpClient()
+    private val client: OkHttpClient = OkHttpClient(),
+    private val weatherCacheRepository: WeatherCacheRepository? = null
 ) {
-    suspend operator fun invoke(location: String): Result<String> = withContext(Dispatchers.IO) {
+    suspend operator fun invoke(location: String, forceRefresh: Boolean = false): Result<String> = withContext(Dispatchers.IO) {
+        val queryLocation = location.ifBlank { "San Francisco" }
+        val locationKey = queryLocation.trim().lowercase()
+
+        // 1. Check local Room cache first if forceRefresh is false
+        if (!forceRefresh && weatherCacheRepository != null) {
+            try {
+                val cached = weatherCacheRepository.getCachedWeather(locationKey)
+                    ?: if (locationKey == "local" || locationKey == "current") weatherCacheRepository.getLatestCachedWeather() else null
+                if (cached != null) {
+                    return@withContext Result.Success(cached.formattedText)
+                }
+            } catch (e: Exception) {
+                // Ignore cache read errors and fall through to network
+            }
+        }
+
         try {
-            val queryLocation = location.ifBlank { "San Francisco" }
             var lat = 37.7749
             var lon = -122.4194
             var resolvedName = queryLocation
@@ -66,13 +84,48 @@ class GetWeatherUseCase(
                         }
 
                         val resultText = "$resolvedName: ${temp.toInt()}°C, $condition • Wind ${wind.toInt()} km/h$forecastStr"
+
+                        // 2. Persist fresh network observation to Room cache
+                        weatherCacheRepository?.let { repo ->
+                            try {
+                                val cacheEntry = WeatherCache(
+                                    locationKey = locationKey,
+                                    locationName = resolvedName,
+                                    latitude = lat,
+                                    longitude = lon,
+                                    temperatureC = temp,
+                                    windSpeedKmH = wind,
+                                    weatherCode = weatherCode,
+                                    conditionDescription = condition,
+                                    formattedText = resultText,
+                                    forecastStr = forecastStr,
+                                    timestamp = System.currentTimeMillis()
+                                )
+                                repo.saveWeather(cacheEntry)
+                            } catch (e: Exception) {
+                                // Non-fatal cache write failure
+                            }
+                        }
+
                         return@withContext Result.Success(resultText)
                     }
                 }
             }
+
+            // Fallback to cached value if network response was not successful
+            weatherCacheRepository?.getCachedWeather(locationKey)?.let { staleCache ->
+                return@withContext Result.Success(staleCache.formattedText)
+            }
+
             Result.Success("$resolvedName: 20°C, Clear skies")
         } catch (e: Exception) {
-            Result.Error(e, "Failed to fetch weather data: ${e.localizedMessage}")
+            // If offline, attempt to serve last known cache before returning error
+            val lastKnown = weatherCacheRepository?.getLatestCachedWeather(maxAgeMs = Long.MAX_VALUE)
+            if (lastKnown != null) {
+                Result.Success(lastKnown.formattedText)
+            } else {
+                Result.Error(e, "Failed to fetch weather data: ${e.localizedMessage}")
+            }
         }
     }
 

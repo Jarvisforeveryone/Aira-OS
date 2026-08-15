@@ -29,6 +29,8 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.theme.Dimens
 import com.example.ui.theme.IconColors
 import com.example.ui.theme.bounceClick
+import com.example.ui.theme.highTechGlowPulse
+import com.example.ui.theme.holographicLightSweep
 import com.example.utils.ScreenUtils
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -43,7 +45,8 @@ enum class AiraButtonVariant {
 /**
  * AIRA UNIFIED BUTTON COMPONENT
  * Single source of truth for action buttons across AIRA.
- * Standardizes typography, colors, padding, loading states, tactile haptic feedback, and bounce micro-interactions.
+ * Standardizes typography, colors, padding, loading states, tactile haptic feedback, bounce micro-interactions,
+ * and cinematic holographic light sweeps for a high-tech AI interface feel.
  * Automatically adapts size, elevation, and font size using ScreenUtils responsive system.
  */
 @Composable
@@ -59,7 +62,8 @@ fun AiraButton(
     contentColor: Color = MaterialTheme.colorScheme.onPrimary,
     shape: RoundedCornerShape? = null,
     height: Dp? = null,
-    fullWidth: Boolean = false
+    fullWidth: Boolean = false,
+    showTechGlow: Boolean = false
 ) {
     val haptic = LocalHapticFeedback.current
     val adaptive = ScreenUtils.adaptiveValues()
@@ -74,6 +78,9 @@ fun AiraButton(
     val buttonModifier = modifier
         .then(if (fullWidth) Modifier.fillMaxWidth() else Modifier)
         .height(effectiveHeight)
+        .bounceClick(onClick = onHapticClick, scaleDownFactor = 0.95f)
+        .holographicLightSweep(enabled = variant == AiraButtonVariant.PRIMARY && enabled)
+        .highTechGlowPulse(active = showTechGlow, glowColor = containerColor)
 
     val contentPadding = PaddingValues(horizontal = adaptive.padding, vertical = 8.dp)
 

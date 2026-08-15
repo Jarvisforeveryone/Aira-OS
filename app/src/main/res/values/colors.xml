@@ -3,6 +3,9 @@
     <!-- ========================================== -->
     <!-- AIRA OFFICIAL PALETTE SYSTEM               -->
     <!-- ========================================== -->
+    <color name="black">#000000</color>
+    <color name="white">#FFFFFF</color>
+
     <!-- LIGHT MODE (ADAPTIVE) -->
     <color name="aira_bg_light">#FBFAFC</color>
     <color name="aira_surface_light">#FFFFFF</color>

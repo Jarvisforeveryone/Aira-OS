@@ -4,7 +4,11 @@ import android.content.Context
 import com.example.data.AppDatabase
 import com.example.data.repositories.ChatRepositoryImpl
 import com.example.data.repositories.MemoryRepositoryImpl
+import com.example.data.repositories.QueryCacheRepository
+import com.example.data.repositories.QueryCacheRepositoryImpl
 import com.example.data.repositories.VoiceRepositoryImpl
+import com.example.data.repositories.WeatherCacheRepository
+import com.example.data.repositories.WeatherCacheRepositoryImpl
 import com.example.domain.repositories.ChatRepository
 import com.example.domain.repositories.MemoryRepository
 import com.example.domain.repositories.VoiceRepository
@@ -18,6 +22,14 @@ class AppModule(private val context: Context) {
 
     val database: AppDatabase by lazy {
         AppDatabase.getDatabase(context)
+    }
+
+    val weatherCacheRepository: WeatherCacheRepository by lazy {
+        WeatherCacheRepositoryImpl(database.weatherCacheDao())
+    }
+
+    val queryCacheRepository: QueryCacheRepository by lazy {
+        QueryCacheRepositoryImpl(database.queryCacheDao())
     }
 
     val chatRepository: ChatRepository by lazy {
@@ -45,7 +57,7 @@ class AppModule(private val context: Context) {
     }
 
     val getWeatherUseCase: GetWeatherUseCase by lazy {
-        GetWeatherUseCase()
+        GetWeatherUseCase(weatherCacheRepository = weatherCacheRepository)
     }
 
     val permissionManager: PermissionManager by lazy {

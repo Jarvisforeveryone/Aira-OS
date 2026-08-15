@@ -171,7 +171,7 @@ fun VoskDiagnosticPanel(
                         .padding(top = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
                     // 1. Live Input Audio Level Meter
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -344,7 +344,7 @@ fun VoskDiagnosticPanel(
                         }
                     }
 
-                    Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
                     // 4. Real-Time Filtered Vosk Logs Terminal
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

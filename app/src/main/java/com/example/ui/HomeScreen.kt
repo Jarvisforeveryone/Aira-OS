@@ -13,6 +13,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -25,6 +27,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Mic
@@ -91,23 +94,15 @@ fun HomeScreen(
     viewModel: AiraViewModel,
     modifier: Modifier = Modifier
 ) {
-    val vmIsListening by viewModel.isListening.collectAsState()
-    var isListening by remember { mutableStateOf(false) }
-    LaunchedEffect(vmIsListening) {
-        isListening = vmIsListening
-    }
-
+    val isListening by viewModel.isListening.collectAsState()
     val isOfflineBrain by viewModel.isOfflineBrain.collectAsState()
+    val onlineMode = !isOfflineBrain
     val reduceAnimations by viewModel.reduceAnimations.collectAsState()
-    var onlineMode by remember { mutableStateOf(!isOfflineBrain) }
-    LaunchedEffect(isOfflineBrain) {
-        onlineMode = !isOfflineBrain
-    }
 
     val isSpeaking by viewModel.isSpeaking.collectAsState()
     val statusText by viewModel.currentStatus.collectAsState()
-    val audioAmp by viewModel.audioAmplitude.collectAsState()
     val chatHistory by viewModel.chatHistory.collectAsState()
+    val audioAmp by viewModel.audioAmplitude.collectAsState()
     
     val themeIndex by viewModel.themeIndex.collectAsState()
 
@@ -119,8 +114,6 @@ fun HomeScreen(
     val modelReadyState by viewModel.modelReadyState.collectAsState()
     val morningBriefing by viewModel.morningBriefing.collectAsState()
     val isBriefingLoading by viewModel.isBriefingLoading.collectAsState()
-
-    val listState = rememberLazyListState()
 
     // Dynamic greeting text based on current hour
     val currentHour = remember { java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY) }
@@ -147,43 +140,17 @@ fun HomeScreen(
     var showFeedbackLogsDialog by remember { mutableStateOf(false) }
     var showFullHistoryDialog by remember { mutableStateOf(false) }
 
-    // Auto scroll chat thread on new messages
-    LaunchedEffect(chatHistory.size) {
-        if (chatHistory.isNotEmpty()) {
-            listState.animateScrollToItem(chatHistory.size - 1)
-        }
-    }
+    val sttState by viewModel.sttState.collectAsState()
 
     // UI CHANGE: Determine dynamic state-based status message
-    val derivedStatus = when {
-        isListening -> stringResource(R.string.listening_status)
-        isSpeaking -> stringResource(R.string.speaking_status)
-        statusText.contains("Processing", ignoreCase = true) || 
-        statusText.contains("Analyzing", ignoreCase = true) || 
-        statusText.contains("Transitioning", ignoreCase = true) ||
-        statusText.contains("Thinking", ignoreCase = true) -> stringResource(R.string.thinking_status)
-        else -> stringResource(R.string.ready_status)
+    val derivedStatus = when (sttState) {
+        com.example.ui.SttState.LISTENING -> "Listening..."
+        com.example.ui.SttState.PROCESSING -> "Processing..."
+        com.example.ui.SttState.SPEAKING -> "Speaking..."
+        com.example.ui.SttState.IDLE -> "Tap mic to speak"
     }
 
-    val infiniteTransition = rememberInfiniteTransition(label = "OrbRotation")
-    val rotationAngle by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(4000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "RotationAngle"
-    )
-
-    val sweepGradient = Brush.sweepGradient(
-        colors = listOf(
-            MaterialTheme.colorScheme.primary,
-            MaterialTheme.colorScheme.secondary,
-            MaterialTheme.colorScheme.tertiary,
-            MaterialTheme.colorScheme.primary
-        )
-    )
+    val scrollState = rememberScrollState()
 
     Box(
         modifier = modifier
@@ -192,6 +159,7 @@ fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(scrollState)
                 .padding(Dimens.responsiveScreenPadding)
                 .widthIn(max = 800.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -396,24 +364,23 @@ fun HomeScreen(
                     } else {
                         viewModel.startListening()
                     }
-                    isListening = !isListening
                 }
             )
 
             Spacer(modifier = Modifier.height(Dimens.GapExtraLarge)) // Distance below orb
 
-            // Instruction Text
+            // Instruction Text / State Status Text
             Spacer(modifier = Modifier.height(Dimens.GapExtraLarge))
             Text(
-                text = "Tap to speak or type a message",
-                fontSize = 14.sp,
+                text = derivedStatus,
+                fontSize = 18.sp,
                 fontFamily = FontFamily.SansSerif,
-                fontWeight = FontWeight.Normal,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.weight(1f)) // Adaptive spacing
+            Spacer(modifier = Modifier.height(Dimens.GapLarge))
 
             // Status Card
             Row(
@@ -435,8 +402,7 @@ fun HomeScreen(
                             role = Role.Switch
                             contentDescription = if (onlineMode) "Switch connection mode, currently Online" else "Switch connection mode, currently Offline"
                             onClick(label = "Toggle online/offline connection mode") {
-                                onlineMode = !onlineMode
-                                viewModel.toggleOfflineBrain(!onlineMode)
+                                viewModel.toggleOfflineBrain(onlineMode)
                                 true
                             }
                         }
@@ -444,8 +410,7 @@ fun HomeScreen(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
                         ) {
-                            onlineMode = !onlineMode
-                            viewModel.toggleOfflineBrain(!onlineMode)
+                            viewModel.toggleOfflineBrain(onlineMode)
                         },
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(Dimens.GapSmall)
@@ -490,7 +455,7 @@ fun HomeScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f)) // Adaptive spacing
+            Spacer(modifier = Modifier.height(Dimens.GapLarge))
 
             // Iron Man Morning Briefing Card
             AiraCard(
@@ -509,7 +474,7 @@ fun HomeScreen(
                             modifier = Modifier.size(Dimens.IconLarge).testTag("play_briefing_btn")
                         ) {
                             Icon(
-                                imageVector = Icons.Outlined.VolumeUp,
+                                imageVector = Icons.AutoMirrored.Outlined.VolumeUp,
                                 contentDescription = "Play Briefing Voice",
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(Dimens.IconSmall)
@@ -792,7 +757,7 @@ fun HomeScreen(
                                 }
                             } else if (amyProgress != null && amyProgress in 0f..1f) {
                                 LinearProgressIndicator(
-                                    progress = amyProgress,
+                                    progress = { amyProgress },
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(Dimens.GapSmall)

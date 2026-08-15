@@ -25,11 +25,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Article
+import androidx.compose.material.icons.automirrored.filled.Article
+import androidx.compose.material.icons.automirrored.outlined.Article
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.outlined.Article
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Settings
@@ -65,29 +65,12 @@ class MainActivity : ComponentActivity() {
         com.example.utils.MemoryManager.setupCrashGuard(this)
         enableEdgeToEdge()
 
-        if (!android.speech.SpeechRecognizer.isRecognitionAvailable(this)) {
-            android.app.AlertDialog.Builder(this)
-                .setTitle("OnlineAccuracy")
-                .setMessage("Download STT for better accuracy")
-                .setPositiveButton("Allow") { dialog, _ ->
-                    try {
-                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("market://details?id=com.google.android.googlequicksearchbox"))
-                        intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-                        startActivity(intent)
-                    } catch (e: Exception) {
-                        try {
-                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://play.google.com/store/apps/details?id=com.google.android.googlequicksearchbox"))
-                            intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-                            startActivity(intent)
-                        } catch (_: Exception) {}
-                    }
-                    dialog.dismiss()
-                }
-                .setNegativeButton("DenyAccess") { dialog, _ ->
-                    android.widget.Toast.makeText(this, "Offline Mode Active", android.widget.Toast.LENGTH_LONG).show()
-                    dialog.dismiss()
-                }
-                .show()
+        runCatching {
+            if (!android.speech.SpeechRecognizer.isRecognitionAvailable(this)) {
+                android.util.Log.i("AiraMainActivity", "SpeechRecognizer not available natively. Offline engine enabled.")
+            }
+        }.onFailure { e ->
+            android.util.Log.w("AiraMainActivity", "Speech recognizer availability check bypassed", e)
         }
 
         // Request core permissions on startup including notifications on Android 13+ (API 33)
@@ -103,33 +86,7 @@ class MainActivity : ComponentActivity() {
             }
         }.toTypedArray()
 
-        val micPermissionGranted = androidx.core.content.ContextCompat.checkSelfPermission(
-            this,
-            Manifest.permission.RECORD_AUDIO
-        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-
-        val showMicRationale = androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale(
-            this,
-            Manifest.permission.RECORD_AUDIO
-        )
-
-        if (!micPermissionGranted && showMicRationale) {
-            android.app.AlertDialog.Builder(this)
-                .setTitle("Microphone Permission Required")
-                .setMessage("AIRA needs microphone access for wake-word detection and hands-free voice interaction.")
-                .setPositiveButton("Grant Access") { dialog, _ ->
-                    dialog.dismiss()
-                    permissionLauncher.launch(permissions)
-                }
-                .setNegativeButton("Continue Without Voice") { dialog, _ ->
-                    dialog.dismiss()
-                    permissionLauncher.launch(permissions.filter { it != Manifest.permission.RECORD_AUDIO }.toTypedArray())
-                }
-                .setCancelable(false)
-                .show()
-        } else {
-            permissionLauncher.launch(permissions)
-        }
+        permissionLauncher.launch(permissions)
 
         // Initialize notification channels
         com.example.service.AiraNotificationManager.initNotificationChannels(this)
@@ -138,7 +95,6 @@ class MainActivity : ComponentActivity() {
             val viewModel: AiraViewModel = viewModel()
             activeViewModel = viewModel
             
-            var showSplash by remember { mutableStateOf(true) }
             val themeIndex by viewModel.themeIndex.collectAsState()
             val appTheme by viewModel.appTheme.collectAsState()
             val hasCompletedOnboarding by viewModel.hasCompletedOnboarding.collectAsState()
@@ -146,11 +102,7 @@ class MainActivity : ComponentActivity() {
             AiraTheme(themeIndex = themeIndex, appTheme = appTheme) {
                 com.example.ui.components.ModelDownloadPopup()
 
-                if (showSplash) {
-                    com.example.ui.components.SplashScreen(
-                        onSplashFinished = { showSplash = false }
-                    )
-                } else if (!hasCompletedOnboarding) {
+                if (!hasCompletedOnboarding) {
                     OnboardingScreen(
                         viewModel = viewModel,
                         onFinish = { viewModel.setOnboardingCompleted(true) }
@@ -295,7 +247,7 @@ class MainActivity : ComponentActivity() {
                                         alwaysShowLabel = true,
                                         icon = { 
                                             Icon(
-                                                imageVector = if (selectedTab == NavRoutes.TAB_FEEDS) Icons.Filled.Article else Icons.Outlined.Article, 
+                                                imageVector = if (selectedTab == NavRoutes.TAB_FEEDS) Icons.AutoMirrored.Filled.Article else Icons.AutoMirrored.Outlined.Article, 
                                                 contentDescription = "Climate News Feed", 
                                                 modifier = Modifier.size(Dimensions.IconSizeLarge)
                                             ) 

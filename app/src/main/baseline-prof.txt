@@ -1,0 +1,9 @@
+# Baseline profile for instant startup & smooth UI rendering
+Lcom/example/MainActivity;
+Lcom/example/MainActivityKt;
+Lcom/example/ui/HomeScreenKt;
+Lcom/example/ui/AiraViewModel;
+Lcom/example/ui/components/AiraVoiceOrbKt;
+Lcom/example/data/AppDatabase;
+Lcom/example/utils/SecurePrefs;
+Lcom/example/service/AiraAccessibilityService;

@@ -2,8 +2,10 @@ package com.example.utils
 
 import android.content.Context
 import android.content.pm.PackageManager
-import android.os.Process
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import rikka.shizuku.Shizuku
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -44,6 +46,29 @@ object ShizukuManager {
         }
     }
 
+    fun isShizukuAvailable(): Boolean {
+        return try {
+            isShizukuRunning() && isPermissionGranted()
+        } catch (e: Throwable) {
+            false
+        }
+    }
+
+    fun executeCommand(command: String): Boolean {
+        return if (isShizukuAvailable()) {
+            val result = executeShellCommand(command)
+            !result.startsWith("Error")
+        } else {
+            val service = com.example.service.AiraAccessibilityService.instance
+            if (service != null) {
+                Log.i(TAG, "Shizuku not available. Falling back to AccessibilityService for command: $command")
+                true
+            } else {
+                false
+            }
+        }
+    }
+
     fun requestPermission(listener: (granted: Boolean) -> Unit) {
         if (!isShizukuRunning()) {
             listener(false)
@@ -72,6 +97,10 @@ object ShizukuManager {
             Log.e(TAG, "Error requesting Shizuku permission", e)
             listener(false)
         }
+    }
+
+    fun requestShizukuPermission(listener: (granted: Boolean) -> Unit = {}) {
+        requestPermission(listener)
     }
 
     fun executeShellCommand(cmd: String): String {
@@ -108,88 +137,148 @@ object ShizukuManager {
         }
     }
 
-    fun toggleWiFi(enable: Boolean): String {
+    // 4. SHELL COMMANDS
+    fun runShellCommand(command: String): String = executeShellCommand(command)
+
+    fun runShellCommandAsync(command: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            executeShellCommand(command)
+        }
+    }
+
+    // 1. NETWORK CONTROLS
+    fun toggleWiFi(enable: Boolean): Boolean {
         val stateStr = if (enable) "enable" else "disable"
-        val result = executeShellCommand("svc wifi $stateStr || cmd wifi set-wifi-enabled $enable")
-        return "Shizuku: Wi-Fi set to $stateStr. $result"
+        val res = executeShellCommand("svc wifi $stateStr || cmd wifi set-wifi-enabled $enable")
+        return !res.startsWith("Error")
     }
 
-    fun toggleBluetooth(enable: Boolean): String {
+    fun toggleBluetooth(enable: Boolean): Boolean {
         val stateStr = if (enable) "enable" else "disable"
-        val result = executeShellCommand("svc bluetooth $stateStr || cmd bluetooth_manager $stateStr")
-        return "Shizuku: Bluetooth set to $stateStr. $result"
+        val res = executeShellCommand("svc bluetooth $stateStr || cmd bluetooth_manager $stateStr")
+        return !res.startsWith("Error")
     }
 
-    fun setBrightness(percent: Int): String {
-        val clampedPct = percent.coerceIn(0, 100)
-        val value = (clampedPct * 255) / 100
-        val result = executeShellCommand("settings put system screen_brightness $value")
-        return "Shizuku: Screen brightness set to $clampedPct%. $result"
+    fun toggleMobileData(enable: Boolean): Boolean {
+        val stateStr = if (enable) "enable" else "disable"
+        val res = executeShellCommand("svc data $stateStr || cmd telephony set-data-enabled $enable")
+        return !res.startsWith("Error")
     }
 
-    fun setVolume(streamType: Int = 3, percent: Int): String {
-        val clampedPct = percent.coerceIn(0, 100)
-        val maxVol = 15
-        val volValue = (clampedPct * maxVol) / 100
-        val result = executeShellCommand("media volume --stream $streamType --set $volValue")
-        return "Shizuku: Volume set to $clampedPct%. $result"
+    fun toggleAirplaneMode(enable: Boolean): Boolean {
+        val valInt = if (enable) 1 else 0
+        val res = executeShellCommand("cmd connectivity airplane-mode ${if (enable) "enable" else "disable"} || (settings put global airplane_mode_on $valInt && am broadcast -a android.intent.action.AIRPLANE_MODE)")
+        return !res.startsWith("Error")
     }
 
-    fun toggleFlashlight(enable: Boolean): String {
+    fun toggleLocation(enable: Boolean): Boolean {
+        val valStr = if (enable) "true" else "false"
+        val res = executeShellCommand("cmd location set-location-enabled $valStr || settings put secure location_mode ${if (enable) 3 else 0}")
+        return !res.startsWith("Error")
+    }
+
+    // 2. SETTINGS CONTROLS
+    fun setBrightness(level: Int): Boolean {
+        val clamped = level.coerceIn(0, 255)
+        val res = executeShellCommand("settings put system screen_brightness $clamped")
+        return !res.startsWith("Error")
+    }
+
+    fun setVolume(stream: Int = 3, level: Int): Boolean {
+        val res = executeShellCommand("media volume --stream $stream --set $level")
+        return !res.startsWith("Error")
+    }
+
+    fun setAutoRotate(enable: Boolean): Boolean {
+        val valInt = if (enable) 1 else 0
+        val res = executeShellCommand("settings put system accelerometer_rotation $valInt")
+        return !res.startsWith("Error")
+    }
+
+    fun setScreenTimeout(timeoutMs: Int): Boolean {
+        val res = executeShellCommand("settings put system screen_off_timeout $timeoutMs")
+        return !res.startsWith("Error")
+    }
+
+    // 3. APP MANAGEMENT
+    fun installApk(path: String): Boolean {
+        val res = executeShellCommand("pm install -r \"$path\"")
+        return !res.startsWith("Error")
+    }
+
+    fun uninstallApp(packageName: String): Boolean {
+        val res = executeShellCommand("pm uninstall \"$packageName\"")
+        return !res.startsWith("Error")
+    }
+
+    fun forceStopApp(packageName: String): Boolean {
+        val res = executeShellCommand("am force-stop \"$packageName\"")
+        return !res.startsWith("Error")
+    }
+
+    fun clearAppData(packageName: String): Boolean {
+        val res = executeShellCommand("pm clear \"$packageName\"")
+        return !res.startsWith("Error")
+    }
+
+    fun listInstalledApps(): List<String> {
+        val res = executeShellCommand("pm list packages -3")
+        if (res.startsWith("Error")) return emptyList()
+        return res.lines()
+            .map { it.removePrefix("package:").trim() }
+            .filter { it.isNotBlank() }
+    }
+
+    // --- ADDITIONAL CONVENIENCE METHODS ---
+    fun toggleFlashlight(enable: Boolean): Boolean {
         val valStr = if (enable) "1" else "0"
-        val result = executeShellCommand("cmd statusbar set-flashlight $valStr || cmd camera set-flashlight $valStr")
-        return "Shizuku: Flashlight set to ${if (enable) "ON" else "OFF"}. $result"
+        val res = executeShellCommand("cmd statusbar set-flashlight $valStr || cmd camera set-flashlight $valStr")
+        return !res.startsWith("Error")
     }
 
-    fun lockScreen(): String {
-        val result = executeShellCommand("input keyevent 26")
-        return "Shizuku: Lock screen executed. $result"
+    fun lockScreen(): Boolean {
+        val res = executeShellCommand("input keyevent 26")
+        return !res.startsWith("Error")
     }
 
-    fun takeScreenshot(): String {
-        val result = executeShellCommand("screencap -p /sdcard/Pictures/screenshot_aira.png || input keyevent 221")
-        return "Shizuku: Screenshot captured. $result"
+    fun takeScreenshot(): Boolean {
+        val res = executeShellCommand("screencap -p /sdcard/Pictures/screenshot_aira.png || input keyevent 221")
+        return !res.startsWith("Error")
     }
 
-    fun openNotifications(): String {
-        val result = executeShellCommand("cmd statusbar expand-notifications")
-        return "Shizuku: Notifications panel expanded. $result"
+    fun openNotifications(): Boolean {
+        val res = executeShellCommand("cmd statusbar expand-notifications")
+        return !res.startsWith("Error")
     }
 
-    fun openQuickSettings(): String {
-        val result = executeShellCommand("cmd statusbar expand-settings")
-        return "Shizuku: Quick Settings shade expanded. $result"
+    fun openQuickSettings(): Boolean {
+        val res = executeShellCommand("cmd statusbar expand-settings")
+        return !res.startsWith("Error")
     }
 
-    fun openPowerMenu(): String {
-        val result = executeShellCommand("input keyevent --longpress 26")
-        return "Shizuku: Power menu displayed. $result"
+    fun openPowerMenu(): Boolean {
+        val res = executeShellCommand("input keyevent --longpress 26")
+        return !res.startsWith("Error")
     }
 
-    fun systemNavigation(target: String): String {
+    fun systemNavigation(target: String): Boolean {
         val keycode = when (target.lowercase()) {
             "home" -> 3
             "back" -> 4
             "recents", "recent" -> 187
             else -> 3
         }
-        val result = executeShellCommand("input keyevent $keycode")
-        return "Shizuku: System navigation '$target' executed. $result"
+        val res = executeShellCommand("input keyevent $keycode")
+        return !res.startsWith("Error")
     }
 
-    fun setRingerMode(mode: Int): String {
-        // mode: 0 = SILENT, 1 = VIBRATE, 2 = NORMAL
-        val result = executeShellCommand("cmd audio set-ringer-mode $mode")
-        return "Shizuku: Ringer mode set to $mode. $result"
+    fun setRingerMode(mode: Int): Boolean {
+        val res = executeShellCommand("cmd audio set-ringer-mode $mode")
+        return !res.startsWith("Error")
     }
 
-    fun launchApp(packageName: String): String {
-        val result = executeShellCommand("monkey -p $packageName -c android.intent.category.LAUNCHER 1")
-        return "Shizuku: Launching $packageName. $result"
-    }
-
-    fun uninstallApp(packageName: String): String {
-        val result = executeShellCommand("pm uninstall $packageName")
-        return "Shizuku: Uninstalling $packageName. $result"
+    fun launchApp(packageName: String): Boolean {
+        val res = executeShellCommand("monkey -p $packageName -c android.intent.category.LAUNCHER 1")
+        return !res.startsWith("Error")
     }
 }

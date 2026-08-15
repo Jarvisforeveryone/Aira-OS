@@ -260,6 +260,8 @@ class VoiceCommandManager(private val context: Context) {
         val commands = voiceDao.getAllCommands()
         val lowerInput = userInput.lowercase().trim()
 
+        Log.d("VoiceCommandManager", "Parsing input for voice command execution: '$userInput'")
+
         var matchedCommand: Command? = null
         var bestSimilarity = 0.0f
         var extractedValue = ""
@@ -279,6 +281,7 @@ class VoiceCommandManager(private val context: Context) {
                         matchedCommand = cmd
                         bestSimilarity = 1.0f
                         extractedValue = matchResult.groupValues.getOrNull(1) ?: ""
+                        Log.i("VoiceCommandManager", "Command Wildcard MATCH! Trigger: '$trigger', Extracted Value: '$extractedValue'")
                         break
                     }
                 } catch (e: Exception) {
@@ -300,10 +303,12 @@ class VoiceCommandManager(private val context: Context) {
 
         // If a match is found with confidence >= 80% (0.8f)
         if (matchedCommand != null) {
+            Log.i("VoiceCommandManager", "Executing voice command: '${matchedCommand.triggerPhrase}' (Confidence: ${(bestSimilarity * 100).toInt()}%)")
             executeChainCommand(userInput, matchedCommand, extractedValue, viewModel)
             return true
         }
 
+        Log.d("VoiceCommandManager", "No matching command found for input: '$userInput'")
         return false
     }
 

@@ -1,0 +1,35 @@
+<svg width="432" height="432" viewBox="0 0 432 432" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00C3FF" />
+      <stop offset="50%" stop-color="#0072FF" />
+      <stop offset="100%" stop-color="#00D2FF" />
+    </linearGradient>
+    <filter id="glowFilter" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Outer Glowing Ring -->
+  <circle cx="216" cy="216" r="125" fill="none" stroke="#0099FF" stroke-width="18" opacity="0.55" filter="url(#glowFilter)" />
+  <!-- Core Gradient Ring -->
+  <circle cx="216" cy="216" r="125" fill="none" stroke="url(#blueGrad)" stroke-width="16" />
+  <!-- Inner Rim Light -->
+  <circle cx="216" cy="216" r="117" fill="none" stroke="#B3F0FF" stroke-width="2.5" opacity="0.8" />
+
+  <!-- AIRA Text Centered inside ring -->
+  <g fill="#FFFFFF" transform="translate(216, 216)">
+    <!-- A -->
+    <path d="M -68,17 L -49,-23 L -30,17 L -39,17 L -49,-4 L -59,17 Z M -54,4 L -44,4 L -49,-10 Z" />
+    <!-- I -->
+    <rect x="-19" y="-23" width="10" height="40" rx="2" />
+    <!-- R -->
+    <path d="M 5,-23 L 27,-23 C 38,-23 44,-17 44,-10 C 44,-2 38,2 27,2 L 15,2 L 15,17 L 5,17 Z M 15,-14 L 26,-14 C 32,-14 34,-13 34,-10 C 34,-7 32,-5 26,-5 L 15,-5 Z M 24,1 L 42,17 L 31,17 L 14,2 Z" />
+    <!-- A -->
+    <path d="M 53,17 L 72,-23 L 91,17 L 82,17 L 72,-4 L 62,17 Z M 67,4 L 77,4 L 72,-10 Z" />
+  </g>
+</svg>

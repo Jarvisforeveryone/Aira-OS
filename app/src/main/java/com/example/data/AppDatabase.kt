@@ -11,7 +11,24 @@ import com.example.data.VoiceCommandDao
 import com.example.data.TrainedWakeWord
 import com.example.data.TrainedWakeWordDao
 
-@Database(entities = [ChatMessage::class, Reminder::class, GrokCache::class, Action::class, Command::class, Memory::class, TrainedWakeWord::class, ResponseFeedback::class, VoiceCommandLogEntity::class, MacroEntity::class], version = 9, exportSchema = false)
+@Database(
+    entities = [
+        ChatMessage::class,
+        Reminder::class,
+        GrokCache::class,
+        Action::class,
+        Command::class,
+        Memory::class,
+        TrainedWakeWord::class,
+        ResponseFeedback::class,
+        VoiceCommandLogEntity::class,
+        MacroEntity::class,
+        WeatherCache::class,
+        QueryCache::class
+    ],
+    version = 10,
+    exportSchema = false
+)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun chatMessageDao(): ChatMessageDao
     abstract fun reminderDao(): ReminderDao
@@ -22,6 +39,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun responseFeedbackDao(): ResponseFeedbackDao
     abstract fun voiceCommandLogDao(): VoiceCommandLogDao
     abstract fun macroDao(): MacroDao
+    abstract fun weatherCacheDao(): WeatherCacheDao
+    abstract fun queryCacheDao(): QueryCacheDao
 
     companion object {
         @Volatile

@@ -20,11 +20,15 @@ class AiraDeviceAdminReceiver : DeviceAdminReceiver() {
         Toast.makeText(context, "Aira Device Policy Admin Deactivated", Toast.LENGTH_SHORT).show()
     }
 
+    @Deprecated("Deprecated in Java")
+    @Suppress("DEPRECATION")
     override fun onPasswordChanged(context: Context, intent: Intent) {
         super.onPasswordChanged(context, intent)
         Log.d("AiraDeviceAdmin", "Device lock password/PIN updated")
     }
 
+    @Deprecated("Deprecated in Java")
+    @Suppress("DEPRECATION")
     override fun onPasswordFailed(context: Context, intent: Intent) {
         super.onPasswordFailed(context, intent)
         Log.w("AiraDeviceAdmin", "Device unlock attempt failed")

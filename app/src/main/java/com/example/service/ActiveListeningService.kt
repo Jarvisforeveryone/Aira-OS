@@ -12,6 +12,7 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.example.R
 import com.example.MainActivity
 
 class ActiveListeningService : Service() {
@@ -127,7 +128,7 @@ class ActiveListeningService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("AIRA Active Listening Mode")
             .setContentText("Background voice wake active • Say \"$wakeWord\"")
-            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
+            .setSmallIcon(R.drawable.ic_notification)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)

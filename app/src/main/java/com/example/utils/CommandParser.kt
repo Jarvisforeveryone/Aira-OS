@@ -34,6 +34,16 @@ enum class CommandType {
     OPEN_SETTINGS_PAGE,
     LAUNCH_APP,
     MORNING_BRIEFING,
+    TOGGLE_MOBILE_DATA,
+    TOGGLE_LOCATION,
+    TOGGLE_AIRPLANE_MODE,
+    SCROLL_FORWARD,
+    SCROLL_BACKWARD,
+    READ_SCREEN,
+    TYPE_TEXT,
+    UNINSTALL_APP,
+    FORCE_STOP_APP,
+    CLEAR_APP_DATA,
     UNKNOWN
 }
 
@@ -315,6 +325,119 @@ object CommandParser {
             )
         }
 
+        // 21. Scroll Actions
+        if (containsAny(lower, "scroll down", "scroll forward", "page down")) {
+            return ParsedCommand(
+                type = CommandType.SCROLL_FORWARD,
+                originalInput = rawInput,
+                summary = "Scrolling screen down"
+            )
+        }
+        if (containsAny(lower, "scroll up", "scroll backward", "page up")) {
+            return ParsedCommand(
+                type = CommandType.SCROLL_BACKWARD,
+                originalInput = rawInput,
+                summary = "Scrolling screen up"
+            )
+        }
+
+        // 22. Read Screen
+        if (containsAny(lower, "read screen", "read page", "screen text", "what's on screen")) {
+            return ParsedCommand(
+                type = CommandType.READ_SCREEN,
+                originalInput = rawInput,
+                summary = "Reading screen contents"
+            )
+        }
+
+        // 23. Type Text
+        if (lower.startsWith("type ") || lower.startsWith("enter text ")) {
+            val txt = when {
+                lower.startsWith("type ") -> rawInput.substring("type ".length)
+                else -> rawInput.substring("enter text ".length)
+            }.trim()
+            if (txt.isNotBlank()) {
+                return ParsedCommand(
+                    type = CommandType.TYPE_TEXT,
+                    originalInput = rawInput,
+                    stringParam = txt,
+                    summary = "Typing text '$txt'"
+                )
+            }
+        }
+
+        // 24. Toggle Mobile Data
+        if (containsAny(lower, "mobile data", "cellular data", "data connection")) {
+            val enable = !containsAny(lower, "off", "disable", "stop")
+            return ParsedCommand(
+                type = CommandType.TOGGLE_MOBILE_DATA,
+                originalInput = rawInput,
+                booleanParam = enable,
+                summary = if (enable) "Turning Mobile Data ON" else "Turning Mobile Data OFF"
+            )
+        }
+
+        // 25. Location / GPS
+        if (containsAny(lower, "location", "gps")) {
+            val enable = !containsAny(lower, "off", "disable", "stop")
+            return ParsedCommand(
+                type = CommandType.TOGGLE_LOCATION,
+                originalInput = rawInput,
+                booleanParam = enable,
+                summary = if (enable) "Turning Location ON" else "Turning Location OFF"
+            )
+        }
+
+        // 26. Airplane Mode
+        if (containsAny(lower, "airplane mode", "flight mode")) {
+            val enable = !containsAny(lower, "off", "disable", "stop")
+            return ParsedCommand(
+                type = CommandType.TOGGLE_AIRPLANE_MODE,
+                originalInput = rawInput,
+                booleanParam = enable,
+                summary = if (enable) "Turning Airplane Mode ON" else "Turning Airplane Mode OFF"
+            )
+        }
+
+        // 27. Uninstall App
+        if (lower.startsWith("uninstall ")) {
+            val appPkg = rawInput.substring("uninstall ".length).trim()
+            return ParsedCommand(
+                type = CommandType.UNINSTALL_APP,
+                originalInput = rawInput,
+                stringParam = appPkg,
+                summary = "Uninstalling app '$appPkg'"
+            )
+        }
+
+        // 28. Force Stop App
+        if (lower.startsWith("force stop ") || lower.startsWith("kill app ")) {
+            val appPkg = when {
+                lower.startsWith("force stop ") -> rawInput.substring("force stop ".length)
+                else -> rawInput.substring("kill app ".length)
+            }.trim()
+            return ParsedCommand(
+                type = CommandType.FORCE_STOP_APP,
+                originalInput = rawInput,
+                stringParam = appPkg,
+                summary = "Force stopping app '$appPkg'"
+            )
+        }
+
+        // 29. Clear App Data
+        if (lower.startsWith("clear data ") || lower.startsWith("reset app ")) {
+            val appPkg = when {
+                lower.startsWith("clear data ") -> rawInput.substring("clear data ".length)
+                else -> rawInput.substring("reset app ".length)
+            }.trim()
+            return ParsedCommand(
+                type = CommandType.CLEAR_APP_DATA,
+                originalInput = rawInput,
+                stringParam = appPkg,
+                summary = "Clearing data for app '$appPkg'"
+            )
+        }
+
         return null
     }
 
@@ -327,7 +450,8 @@ object CommandParser {
                 CommandType.TOGGLE_WIFI -> {
                     val enable = command.booleanParam ?: true
                     if (ShizukuManager.isShizukuRunning() && ShizukuManager.isPermissionGranted()) {
-                        ShizukuManager.toggleWiFi(enable)
+                        val ok = ShizukuManager.toggleWiFi(enable)
+                        if (ok) "Wi-Fi set to ${if (enable) "ON" else "OFF"} via Shizuku." else "Failed to toggle Wi-Fi via Shizuku."
                     } else {
                         val service = AiraAccessibilityService.instance
                         if (service != null) {
@@ -344,7 +468,8 @@ object CommandParser {
                 CommandType.ADJUST_BRIGHTNESS -> {
                     val targetPercent = command.intParam ?: 50
                     if (ShizukuManager.isShizukuRunning() && ShizukuManager.isPermissionGranted()) {
-                        ShizukuManager.setBrightness(targetPercent)
+                        val ok = ShizukuManager.setBrightness(targetPercent)
+                        if (ok) "Brightness set to $targetPercent% via Shizuku." else "Failed to set brightness via Shizuku."
                     } else {
                         setSystemBrightness(context, targetPercent)
                     }
@@ -375,7 +500,8 @@ object CommandParser {
                 CommandType.TOGGLE_BLUETOOTH -> {
                     val enable = command.booleanParam ?: true
                     if (ShizukuManager.isShizukuRunning() && ShizukuManager.isPermissionGranted()) {
-                        ShizukuManager.toggleBluetooth(enable)
+                        val ok = ShizukuManager.toggleBluetooth(enable)
+                        if (ok) "Bluetooth set to ${if (enable) "ON" else "OFF"} via Shizuku." else "Failed to toggle Bluetooth via Shizuku."
                     } else {
                         val service = AiraAccessibilityService.instance
                         if (service != null) {
@@ -392,23 +518,26 @@ object CommandParser {
                 CommandType.TOGGLE_FLASHLIGHT -> {
                     val enable = command.booleanParam ?: true
                     if (ShizukuManager.isShizukuRunning() && ShizukuManager.isPermissionGranted()) {
-                        ShizukuManager.toggleFlashlight(enable)
+                        val ok = ShizukuManager.toggleFlashlight(enable)
+                        if (ok) "Flashlight set to ${if (enable) "ON" else "OFF"} via Shizuku." else "Failed to toggle flashlight via Shizuku."
                     } else {
-                        viewModel?.toggleFlashlight(enable) ?: "Flashlight set to ${if (enable) "ON" else "OFF"}."
+                        viewModel?.toggleFlashlight(enable)
+                        "Flashlight set to ${if (enable) "ON" else "OFF"}."
                     }
                 }
 
                 CommandType.SET_SOUND_MODE -> {
                     val mode = command.intParam ?: AudioManager.RINGER_MODE_NORMAL
+                    val modeName = when (mode) {
+                        AudioManager.RINGER_MODE_SILENT -> "Silent Mode"
+                        AudioManager.RINGER_MODE_VIBRATE -> "Vibrate Mode"
+                        else -> "Normal Sound Mode"
+                    }
                     if (ShizukuManager.isShizukuRunning() && ShizukuManager.isPermissionGranted()) {
-                        ShizukuManager.setRingerMode(mode)
+                        val ok = ShizukuManager.setRingerMode(mode)
+                        if (ok) "Ringer audio updated to $modeName via Shizuku." else "Failed to set sound mode via Shizuku."
                     } else {
                         viewModel?.setSoundMode(mode)
-                        val modeName = when (mode) {
-                            AudioManager.RINGER_MODE_SILENT -> "Silent Mode"
-                            AudioManager.RINGER_MODE_VIBRATE -> "Vibrate Mode"
-                            else -> "Normal Sound Mode"
-                        }
                         "Ringer audio updated to $modeName."
                     }
                 }
@@ -416,7 +545,8 @@ object CommandParser {
                 CommandType.SYSTEM_NAVIGATION -> {
                     val target = command.stringParam ?: "home"
                     if (ShizukuManager.isShizukuRunning() && ShizukuManager.isPermissionGranted()) {
-                        ShizukuManager.systemNavigation(target)
+                        val ok = ShizukuManager.systemNavigation(target)
+                        if (ok) "Executed navigation: ${target.uppercase(Locale.ROOT)} via Shizuku." else "Failed navigation via Shizuku."
                     } else {
                         when (target) {
                             "home" -> viewModel?.triggerHomeAction()
@@ -429,7 +559,8 @@ object CommandParser {
 
                 CommandType.LOCK_SCREEN -> {
                     if (ShizukuManager.isShizukuRunning() && ShizukuManager.isPermissionGranted()) {
-                        ShizukuManager.lockScreen()
+                        val ok = ShizukuManager.lockScreen()
+                        if (ok) "Device screen locked via Shizuku." else "Failed to lock screen via Shizuku."
                     } else {
                         val result = viewModel?.lockDeviceScreen()
                         result ?: "Lock screen command executed."
@@ -438,7 +569,8 @@ object CommandParser {
 
                 CommandType.TAKE_SCREENSHOT -> {
                     if (ShizukuManager.isShizukuRunning() && ShizukuManager.isPermissionGranted()) {
-                        ShizukuManager.takeScreenshot()
+                        val ok = ShizukuManager.takeScreenshot()
+                        if (ok) "Screenshot captured via Shizuku." else "Failed screenshot via Shizuku."
                     } else {
                         val service = AiraAccessibilityService.instance
                         if (service != null && service.performScreenshotAction()) {
@@ -451,7 +583,8 @@ object CommandParser {
 
                 CommandType.OPEN_NOTIFICATIONS -> {
                     if (ShizukuManager.isShizukuRunning() && ShizukuManager.isPermissionGranted()) {
-                        ShizukuManager.openNotifications()
+                        val ok = ShizukuManager.openNotifications()
+                        if (ok) "Notifications shade expanded via Shizuku." else "Failed notifications via Shizuku."
                     } else {
                         val service = AiraAccessibilityService.instance
                         if (service != null && service.performNotificationsAction()) {
@@ -464,7 +597,8 @@ object CommandParser {
 
                 CommandType.OPEN_QUICK_SETTINGS -> {
                     if (ShizukuManager.isShizukuRunning() && ShizukuManager.isPermissionGranted()) {
-                        ShizukuManager.openQuickSettings()
+                        val ok = ShizukuManager.openQuickSettings()
+                        if (ok) "Quick Settings opened via Shizuku." else "Failed quick settings via Shizuku."
                     } else {
                         val service = AiraAccessibilityService.instance
                         if (service != null && service.performQuickSettingsAction()) {
@@ -477,7 +611,8 @@ object CommandParser {
 
                 CommandType.OPEN_POWER_MENU -> {
                     if (ShizukuManager.isShizukuRunning() && ShizukuManager.isPermissionGranted()) {
-                        ShizukuManager.openPowerMenu()
+                        val ok = ShizukuManager.openPowerMenu()
+                        if (ok) "Power menu displayed via Shizuku." else "Failed power menu via Shizuku."
                     } else {
                         val service = AiraAccessibilityService.instance
                         if (service != null && service.performPowerMenuAction()) {
@@ -522,7 +657,8 @@ object CommandParser {
                     val percent = command.intParam
                     val action = command.stringParam ?: "set"
                     if (ShizukuManager.isShizukuRunning() && ShizukuManager.isPermissionGranted() && percent != null) {
-                        ShizukuManager.setVolume(3, percent)
+                        val ok = ShizukuManager.setVolume(3, percent)
+                        if (ok) "Volume set to $percent% via Shizuku." else "Failed volume adjustment via Shizuku."
                     } else {
                         adjustVolume(context, action, percent)
                     }
@@ -540,11 +676,108 @@ object CommandParser {
 
                 CommandType.MORNING_BRIEFING -> {
                     if (viewModel != null) {
-                        kotlinx.coroutines.runBlocking {
-                            viewModel.generateMorningBriefing()
-                        }
+                        viewModel.triggerMorningBriefing()
+                        "Preparing your Morning Briefing with weather and agenda..."
                     } else {
                         "AIRA Morning Briefing initialized. Weather and schedule synchronization active."
+                    }
+                }
+
+                CommandType.SCROLL_FORWARD -> {
+                    val service = AiraAccessibilityService.instance
+                    if (service != null && service.scrollForward()) {
+                        "Scrolled screen down."
+                    } else {
+                        "Scrolling requires active Accessibility Service."
+                    }
+                }
+
+                CommandType.SCROLL_BACKWARD -> {
+                    val service = AiraAccessibilityService.instance
+                    if (service != null && service.scrollBackward()) {
+                        "Scrolled screen up."
+                    } else {
+                        "Scrolling requires active Accessibility Service."
+                    }
+                }
+
+                CommandType.READ_SCREEN -> {
+                    val service = AiraAccessibilityService.instance
+                    if (service != null) {
+                        val text = service.readAllText()
+                        "Screen content:\n$text"
+                    } else {
+                        "Reading screen requires active Accessibility Service."
+                    }
+                }
+
+                CommandType.TYPE_TEXT -> {
+                    val txt = command.stringParam ?: ""
+                    val service = AiraAccessibilityService.instance
+                    if (service != null && service.typeText(txt)) {
+                        "Typed '$txt' into focused field."
+                    } else {
+                        "Typing text requires active Accessibility Service with a focused field."
+                    }
+                }
+
+                CommandType.TOGGLE_MOBILE_DATA -> {
+                    val enable = command.booleanParam ?: true
+                    if (ShizukuManager.isShizukuAvailable()) {
+                        val ok = ShizukuManager.toggleMobileData(enable)
+                        if (ok) "Mobile data set to ${if (enable) "ON" else "OFF"} via Shizuku." else "Failed to toggle mobile data via Shizuku."
+                    } else {
+                        "Mobile data toggle requires active Shizuku connection."
+                    }
+                }
+
+                CommandType.TOGGLE_LOCATION -> {
+                    val enable = command.booleanParam ?: true
+                    if (ShizukuManager.isShizukuAvailable()) {
+                        val ok = ShizukuManager.toggleLocation(enable)
+                        if (ok) "Location set to ${if (enable) "ON" else "OFF"} via Shizuku." else "Failed to toggle location via Shizuku."
+                    } else {
+                        "Location toggle requires active Shizuku connection."
+                    }
+                }
+
+                CommandType.TOGGLE_AIRPLANE_MODE -> {
+                    val enable = command.booleanParam ?: true
+                    if (ShizukuManager.isShizukuAvailable()) {
+                        val ok = ShizukuManager.toggleAirplaneMode(enable)
+                        if (ok) "Airplane mode set to ${if (enable) "ON" else "OFF"} via Shizuku." else "Failed to toggle airplane mode via Shizuku."
+                    } else {
+                        "Airplane mode toggle requires active Shizuku connection."
+                    }
+                }
+
+                CommandType.UNINSTALL_APP -> {
+                    val appPkg = command.stringParam ?: ""
+                    if (ShizukuManager.isShizukuAvailable()) {
+                        val ok = ShizukuManager.uninstallApp(appPkg)
+                        if (ok) "Uninstalled $appPkg via Shizuku." else "Failed to uninstall $appPkg via Shizuku."
+                    } else {
+                        "Uninstalling apps directly requires active Shizuku connection."
+                    }
+                }
+
+                CommandType.FORCE_STOP_APP -> {
+                    val appPkg = command.stringParam ?: ""
+                    if (ShizukuManager.isShizukuAvailable()) {
+                        val ok = ShizukuManager.forceStopApp(appPkg)
+                        if (ok) "Force stopped $appPkg via Shizuku." else "Failed to force stop $appPkg via Shizuku."
+                    } else {
+                        "Force stopping apps requires active Shizuku connection."
+                    }
+                }
+
+                CommandType.CLEAR_APP_DATA -> {
+                    val appPkg = command.stringParam ?: ""
+                    if (ShizukuManager.isShizukuAvailable()) {
+                        val ok = ShizukuManager.clearAppData(appPkg)
+                        if (ok) "Cleared data for $appPkg via Shizuku." else "Failed to clear data for $appPkg via Shizuku."
+                    } else {
+                        "Clearing app data requires active Shizuku connection."
                     }
                 }
 

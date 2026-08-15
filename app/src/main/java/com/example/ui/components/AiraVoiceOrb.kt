@@ -38,6 +38,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 
+import com.example.ui.CssPulsingEffect
+import com.example.ui.theme.ambientLevitation
+
 enum class OrbState {
     IDLE,
     LISTENING,
@@ -139,6 +142,7 @@ fun AiraVoiceOrb(
     Box(
         modifier = modifier
             .size(300.dp) // Total container fits 150% glow ring (270dp) + safety padding
+            .ambientLevitation(enabled = !reduceAnimations, floatDistanceDp = 5f, durationMs = 3800)
             .testTag("aira_voice_orb")
             .semantics {
                 liveRegion = LiveRegionMode.Polite
@@ -163,6 +167,14 @@ fun AiraVoiceOrb(
             },
         contentAlignment = Alignment.Center
     ) {
+        // High-tech CSS radar energy wave pulses behind orb during listening/speaking
+        CssPulsingEffect(
+            isListening = orbState == OrbState.LISTENING || orbState == OrbState.SPEAKING,
+            pulseColor = glowColor,
+            modifier = Modifier.size(280.dp),
+            pulseCount = 3
+        )
+
         // 5. GLOW EFFECT: 3 Concentric Glow Rings Behind the Orb
         // Outer Glow Ring (150% = 270dp, 10% opacity)
         Box(
@@ -245,20 +257,13 @@ fun AiraVoiceOrb(
                 )
             }
 
-            // Center Icon: White microphone with sound waves
+            // Center Icon: White microphone with sound waves / waveform animation
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
                 if (orbState == OrbState.SPEAKING || orbState == OrbState.LISTENING) {
-                    Icon(
-                        imageVector = Icons.Filled.GraphicEq,
-                        contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.85f),
-                        modifier = Modifier
-                            .size(28.dp)
-                            .padding(end = 4.dp)
-                    )
+                    AnimatedWaveformBars(audioAmp = audioAmp, isListening = (orbState == OrbState.LISTENING))
                 }
 
                 Icon(
@@ -269,16 +274,55 @@ fun AiraVoiceOrb(
                 )
 
                 if (orbState == OrbState.SPEAKING || orbState == OrbState.LISTENING) {
-                    Icon(
-                        imageVector = Icons.Filled.GraphicEq,
-                        contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.85f),
-                        modifier = Modifier
-                            .size(28.dp)
-                            .padding(start = 4.dp)
-                    )
+                    AnimatedWaveformBars(audioAmp = audioAmp, isListening = (orbState == OrbState.LISTENING))
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun AnimatedWaveformBars(
+    audioAmp: Float,
+    isListening: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "WaveformAnim")
+    val anim1 by infiniteTransition.animateFloat(
+        initialValue = 0.3f, targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(tween(400, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "Bar1"
+    )
+    val anim2 by infiniteTransition.animateFloat(
+        initialValue = 0.8f, targetValue = 0.2f,
+        animationSpec = infiniteRepeatable(tween(550, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "Bar2"
+    )
+    val anim3 by infiniteTransition.animateFloat(
+        initialValue = 0.4f, targetValue = 0.9f,
+        animationSpec = infiniteRepeatable(tween(350, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "Bar3"
+    )
+
+    Row(
+        modifier = modifier.padding(horizontal = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        val ampFactor = if (audioAmp > 0.1f) audioAmp else 0.5f
+        val heights = listOf(
+            (12.dp * anim1 * ampFactor).coerceAtLeast(4.dp),
+            (22.dp * anim2 * ampFactor).coerceAtLeast(6.dp),
+            (16.dp * anim3 * ampFactor).coerceAtLeast(4.dp)
+        )
+        heights.forEach { h ->
+            Box(
+                modifier = Modifier
+                    .width(3.dp)
+                    .height(h)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.9f))
+            )
         }
     }
 }
