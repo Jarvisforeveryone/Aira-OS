@@ -3540,15 +3540,32 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         customCountry: String? = null,
         forceRefresh: Boolean = false
     ): String = withContext(Dispatchers.IO) {
-        val userLoc = if (customLat == null) getUserLocation() else null
-        val isExactLocation = userLoc != null
-        val lat = customLat ?: userLoc?.first ?: 37.7749
-        val lon = customLon ?: userLoc?.second ?: -122.4194
+        val detectedLoc = if (customLat == null) {
+            com.example.utils.AiraLocationManager.getBestLocation(getApplication(), okHttpClient)
+        } else null
+
+        val isExactLocation = detectedLoc?.isGpsLocation == true
+        val lat = customLat ?: detectedLoc?.latitude
+        val lon = customLon ?: detectedLoc?.longitude
+        val detectedCity = customName ?: detectedLoc?.cityName
+        val detectedCountry = customCountry ?: detectedLoc?.countryName ?: ""
+
+        if (lat == null || lon == null) {
+            // Location could not be determined; check Room cache for latest available
+            val lastCached = weatherCacheDao.getLatestWeather()
+            if (lastCached != null) {
+                _weatherText.value = lastCached.formattedText
+                return@withContext lastCached.formattedText
+            }
+            val unavailableMsg = "Weather unavailable (Location & connection required)."
+            _weatherText.value = unavailableMsg
+            return@withContext unavailableMsg
+        }
 
         val locKey = when {
-            !customName.isNullOrEmpty() -> customName.trim().lowercase()
+            !detectedCity.isNullOrEmpty() -> detectedCity.trim().lowercase()
             isExactLocation -> "gps_%.3f_%.3f".format(lat, lon)
-            else -> "default_sf"
+            else -> "loc_%.3f_%.3f".format(lat, lon)
         }
 
         // 1. Check local Room cache first (reduces redundant network requests)
@@ -3609,14 +3626,14 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                         }
 
                         val locName = when {
-                            !customName.isNullOrEmpty() -> customName
+                            !detectedCity.isNullOrEmpty() -> detectedCity
                             isExactLocation -> reverseGeocode(lat, lon) ?: "Current Location"
-                            else -> "San Francisco"
+                            else -> "Local Area"
                         }
-                        val countryStr = customCountry ?: ""
+                        val countryStr = detectedCountry
 
-                        val locationLabel = if (countryStr.isNotEmpty()) "$locName, $countryStr" else locName
-                        val badge = if (isExactLocation) " (GPS)" else if (!customName.isNullOrEmpty()) "" else " (Default)"
+                        val locationLabel = if (countryStr.isNotEmpty() && !locName.contains(countryStr)) "$locName, $countryStr" else locName
+                        val badge = if (isExactLocation) " (GPS)" else ""
                         val formattedStr = "$locationLabel$badge: ${temp.toInt()}°C, $condition • Wind ${wind.toInt()} km/h$forecastStr"
 
                         val dataObj = OpenMeteoWeatherData(
@@ -3673,7 +3690,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
 
         val finalResult = weatherResult 
             ?: fallbackCached?.formattedText
-            ?: if (isExactLocation) "Current Location: 20°C, Clear" else "San Francisco: 17°C, Foggy"
+            ?: "Weather unavailable (Check network connection)."
             
         _weatherText.value = finalResult
         finalResult

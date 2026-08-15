@@ -44,6 +44,7 @@ enum class CommandType {
     UNINSTALL_APP,
     FORCE_STOP_APP,
     CLEAR_APP_DATA,
+    OPEN_URL,
     UNKNOWN
 }
 
@@ -213,10 +214,12 @@ object CommandParser {
         }
 
         // 13. Click Screen Element by Text
-        if (lower.startsWith("click on ") || lower.startsWith("tap on ") || lower.startsWith("press ")) {
+        if (lower.startsWith("click ") || lower.startsWith("click on ") || lower.startsWith("tap ") || lower.startsWith("tap on ") || lower.startsWith("press ")) {
             val targetText = when {
                 lower.startsWith("click on ") -> rawInput.substring("click on ".length)
+                lower.startsWith("click ") -> rawInput.substring("click ".length)
                 lower.startsWith("tap on ") -> rawInput.substring("tap on ".length)
+                lower.startsWith("tap ") -> rawInput.substring("tap ".length)
                 else -> rawInput.substring("press ".length)
             }.trim()
 
@@ -299,19 +302,58 @@ object CommandParser {
             )
         }
 
-        // 19. Launch Application by Name
-        if (lower.startsWith("open ") || lower.startsWith("launch ") || lower.startsWith("start ")) {
-            val appTarget = when {
+        // 19. Launch Application or Open Website/URL
+        if (lower.startsWith("open website ") || lower.startsWith("open url ") || lower.startsWith("browse to ") || lower.startsWith("go to ") || lower.startsWith("open ") || lower.startsWith("launch ") || lower.startsWith("start ")) {
+            val target = when {
+                lower.startsWith("open website ") -> rawInput.substring("open website ".length).trim()
+                lower.startsWith("open url ") -> rawInput.substring("open url ".length).trim()
+                lower.startsWith("browse to ") -> rawInput.substring("browse to ".length).trim()
+                lower.startsWith("go to ") -> rawInput.substring("go to ".length).trim()
                 lower.startsWith("open ") -> rawInput.substring(5).trim()
                 lower.startsWith("launch ") -> rawInput.substring(7).trim()
                 else -> rawInput.substring(6).trim()
             }
-            if (appTarget.isNotBlank() && !containsAny(appTarget.lowercase(), "notifications", "quick settings", "power menu")) {
+            if (target.isNotBlank() && !containsAny(target.lowercase(), "notifications", "quick settings", "power menu")) {
+                val lowerTarget = target.lowercase()
+                val isUrl = lowerTarget.startsWith("http://") || 
+                            lowerTarget.startsWith("https://") || 
+                            lowerTarget.startsWith("www.") || 
+                            lowerTarget.endsWith(".com") || 
+                            lowerTarget.endsWith(".org") || 
+                            lowerTarget.endsWith(".net") || 
+                            lowerTarget.endsWith(".io") || 
+                            lowerTarget.endsWith(".gov") || 
+                            lowerTarget.endsWith(".edu") || 
+                            lowerTarget.endsWith(".co") || 
+                            lowerTarget.endsWith(".ai") || 
+                            lowerTarget.endsWith(".app") || 
+                            lowerTarget.endsWith(".dev") ||
+                            lowerTarget.contains(".com/") ||
+                            lowerTarget.contains(".org/") ||
+                            lower.startsWith("open website ") ||
+                            lower.startsWith("open url ") ||
+                            lower.startsWith("browse to ") ||
+                            lower.startsWith("go to ")
+
+                if (isUrl) {
+                    val formattedUrl = when {
+                        lowerTarget.startsWith("http://") || lowerTarget.startsWith("https://") -> target
+                        lowerTarget.startsWith("www.") -> "https://$target"
+                        else -> "https://$target"
+                    }
+                    return ParsedCommand(
+                        type = CommandType.OPEN_URL,
+                        originalInput = rawInput,
+                        stringParam = formattedUrl,
+                        summary = "Opening website '$formattedUrl'"
+                    )
+                }
+
                 return ParsedCommand(
                     type = CommandType.LAUNCH_APP,
                     originalInput = rawInput,
-                    stringParam = appTarget,
-                    summary = "Launching app '$appTarget'"
+                    stringParam = target,
+                    summary = "Launching app '$target'"
                 )
             }
         }
@@ -781,6 +823,23 @@ object CommandParser {
                     }
                 }
 
+                CommandType.OPEN_URL -> {
+                    val rawUrl = command.stringParam ?: "https://google.com"
+                    val validUrl = if (!rawUrl.startsWith("http://") && !rawUrl.startsWith("https://")) {
+                        "https://$rawUrl"
+                    } else rawUrl
+                    try {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(validUrl)).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        }
+                        context.startActivity(intent)
+                        "Opening $validUrl in browser."
+                    } catch (e: Exception) {
+                        Log.e("CommandParser", "Failed to open URL $validUrl", e)
+                        "Failed to open website $validUrl: ${e.localizedMessage}"
+                    }
+                }
+
                 CommandType.UNKNOWN -> "Unknown command requested."
             }
         } catch (e: Exception) {
@@ -869,7 +928,15 @@ object CommandParser {
             }
 
             if (matchedInfo != null) {
-                val launchIntent = pm.getLaunchIntentForPackage(matchedInfo.activityInfo.packageName)
+                val pkgName = matchedInfo.activityInfo.packageName
+                if (ShizukuManager.isShizukuAvailable()) {
+                    val shizukuSuccess = ShizukuManager.launchApp(pkgName)
+                    if (shizukuSuccess) {
+                        return "Opening ${matchedInfo.loadLabel(pm)} via Shizuku."
+                    }
+                }
+
+                val launchIntent = pm.getLaunchIntentForPackage(pkgName)
                 if (launchIntent != null) {
                     launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     context.startActivity(launchIntent)
@@ -880,24 +947,40 @@ object CommandParser {
             // Common app shortcuts fallback
             val fallbackPackage = when (lowerTarget) {
                 "youtube" -> "com.google.android.youtube"
-                "chrome" -> "com.android.chrome"
-                "maps" -> "com.google.android.apps.maps"
+                "chrome", "google chrome", "browser" -> "com.android.chrome"
+                "maps", "google maps" -> "com.google.android.apps.maps"
                 "whatsapp" -> "com.whatsapp"
                 "spotify" -> "com.spotify.music"
                 "settings" -> "com.android.settings"
                 "camera" -> "com.android.camera"
                 "calculator" -> "com.google.android.calculator"
                 "clock" -> "com.google.android.deskclock"
+                "play store", "google play" -> "com.android.vending"
+                "photos", "google photos" -> "com.google.android.apps.photos"
+                "gmail", "email" -> "com.google.android.gm"
                 else -> null
             }
 
             if (fallbackPackage != null) {
+                if (ShizukuManager.isShizukuAvailable()) {
+                    val shizukuSuccess = ShizukuManager.launchApp(fallbackPackage)
+                    if (shizukuSuccess) {
+                        return "Opening $appName via Shizuku."
+                    }
+                }
+
                 val launchIntent = pm.getLaunchIntentForPackage(fallbackPackage)
                 if (launchIntent != null) {
                     launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     context.startActivity(launchIntent)
                     return "Opening $appName."
                 }
+            }
+
+            // Accessibility fallback: Try finding and tapping icon on screen/launcher
+            val service = AiraAccessibilityService.instance
+            if (service != null && service.tapOnText(appName)) {
+                return "Launched '$appName' via Accessibility Service."
             }
 
             "Could not find application '$appName' installed on device."
