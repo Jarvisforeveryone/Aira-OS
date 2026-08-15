@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.data.Memory
+import com.example.ui.theme.Dimens
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -103,42 +104,41 @@ fun MemoryBankScreen(
                     )
                     Text(
                         text = stringResource(R.string.add_memory_title),
-                        fontSize = 18.sp,
-                        fontFamily = FontFamily.SansSerif,
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(Dimens.GapLarge)) {
                     OutlinedTextField(
                         value = addFactText,
                         onValueChange = { addFactText = it },
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("add_memory_input"),
-                        textStyle = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface),
-                        shape = RoundedCornerShape(16.dp),
-                        placeholder = { Text("e.g. Likes black coffee with double shot", fontSize = 14.sp) },
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                        shape = RoundedCornerShape(Dimens.CornerRadiusLarge),
+                        placeholder = { Text("e.g. Likes black coffee with double shot", style = MaterialTheme.typography.bodyMedium) },
                         minLines = 2,
                         maxLines = 4
                     )
 
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(Dimens.GapSmall)) {
                         Text(
                             text = stringResource(R.string.category_label),
-                            fontSize = 13.sp,
+                            style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(Dimens.GapSmall)) {
                             items(listOf("Personal", "Work", "Tasks", "Reminders", "Preferences")) { cat ->
                                 FilterChip(
                                     selected = addCategory == cat,
                                     onClick = { addCategory = cat },
-                                    label = { Text(cat, fontSize = 12.sp, fontFamily = FontFamily.SansSerif) },
-                                    shape = RoundedCornerShape(12.dp)
+                                    label = { Text(cat, style = MaterialTheme.typography.labelSmall) },
+                                    shape = RoundedCornerShape(Dimens.CornerRadiusMedium)
                                 )
                             }
                         }

@@ -1,6 +1,5 @@
 package com.example.ui.settings
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,17 +15,19 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.data.ThemeRepository
 import com.example.ui.AiraViewModel
+import com.example.ui.components.AiraButton
+import com.example.ui.components.AiraButtonVariant
+import com.example.ui.components.AiraCard
+import com.example.ui.components.AiraStatusBadge
+import com.example.ui.theme.Dimens
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,10 +40,9 @@ fun ThemeScreen(navController: NavController, viewModel: AiraViewModel) {
                 title = {
                     Text(
                         text = "Theme Selection",
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 22.sp, // Section Title: 22sp SemiBold
-                        color = MaterialTheme.colorScheme.primary,
-                        fontFamily = FontFamily.SansSerif
+                        color = MaterialTheme.colorScheme.primary
                     )
                 },
                 navigationIcon = {
@@ -54,7 +54,7 @@ fun ThemeScreen(navController: NavController, viewModel: AiraViewModel) {
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
                             tint = MaterialTheme.colorScheme.onBackground,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(Dimens.IconStandard)
                         )
                     }
                 },
@@ -70,169 +70,123 @@ fun ThemeScreen(navController: NavController, viewModel: AiraViewModel) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = Dimens.responsiveScreenPadding)
         ) {
             // Live Theme Preview Card
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(22.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            AiraCard(
+                title = "Live Theme Preview",
+                headerTrailing = {
+                    AiraStatusBadge(
+                        text = "Active Accent",
+                        customColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                        customTextColor = MaterialTheme.colorScheme.primary
+                    )
+                },
+                modifier = Modifier.padding(vertical = Dimens.GapLarge)
             ) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Live Theme Preview",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontFamily = FontFamily.SansSerif
-                        )
-                        Surface(
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text(
-                                text = "Active Color Accent",
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontFamily = FontFamily.SansSerif
-                            )
-                        }
-                    }
+                Text(
+                    text = "Changes apply instantly across all screens. Theme colors, buttons, accents, and surfaces adapt dynamically.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
 
-                    Text(
-                        text = "Changes apply instantly across all screens. Theme colors, buttons, accents, and surfaces adapt dynamically.",
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontFamily = FontFamily.SansSerif,
-                        lineHeight = 18.sp
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.GapMedium)
+                ) {
+                    AiraButton(
+                        text = "Primary",
+                        onClick = {},
+                        modifier = Modifier.weight(1f)
                     )
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Button(
-                            onClick = {},
-                            modifier = Modifier.weight(1f).height(44.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text("Primary", color = MaterialTheme.colorScheme.onPrimary, fontSize = 14.sp, fontFamily = FontFamily.SansSerif)
-                        }
-
-                        OutlinedButton(
-                            onClick = {},
-                            modifier = Modifier.weight(1f).height(44.dp),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text("Accent Outline", color = MaterialTheme.colorScheme.primary, fontSize = 14.sp, fontFamily = FontFamily.SansSerif)
-                        }
-                    }
+                    AiraButton(
+                        text = "Accent Outline",
+                        onClick = {},
+                        variant = AiraButtonVariant.OUTLINED,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
 
             LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
+                columns = GridCells.Adaptive(minSize = 140.dp),
                 modifier = Modifier.fillMaxSize(),
-                horizontalArrangement = Arrangement.spacedBy(18.dp),
-                verticalArrangement = Arrangement.spacedBy(18.dp),
-                contentPadding = PaddingValues(bottom = 24.dp)
+                horizontalArrangement = Arrangement.spacedBy(Dimens.GapMedium),
+                verticalArrangement = Arrangement.spacedBy(Dimens.GapMedium),
+                contentPadding = PaddingValues(bottom = Dimens.GapExtraLarge)
             ) {
-                itemsIndexed(ThemeRepository.themes) { index, theme ->
-                val isSelected = (themeIndex == index)
+                itemsIndexed(ThemeRepository.themes, key = { index, _ -> "theme_$index" }) { index, theme ->
+                    val isSelected = (themeIndex == index)
+                    val cardShape = RoundedCornerShape(Dimens.CornerRadiusLarge)
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(160.dp) // Generous height for premium cards
-                        .background(
-                            color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface,
-                            shape = RoundedCornerShape(22.dp) // Corner Radius: 22dp
-                        )
-                        .border(
-                            width = 1.dp,
-                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-                            shape = RoundedCornerShape(22.dp)
-                        )
-                        .clickable { viewModel.selectTheme(index) }
-                        .testTag("theme_cell_$index")
-                        .padding(16.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.SpaceBetween
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(150.dp)
+                            .background(
+                                color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceContainerLow,
+                                shape = cardShape
+                            )
+                            .border(
+                                width = if (isSelected) 2.dp else 1.dp,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                shape = cardShape
+                            )
+                            .clickable { viewModel.selectTheme(index) }
+                            .testTag("theme_cell_$index")
+                            .padding(Dimens.CardPadding)
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Solid Color Preview Circle
-                            Box(
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .background(colorResource(id = theme.colorResId), CircleShape)
-                            )
-
-                            // Compact Custom Radio Indicator
-                            RadioButton(
-                                selected = isSelected,
-                                onClick = { viewModel.selectTheme(index) },
-                                colors = RadioButtonDefaults.colors(
-                                    selectedColor = MaterialTheme.colorScheme.primary,
-                                    unselectedColor = MaterialTheme.colorScheme.outline
-                                ),
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .testTag("theme_radio_$index")
-                            )
-                        }
-
                         Column(
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.SpaceBetween
                         ) {
-                            // Theme Name
-                            Text(
-                                text = theme.name,
-                                fontFamily = FontFamily.SansSerif,
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 18.sp, // Card Title: 18sp Medium
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(Dimens.IconLarge)
+                                        .background(colorResource(id = theme.colorResId), CircleShape)
+                                )
 
-                            Spacer(modifier = Modifier.height(4.dp))
+                                RadioButton(
+                                    selected = isSelected,
+                                    onClick = { viewModel.selectTheme(index) },
+                                    colors = RadioButtonDefaults.colors(
+                                        selectedColor = MaterialTheme.colorScheme.primary,
+                                        unselectedColor = MaterialTheme.colorScheme.outline
+                                    ),
+                                    modifier = Modifier.testTag("theme_radio_$index")
+                                )
+                            }
 
-                            // Theme Description
-                            Text(
-                                text = theme.description,
-                                fontFamily = FontFamily.SansSerif,
-                                fontSize = 14.sp, // Caption: 14sp
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                                lineHeight = 18.sp
-                            )
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Text(
+                                    text = theme.name,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+
+                                Spacer(modifier = Modifier.height(Dimens.GapTiny))
+
+                                Text(
+                                    text = theme.description,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
                     }
                 }
             }
         }
     }
-}
 }

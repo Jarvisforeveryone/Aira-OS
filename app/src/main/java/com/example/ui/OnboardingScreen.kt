@@ -298,7 +298,7 @@ private fun OnboardingWelcomeStep(viewModel: AiraViewModel) {
                 Icon(
                     imageVector = Icons.Default.GraphicEq,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(36.dp)
                 )
             }
@@ -647,8 +647,9 @@ private fun OnboardingThemeStep(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val previewColors = listOf(Color(0xFF2563EB), Color(0xFF1D4ED8), Color(0xFF1E40AF))
-            previewColors.forEachIndexed { idx, col ->
+            val previewThemes = com.example.data.ThemeRepository.themes.take(3)
+            previewThemes.forEachIndexed { idx, th ->
+                val col = androidx.compose.ui.res.colorResource(id = th.colorResId)
                 Surface(
                     shape = CircleShape,
                     color = col,
@@ -656,7 +657,7 @@ private fun OnboardingThemeStep(
                         .size(if (idx == currentThemeIndex) 48.dp else 36.dp)
                         .border(
                             width = if (idx == currentThemeIndex) 3.dp else 0.dp,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onBackground,
                             shape = CircleShape
                         ),
                     tonalElevation = 4.dp
@@ -688,11 +689,11 @@ private fun OnboardingThemeStep(
     Spacer(modifier = Modifier.height(20.dp))
 
     // Theme Palette Options
-    val themeNames = listOf("Premium Blue", "Stripe Blue", "Aether Focus")
-    val themeColors = listOf(Color(0xFF2563EB), Color(0xFF1D4ED8), Color(0xFF1E40AF))
+    val themeOptions = com.example.data.ThemeRepository.themes.take(3)
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        themeNames.forEachIndexed { index, name ->
+        themeOptions.forEachIndexed { index, th ->
+            val name = th.name
             val isSelected = currentThemeIndex == index
             Surface(
                 onClick = { viewModel.selectTheme(index) },
@@ -716,7 +717,7 @@ private fun OnboardingThemeStep(
                             modifier = Modifier
                                 .size(24.dp)
                                 .clip(CircleShape)
-                                .background(themeColors[index])
+                                .background(androidx.compose.ui.res.colorResource(id = th.colorResId))
                         )
                         Text(
                             text = name,
@@ -1077,7 +1078,7 @@ private fun SelectableBrainCard(
                     Icon(
                         icon,
                         contentDescription = null,
-                        tint = if (isSelected) Color.White else accentColor
+                        tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else accentColor
                     )
                 }
             }

@@ -147,116 +147,116 @@ fun AiraTheme(
 ) {
     val darkTheme = (appTheme == "dark")
 
-    // Resolve standard resource colors
-    val primaryColorRes = colorResource(id = if (darkTheme) R.color.aira_primary_dark else R.color.aira_primary)
-    val onPrimaryColorRes = colorResource(id = R.color.aira_surface_light)
-    val primaryContainerColorRes = colorResource(id = if (darkTheme) R.color.aira_surface_variant_dark else R.color.aira_surface_variant_light)
-    val onPrimaryContainerColorRes = colorResource(id = if (darkTheme) R.color.aira_text_primary_dark else R.color.aira_text_primary_light)
-    val secondaryColorRes = colorResource(id = if (darkTheme) R.color.aira_text_secondary_dark else R.color.aira_text_secondary_light)
-    val onSecondaryColorRes = colorResource(id = if (darkTheme) R.color.aira_surface_light else R.color.aira_surface_light)
-    val secondaryContainerColorRes = colorResource(id = if (darkTheme) R.color.aira_surface_variant_dark else R.color.aira_surface_variant_light)
-    val onSecondaryContainerColorRes = secondaryColorRes
-    val tertiaryColorRes = secondaryColorRes
-    val onTertiaryColorRes = onSecondaryColorRes
-    val backgroundColorRes = colorResource(id = if (darkTheme) R.color.aira_bg_dark else R.color.aira_bg_light)
-    val onBackgroundColorRes = colorResource(id = if (darkTheme) R.color.aira_text_primary_dark else R.color.aira_text_primary_light)
-    val surfaceColorRes = colorResource(id = if (darkTheme) R.color.aira_surface_dark else R.color.aira_surface_light)
-    val onSurfaceColorRes = onBackgroundColorRes
-    val surfaceVariantColorRes = colorResource(id = if (darkTheme) R.color.aira_surface_variant_dark else R.color.aira_surface_variant_light)
-    val onSurfaceVariantColorRes = secondaryColorRes
-    val outlineColorRes = colorResource(id = if (darkTheme) R.color.aira_border_dark else R.color.aira_border_light)
-    val outlineVariantColorRes = outlineColorRes
-    val errorColorRes = colorResource(id = R.color.aira_error)
-    val onErrorColorRes = colorResource(id = R.color.aira_surface_light)
-    val errorContainerColorRes = colorResource(id = if (darkTheme) R.color.aira_surface_variant_dark else R.color.aira_surface_variant_light)
-    val onErrorContainerColorRes = colorResource(id = R.color.aira_error)
-    val inverseSurfaceColorRes = colorResource(id = if (darkTheme) R.color.aira_surface_light else R.color.aira_surface_dark)
-    val inverseOnSurfaceColorRes = colorResource(id = if (darkTheme) R.color.aira_bg_light else R.color.aira_bg_dark)
-    val inversePrimaryColorRes = colorResource(id = if (darkTheme) R.color.aira_primary else R.color.aira_primary_dark)
+    // Resolve standard resource colors from the Aira palette system
+    val aira_primary = colorResource(id = if (darkTheme) R.color.aira_primary_dark else R.color.aira_primary)
+    val aira_on_primary = colorResource(id = R.color.white)
+    val aira_primary_container = colorResource(id = if (darkTheme) R.color.aira_surface_variant_dark else R.color.aira_surface_variant_light)
+    val aira_on_primary_container = colorResource(id = if (darkTheme) R.color.aira_text_primary_dark else R.color.aira_text_primary_light)
+    val aira_secondary = colorResource(id = if (darkTheme) R.color.aira_secondary_dark else R.color.aira_secondary)
+    val aira_on_secondary = colorResource(id = R.color.white)
+    val aira_secondary_container = colorResource(id = if (darkTheme) R.color.aira_surface_variant_dark else R.color.aira_surface_variant_light)
+    val aira_on_secondary_container = aira_secondary
+    val aira_tertiary = aira_secondary
+    val aira_on_tertiary = aira_on_secondary
+    val aira_tertiary_container = aira_secondary_container
+    val aira_on_tertiary_container = aira_on_secondary_container
+    val aira_bg_light = colorResource(id = R.color.aira_bg_light)
+    val aira_bg_dark = colorResource(id = R.color.aira_bg_dark)
+    val aira_text_primary_light = colorResource(id = R.color.aira_text_primary_light)
+    val aira_text_primary_dark = colorResource(id = R.color.aira_text_primary_dark)
+    val aira_surface_light = colorResource(id = R.color.aira_surface_light)
+    val aira_surface_dark = colorResource(id = R.color.aira_surface_dark)
+    val aira_surface_variant_light = colorResource(id = R.color.aira_surface_variant_light)
+    val aira_surface_variant_dark = colorResource(id = R.color.aira_surface_variant_dark)
+    val aira_text_secondary_light = colorResource(id = R.color.aira_text_secondary_light)
+    val aira_text_secondary_dark = colorResource(id = R.color.aira_text_secondary_dark)
+    val aira_border_light = colorResource(id = R.color.aira_border_light)
+    val aira_border_dark = colorResource(id = R.color.aira_border_dark)
+    val aira_error = colorResource(id = R.color.aira_error)
+    val aira_on_error = colorResource(id = R.color.white)
+    val aira_error_container = if (darkTheme) aira_surface_variant_dark else aira_surface_variant_light
+    val aira_on_error_container = aira_error
 
     val themeResId = ThemeRepository.themes.getOrNull(themeIndex)?.colorResId
     val themeColor = themeResId?.let { colorResource(id = it) }
 
     // Resolve the primary color from the selected design system theme
-    val primaryColor = themeColor ?: primaryColorRes
+    val effectivePrimary = themeColor ?: aira_primary
 
-    // M3 Surface Container definitions (Dark vs Light)
-    val surfaceLowest = if (darkTheme) Color(0xFF0F1115) else Color(0xFFFFFFFF)
-    val surfaceLow = if (darkTheme) Color(0xFF1A1D24) else Color(0xFFF4F6F9)
-    val surfaceContainer = if (darkTheme) Color(0xFF21252F) else Color(0xFFEDF0F5)
-    val surfaceHigh = if (darkTheme) Color(0xFF2B303C) else Color(0xFFE5E9EF)
-    val surfaceHighest = if (darkTheme) Color(0xFF363C4A) else Color(0xFFDCDFE6)
-
-    val baseScheme = if (darkTheme) {
+    val colorScheme = if (darkTheme) {
         darkColorScheme(
-            primary = primaryColor,
-            onPrimary = onPrimaryColorRes,
-            primaryContainer = primaryContainerColorRes,
-            onPrimaryContainer = onPrimaryContainerColorRes,
-            secondary = secondaryColorRes,
-            onSecondary = onSecondaryColorRes,
-            secondaryContainer = secondaryContainerColorRes,
-            onSecondaryContainer = onSecondaryContainerColorRes,
-            tertiary = tertiaryColorRes,
-            onTertiary = onTertiaryColorRes,
-            background = backgroundColorRes,
-            onBackground = onBackgroundColorRes,
-            surface = surfaceColorRes,
-            onSurface = onSurfaceColorRes,
-            surfaceVariant = surfaceVariantColorRes,
-            onSurfaceVariant = onSurfaceVariantColorRes,
-            surfaceContainerLowest = surfaceLowest,
-            surfaceContainerLow = surfaceLow,
-            surfaceContainer = surfaceContainer,
-            surfaceContainerHigh = surfaceHigh,
-            surfaceContainerHighest = surfaceHighest,
-            outline = outlineColorRes,
-            outlineVariant = outlineVariantColorRes,
-            error = errorColorRes,
-            onError = onErrorColorRes,
-            errorContainer = errorContainerColorRes,
-            onErrorContainer = onErrorContainerColorRes,
-            inverseSurface = inverseSurfaceColorRes,
-            inverseOnSurface = inverseOnSurfaceColorRes,
-            inversePrimary = inversePrimaryColorRes
+            primary = effectivePrimary,
+            onPrimary = aira_on_primary,
+            primaryContainer = aira_primary_container,
+            onPrimaryContainer = aira_on_primary_container,
+            secondary = aira_secondary,
+            onSecondary = aira_on_secondary,
+            secondaryContainer = aira_secondary_container,
+            onSecondaryContainer = aira_on_secondary_container,
+            tertiary = aira_tertiary,
+            onTertiary = aira_on_tertiary,
+            tertiaryContainer = aira_tertiary_container,
+            onTertiaryContainer = aira_on_tertiary_container,
+            background = aira_bg_dark,
+            onBackground = aira_text_primary_dark,
+            surface = aira_surface_dark,
+            onSurface = aira_text_primary_dark,
+            surfaceVariant = aira_surface_variant_dark,
+            onSurfaceVariant = aira_text_secondary_dark,
+            surfaceContainerLowest = aira_bg_dark,
+            surfaceContainerLow = aira_surface_dark,
+            surfaceContainer = aira_surface_variant_dark,
+            surfaceContainerHigh = aira_border_dark,
+            surfaceContainerHighest = aira_border_dark,
+            outline = aira_border_dark,
+            outlineVariant = aira_border_dark,
+            error = aira_error,
+            onError = aira_on_error,
+            errorContainer = aira_error_container,
+            onErrorContainer = aira_on_error_container,
+            inverseSurface = aira_surface_light,
+            inverseOnSurface = aira_bg_light,
+            inversePrimary = effectivePrimary
         )
     } else {
         lightColorScheme(
-            primary = primaryColor,
-            onPrimary = onPrimaryColorRes,
-            primaryContainer = primaryContainerColorRes,
-            onPrimaryContainer = onPrimaryContainerColorRes,
-            secondary = secondaryColorRes,
-            onSecondary = onSecondaryColorRes,
-            secondaryContainer = secondaryContainerColorRes,
-            onSecondaryContainer = onSecondaryContainerColorRes,
-            tertiary = tertiaryColorRes,
-            onTertiary = onTertiaryColorRes,
-            background = backgroundColorRes,
-            onBackground = onBackgroundColorRes,
-            surface = surfaceColorRes,
-            onSurface = onSurfaceColorRes,
-            surfaceVariant = surfaceVariantColorRes,
-            onSurfaceVariant = onSurfaceVariantColorRes,
-            surfaceContainerLowest = surfaceLowest,
-            surfaceContainerLow = surfaceLow,
-            surfaceContainer = surfaceContainer,
-            surfaceContainerHigh = surfaceHigh,
-            surfaceContainerHighest = surfaceHighest,
-            outline = outlineColorRes,
-            outlineVariant = outlineVariantColorRes,
-            error = errorColorRes,
-            onError = onErrorColorRes,
-            errorContainer = errorContainerColorRes,
-            onErrorContainer = onErrorContainerColorRes,
-            inverseSurface = inverseSurfaceColorRes,
-            inverseOnSurface = inverseOnSurfaceColorRes,
-            inversePrimary = inversePrimaryColorRes
+            primary = effectivePrimary,
+            onPrimary = aira_on_primary,
+            primaryContainer = aira_primary_container,
+            onPrimaryContainer = aira_on_primary_container,
+            secondary = aira_secondary,
+            onSecondary = aira_on_secondary,
+            secondaryContainer = aira_secondary_container,
+            onSecondaryContainer = aira_on_secondary_container,
+            tertiary = aira_tertiary,
+            onTertiary = aira_on_tertiary,
+            tertiaryContainer = aira_tertiary_container,
+            onTertiaryContainer = aira_on_tertiary_container,
+            background = aira_bg_light,
+            onBackground = aira_text_primary_light,
+            surface = aira_surface_light,
+            onSurface = aira_text_primary_light,
+            surfaceVariant = aira_surface_variant_light,
+            onSurfaceVariant = aira_text_secondary_light,
+            surfaceContainerLowest = aira_surface_light,
+            surfaceContainerLow = aira_bg_light,
+            surfaceContainer = aira_surface_variant_light,
+            surfaceContainerHigh = aira_surface_variant_light,
+            surfaceContainerHighest = aira_border_light,
+            outline = aira_border_light,
+            outlineVariant = aira_border_light,
+            error = aira_error,
+            onError = aira_on_error,
+            errorContainer = aira_error_container,
+            onErrorContainer = aira_on_error_container,
+            inverseSurface = aira_surface_dark,
+            inverseOnSurface = aira_bg_dark,
+            inversePrimary = effectivePrimary
         )
     }
 
     // Smoothly animate between color schemes to support natural transitions
-    val animatedScheme = animateColorScheme(baseScheme)
+    val animatedScheme = animateColorScheme(colorScheme)
 
     // Selection Colors override: Light = 0.18f alpha selection, Dark = 0.22f alpha selection
     val customTextSelectionColors = TextSelectionColors(

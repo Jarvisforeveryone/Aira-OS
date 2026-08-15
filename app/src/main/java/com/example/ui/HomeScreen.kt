@@ -941,32 +941,32 @@ fun NegativeFeedbackDialog(
         },
         text = {
             Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(Dimens.GapMedium)
             ) {
                 Text(
                     text = "Help us improve Aira! What went wrong with this response? (Optional)",
-                    fontSize = 14.sp,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(Dimens.CornerRadiusSmall),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(10.dp)) {
+                    Column(modifier = Modifier.padding(Dimens.GapMedium)) {
                         Text(
                             text = "Q: ${queryText.ifBlank { "Voice request" }}",
-                            fontSize = 12.sp,
+                            style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(Dimens.GapMicro))
                         Text(
                             text = "A: ${msg.message}",
-                            fontSize = 12.sp,
+                            style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis
@@ -1069,13 +1069,13 @@ fun FeedbackLogsDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(max = 350.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(Dimens.GapSmall)
                 ) {
                     items(feedbackList, key = { it.id }) { item ->
                         val isPos = item.feedbackType == "POSITIVE"
                         Surface(
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(Dimens.CornerRadiusMedium),
                             border = BorderStroke(
                                 1.dp,
                                 if (isPos) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
@@ -1083,7 +1083,7 @@ fun FeedbackLogsDialog(
                             ),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
+                            Column(modifier = Modifier.padding(Dimens.GapMedium)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,

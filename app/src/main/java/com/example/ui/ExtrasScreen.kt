@@ -133,7 +133,7 @@ fun ExtrasScreen(
                             Icon(
                                 imageVector = Icons.Outlined.Cloud,
                                 contentDescription = "Weather",
-                                tint = Color(0xFFFFC107),
+                                tint = MaterialTheme.colorScheme.tertiary,
                                 modifier = Modifier.size(Dimens.IconStandard)
                             )
                             Spacer(modifier = Modifier.width(Dimens.GapSmall))
@@ -878,7 +878,7 @@ fun ExtrasScreen(
                     Icon(
                         imageVector = Icons.Outlined.Cloud,
                         contentDescription = "Cloud Icon",
-                        tint = Color(0xFFFFC107),
+                        tint = MaterialTheme.colorScheme.tertiary,
                         modifier = Modifier.size(Dimens.IconStandard)
                     )
                     Text(

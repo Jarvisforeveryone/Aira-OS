@@ -679,13 +679,13 @@ fun WakeWordTrainerScreen(
                             ),
                             shape = RoundedCornerShape(Dimens.CornerRadiusMedium)
                         ) {
-                            Icon(Icons.Default.Verified, contentDescription = null, tint = Color.White)
+                            Icon(Icons.Default.Verified, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
                             Spacer(modifier = Modifier.width(Dimens.GapSmall))
                             Text(
                                 "Save & Activate Wake Word",
-                                fontSize = 15.sp,
+                                style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = MaterialTheme.colorScheme.onPrimary
                             )
                         }
                     }
