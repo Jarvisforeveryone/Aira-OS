@@ -26,10 +26,40 @@ class AiraAccessibilityService : AccessibilityService() {
     private var pendingAction = PendingAction.NONE
     private var targetState: Boolean = false
 
+    // Track last focused editable element for Universal Typing
+    private var lastFocusedViewId: String? = null
+    private var lastFocusedClassName: String? = null
+    private var lastFocusedHint: String? = null
+    private var lastFocusedDesc: String? = null
+    private var lastFocusedText: String? = null
+
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
+
+        // Track focus & typing state across all windows
+        try {
+            val eventType = event.eventType
+            if (eventType == AccessibilityEvent.TYPE_VIEW_FOCUSED ||
+                eventType == AccessibilityEvent.TYPE_VIEW_CLICKED ||
+                eventType == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED ||
+                eventType == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED
+            ) {
+                val source = event.source
+                if (source != null && source.isEditable) {
+                    lastFocusedViewId = source.viewIdResourceName
+                    lastFocusedClassName = source.className?.toString()
+                    lastFocusedHint = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) source.hintText?.toString() else null
+                    lastFocusedDesc = source.contentDescription?.toString()
+                    lastFocusedText = source.text?.toString()
+                    source.recycle()
+                }
+            }
+        } catch (e: Exception) {
+            // Ignore tracking errors
+        }
+
         val pkg = event.packageName?.toString() ?: ""
 
         val isSystemUiAction = (pendingAction != PendingAction.NONE && pkg == "com.android.systemui")
@@ -263,12 +293,16 @@ class AiraAccessibilityService : AccessibilityService() {
         }
     }
 
-    // 3. INPUT / TYPING
+    // 3. INPUT / UNIVERSAL TYPING
+
+    /**
+     * 1. Types text into the currently focused editable field using ACTION_SET_TEXT.
+     * Returns true if focused editable field was found and typed into, false otherwise.
+     */
     fun typeText(text: String): Boolean {
         val rootNode = rootInActiveWindow ?: return false
         return try {
-            val focused = rootNode.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
-                ?: findNodeMatching(rootNode) { it.isEditable }
+            val focused = findFocusedEditableNode(rootNode)
             if (focused != null && focused.isEditable) {
                 val arguments = Bundle().apply {
                     putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
@@ -288,10 +322,13 @@ class AiraAccessibilityService : AccessibilityService() {
         }
     }
 
+    /**
+     * 2. Finds an editable field by hint, text, contentDescription, or viewId, focuses it, and types text.
+     */
     fun typeIntoField(text: String, fieldHint: String): Boolean {
         val rootNode = rootInActiveWindow ?: return false
         return try {
-            val target = findNodeMatching(rootNode) { node ->
+            var target = findNodeMatching(rootNode) { node ->
                 node.isEditable && (
                     node.text?.toString()?.contains(fieldHint, ignoreCase = true) == true ||
                     node.contentDescription?.toString()?.contains(fieldHint, ignoreCase = true) == true ||
@@ -299,7 +336,35 @@ class AiraAccessibilityService : AccessibilityService() {
                     node.viewIdResourceName?.contains(fieldHint, ignoreCase = true) == true
                 )
             }
+
+            // Fallback: Check if label node is sibling or parent of an editable field
+            if (target == null) {
+                val labelNode = findNodeMatching(rootNode) { node ->
+                    node.text?.toString()?.contains(fieldHint, ignoreCase = true) == true ||
+                    node.contentDescription?.toString()?.contains(fieldHint, ignoreCase = true) == true
+                }
+                if (labelNode != null) {
+                    val parent = labelNode.parent
+                    if (parent != null) {
+                        for (i in 0 until parent.childCount) {
+                            val sibling = parent.getChild(i)
+                            if (sibling != null && sibling.isEditable) {
+                                target = sibling
+                                break
+                            }
+                            sibling?.recycle()
+                        }
+                        parent.recycle()
+                    }
+                    labelNode.recycle()
+                }
+            }
+
             if (target != null) {
+                target.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+                target.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                try { Thread.sleep(150) } catch (_: InterruptedException) {}
+
                 val arguments = Bundle().apply {
                     putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
                 }
@@ -315,6 +380,201 @@ class AiraAccessibilityService : AccessibilityService() {
         } finally {
             rootNode.recycle()
         }
+    }
+
+    /**
+     * 3. Remembers the last focused editable field and types into it even if focus changed.
+     */
+    fun typeIntoLastFocusedField(text: String): Boolean {
+        val root = rootInActiveWindow ?: return false
+        return try {
+            val target = when {
+                !lastFocusedViewId.isNullOrEmpty() -> findNodeMatching(root) { it.isEditable && it.viewIdResourceName == lastFocusedViewId }
+                !lastFocusedHint.isNullOrEmpty() -> findNodeMatching(root) { it.isEditable && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && it.hintText?.toString() == lastFocusedHint }
+                !lastFocusedDesc.isNullOrEmpty() -> findNodeMatching(root) { it.isEditable && it.contentDescription?.toString() == lastFocusedDesc }
+                !lastFocusedClassName.isNullOrEmpty() -> findNodeMatching(root) { it.isEditable && it.className?.toString() == lastFocusedClassName }
+                else -> null
+            } ?: findFirstEditableNode(root)
+
+            if (target != null && target.isEditable) {
+                target.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+                target.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                try { Thread.sleep(100) } catch (_: InterruptedException) {}
+
+                val args = Bundle().apply {
+                    putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
+                }
+                val success = target.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+                target.recycle()
+                success
+            } else {
+                target?.recycle()
+                false
+            }
+        } catch (e: Exception) {
+            Log.e("AiraAccessibility", "typeIntoLastFocusedField error", e)
+            false
+        } finally {
+            root.recycle()
+        }
+    }
+
+    /**
+     * 4. Types text character by character with delay to simulate human typing.
+     */
+    fun typeTextWithDelay(text: String, delayMs: Long = 50L): Boolean {
+        val root = rootInActiveWindow ?: return false
+        return try {
+            val target = findFocusedEditableNode(root) ?: findFirstEditableNode(root) ?: return false
+            target.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+            target.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            try { Thread.sleep(100) } catch (_: InterruptedException) {}
+
+            val sb = StringBuilder()
+            var success = false
+            for (ch in text) {
+                sb.append(ch)
+                val args = Bundle().apply {
+                    putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, sb.toString())
+                }
+                success = target.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+                if (delayMs > 0) {
+                    try { Thread.sleep(delayMs) } catch (_: InterruptedException) {}
+                }
+            }
+            target.recycle()
+            success
+        } catch (e: Exception) {
+            Log.e("AiraAccessibility", "typeTextWithDelay error", e)
+            false
+        } finally {
+            root.recycle()
+        }
+    }
+
+    /**
+     * 5. If no field is focused, finds the first editable field on screen, taps it to gain focus, then types.
+     */
+    fun ensureFocusBeforeTyping(text: String): Boolean {
+        val root = rootInActiveWindow ?: return false
+        return try {
+            // First check if an editable field is already focused
+            val focused = findFocusedEditableNode(root)
+            if (focused != null && focused.isEditable) {
+                val args = Bundle().apply {
+                    putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
+                }
+                val res = focused.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+                focused.recycle()
+                return res
+            }
+            focused?.recycle()
+
+            // If no focus, find first editable node
+            val editableNode = findFirstEditableNode(root)
+            if (editableNode != null) {
+                editableNode.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+                editableNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                try { Thread.sleep(200) } catch (_: InterruptedException) {}
+
+                val args = Bundle().apply {
+                    putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
+                }
+                val res = editableNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+                editableNode.recycle()
+                return res
+            }
+            false
+        } catch (e: Exception) {
+            Log.e("AiraAccessibility", "ensureFocusBeforeTyping failed", e)
+            false
+        } finally {
+            root.recycle()
+        }
+    }
+
+    /** Alias for ensureFocusBeforeTyping */
+    fun ensureFocusAndType(text: String): Boolean = ensureFocusBeforeTyping(text)
+
+    /**
+     * Helper to find the currently focused editable node.
+     */
+    fun findFocusedEditableNode(root: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
+        if (root == null) return null
+
+        // 1. Direct Input Focus
+        val inputFocus = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+        if (inputFocus != null && inputFocus.isEditable) return inputFocus
+        inputFocus?.recycle()
+
+        // 2. Accessibility Focus
+        val a11yFocus = root.findFocus(AccessibilityNodeInfo.FOCUS_ACCESSIBILITY)
+        if (a11yFocus != null && a11yFocus.isEditable) return a11yFocus
+        a11yFocus?.recycle()
+
+        // 3. Recursive search for focused & editable
+        return findNodeMatching(root) { it.isEditable && it.isFocused }
+    }
+
+    /**
+     * Helper to find the first editable node on screen.
+     */
+    fun findFirstEditableNode(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        if (node.isEditable) return AccessibilityNodeInfo.obtain(node)
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i) ?: continue
+            val result = findFirstEditableNode(child)
+            child.recycle()
+            if (result != null) return result
+        }
+        return null
+    }
+
+    /**
+     * Universal Typing master dispatcher with full fallback cascade.
+     */
+    fun universalTypeText(text: String, fieldHint: String? = null, delayMs: Long = 0L): String {
+        if (text.isBlank()) return "No text provided to type."
+
+        // 1. Delay simulation if requested
+        if (delayMs > 0L) {
+            if (typeTextWithDelay(text, delayMs)) {
+                return "Typed '$text' into screen field."
+            }
+        }
+
+        // 2. Specific Field Hint
+        if (!fieldHint.isNullOrBlank()) {
+            if (typeIntoField(text, fieldHint)) {
+                return "Typed '$text' into '$fieldHint' field."
+            }
+        }
+
+        // 3. Focused Field
+        if (typeText(text)) {
+            return "Typed '$text' into focused field."
+        }
+
+        // 4. Ensure Focus on First Editable Field
+        if (ensureFocusBeforeTyping(text)) {
+            return "Focused screen input and typed '$text'."
+        }
+
+        // 5. Last Focused Field
+        if (typeIntoLastFocusedField(text)) {
+            return "Typed '$text' into target input field."
+        }
+
+        // 6. Shizuku System-Level Input Fallback
+        if (com.example.utils.ShizukuManager.isShizukuAvailable()) {
+            val escaped = text.replace(" ", "%s").replace("\"", "\\\"")
+            val res = com.example.utils.ShizukuManager.executeCommand("input text \"$escaped\"")
+            if (res) {
+                return "Typed '$text' via Shizuku system input."
+            }
+        }
+
+        return "Could not find any editable text field on screen to type into."
     }
 
     // 4. SCROLLING
@@ -370,6 +630,7 @@ class AiraAccessibilityService : AccessibilityService() {
     fun goHome(): Boolean = performGlobalAction(GLOBAL_ACTION_HOME)
     fun openRecents(): Boolean = performGlobalAction(GLOBAL_ACTION_RECENTS)
     fun openNotifications(): Boolean = performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS)
+    fun openQuickSettings(): Boolean = performGlobalAction(GLOBAL_ACTION_QUICK_SETTINGS)
     fun lockScreen(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)
@@ -560,7 +821,46 @@ class AiraAccessibilityService : AccessibilityService() {
         }
     }
 
+    fun longPressOnText(text: String): Boolean {
+        val rootNode = rootInActiveWindow ?: return false
+        return try {
+            val target = findNodeMatching(rootNode) { node ->
+                node.text?.toString()?.contains(text, ignoreCase = true) == true ||
+                node.contentDescription?.toString()?.contains(text, ignoreCase = true) == true
+            }
+            val success = target?.performAction(AccessibilityNodeInfo.ACTION_LONG_CLICK) ?: false
+            target?.recycle()
+            success
+        } catch (e: Exception) {
+            Log.e("AiraAccessibility", "longPressOnText failed for '$text'", e)
+            false
+        } finally {
+            rootNode.recycle()
+        }
+    }
+
+    fun longPressOnId(resourceId: String): Boolean {
+        val rootNode = rootInActiveWindow ?: return false
+        return try {
+            val target = findNodeMatching(rootNode) { node ->
+                node.viewIdResourceName?.contains(resourceId, ignoreCase = true) == true
+            }
+            val success = target?.performAction(AccessibilityNodeInfo.ACTION_LONG_CLICK) ?: false
+            target?.recycle()
+            success
+        } catch (e: Exception) {
+            Log.e("AiraAccessibility", "longPressOnId failed for '$resourceId'", e)
+            false
+        } finally {
+            rootNode.recycle()
+        }
+    }
+
     // --- HELPER NODE FUNCTIONS ---
+    fun findNodeMatchingPublic(root: AccessibilityNodeInfo?, predicate: (AccessibilityNodeInfo) -> Boolean): AccessibilityNodeInfo? {
+        return findNodeMatching(root, predicate)
+    }
+
     private fun findNodeMatching(root: AccessibilityNodeInfo?, predicate: (AccessibilityNodeInfo) -> Boolean): AccessibilityNodeInfo? {
         if (root == null) return null
         if (predicate(root)) {

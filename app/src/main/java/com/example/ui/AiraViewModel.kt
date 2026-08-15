@@ -112,6 +112,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     val weatherCacheDao: WeatherCacheDao = db.weatherCacheDao()
     val queryCacheDao: QueryCacheDao = db.queryCacheDao()
     private val aiBrain = AiBrain(application)
+    val automationEngine = com.example.service.AiraAutomationEngine(application)
 
     val feedbackList: StateFlow<List<ResponseFeedback>> = feedbackDao.getAllFeedback()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -3045,6 +3046,15 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             viewModelScope.launch {
                 chatDao.insertMessage(ChatMessage(sender = "aira", message = responseMsg))
                 speakText(responseMsg)
+            }
+            return true
+        }
+
+        val automationResult = automationEngine.executeIntent(input)
+        if (automationResult != null) {
+            viewModelScope.launch {
+                chatDao.insertMessage(ChatMessage(sender = "aira", message = automationResult))
+                speakText(automationResult)
             }
             return true
         }

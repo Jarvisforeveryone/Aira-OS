@@ -209,6 +209,54 @@ class VoiceCommandManager(private val context: Context) {
                 priority = 5
             ))
         }
+
+        // Universal Typing actions
+        val hasTypeText = currentActions.any { it.name == "Type Text" }
+        if (!hasTypeText) {
+            val typeTextId = voiceDao.insertAction(Action(
+                name = "Type Text",
+                type = "SYSTEM_API",
+                paramsJson = "{\"action\":\"type_text\", \"text\":\"{text}\"}"
+            ))
+            voiceDao.insertCommand(Command(
+                triggerPhrase = "type {text}",
+                actionIdsJson = "[$typeTextId]",
+                priority = 9
+            ))
+            voiceDao.insertCommand(Command(
+                triggerPhrase = "write {text}",
+                actionIdsJson = "[$typeTextId]",
+                priority = 9
+            ))
+        }
+
+        val hasTypeInto = currentActions.any { it.name == "Type Into Field" }
+        if (!hasTypeInto) {
+            val typeIntoId = voiceDao.insertAction(Action(
+                name = "Type Into Field",
+                type = "SYSTEM_API",
+                paramsJson = "{\"action\":\"type_into_field\", \"text\":\"{text}\"}"
+            ))
+            voiceDao.insertCommand(Command(
+                triggerPhrase = "type {text} into {hint}",
+                actionIdsJson = "[$typeIntoId]",
+                priority = 10
+            ))
+        }
+
+        val hasSearch = currentActions.any { it.name == "Search Text" }
+        if (!hasSearch) {
+            val searchId = voiceDao.insertAction(Action(
+                name = "Search Text",
+                type = "SYSTEM_API",
+                paramsJson = "{\"action\":\"search_text\", \"text\":\"{text}\"}"
+            ))
+            voiceDao.insertCommand(Command(
+                triggerPhrase = "search {text}",
+                actionIdsJson = "[$searchId]",
+                priority = 9
+            ))
+        }
     }
 
     // Levenshtein distance calculator
@@ -264,24 +312,35 @@ class VoiceCommandManager(private val context: Context) {
 
         var matchedCommand: Command? = null
         var bestSimilarity = 0.0f
-        var extractedValue = ""
+        var extractedMap = mutableMapOf<String, String>()
 
         for (cmd in commands) {
             val trigger = cmd.triggerPhrase.lowercase().trim()
 
-            // Handle wildcards/variables like "set brightness {number}%"
-            if (trigger.contains("{number}") || trigger.contains("{text}")) {
+            // Handle wildcards/variables like "set brightness {number}%" or "type {text} into {hint}"
+            if (trigger.contains("{number}") || trigger.contains("{text}") || trigger.contains("{hint}")) {
+                val placeholders = mutableListOf<String>()
+                val placeholderRegex = Regex("\\{([a-zA-Z0-9_]+)\\}")
+                for (match in placeholderRegex.findAll(trigger)) {
+                    placeholders.add(match.groupValues[1])
+                }
+
                 val regexPattern = trigger
                     .replace("{number}", "(\\d+)")
-                    .replace("{text}", "(.+)")
+                    .replace("{text}", "(.+?)")
+                    .replace("{hint}", "(.+)")
                 try {
                     val regex = Regex("^$regexPattern$", RegexOption.IGNORE_CASE)
                     val matchResult = regex.find(lowerInput)
                     if (matchResult != null) {
                         matchedCommand = cmd
                         bestSimilarity = 1.0f
-                        extractedValue = matchResult.groupValues.getOrNull(1) ?: ""
-                        Log.i("VoiceCommandManager", "Command Wildcard MATCH! Trigger: '$trigger', Extracted Value: '$extractedValue'")
+                        extractedMap.clear()
+                        for (i in placeholders.indices) {
+                            val value = matchResult.groupValues.getOrNull(i + 1) ?: ""
+                            extractedMap[placeholders[i]] = value
+                        }
+                        Log.i("VoiceCommandManager", "Command Wildcard MATCH! Trigger: '$trigger', Extracted: $extractedMap")
                         break
                     }
                 } catch (e: Exception) {
@@ -304,7 +363,7 @@ class VoiceCommandManager(private val context: Context) {
         // If a match is found with confidence >= 80% (0.8f)
         if (matchedCommand != null) {
             Log.i("VoiceCommandManager", "Executing voice command: '${matchedCommand.triggerPhrase}' (Confidence: ${(bestSimilarity * 100).toInt()}%)")
-            executeChainCommand(userInput, matchedCommand, extractedValue, viewModel)
+            executeChainCommand(userInput, matchedCommand, extractedMap, viewModel)
             return true
         }
 
@@ -313,7 +372,7 @@ class VoiceCommandManager(private val context: Context) {
     }
 
     // Helper to extract action chains and run them synchronously with 500ms delay and conditional checks
-    private fun executeChainCommand(userInput: String, command: Command, placeholderValue: String, viewModel: AiraViewModel) {
+    private fun executeChainCommand(userInput: String, command: Command, placeholderMap: Map<String, String>, viewModel: AiraViewModel) {
         CoroutineScope(Dispatchers.Main).launch {
             // 1. Evaluate Chain Conditions FIRST (Exceptional feature!)
             if (command.conditionsJson.isNotEmpty()) {
@@ -349,10 +408,10 @@ class VoiceCommandManager(private val context: Context) {
                 }
             }
 
-            val ackMsg = "Executing offline action chain for: '${command.triggerPhrase.uppercase()}'"
+            val ackMsg = "Executing action for: '${command.triggerPhrase.uppercase()}'"
             chatDao.insertMessage(ChatMessage(sender = "aira", message = ackMsg))
             viewModel.speakText(ackMsg)
-            delay(1000)
+            delay(500)
 
             val actionNames = mutableListOf<String>()
             var didErrorOccur = false
@@ -363,12 +422,16 @@ class VoiceCommandManager(private val context: Context) {
                 actionNames.add(action.name)
                 
                 // If it is a set brightness or parameter injection action, substitute wildcard
-                val finalParams = if (placeholderValue.isNotEmpty()) {
-                    action.paramsJson
-                        .replace("{number}", placeholderValue)
-                        .replace("{text}", placeholderValue)
-                } else {
-                    action.paramsJson
+                var finalParams = action.paramsJson
+                for ((key, value) in placeholderMap) {
+                    finalParams = finalParams.replace("{$key}", value)
+                }
+                if (placeholderMap.isNotEmpty() && !finalParams.contains("{")) {
+                    // All replaced
+                } else if (placeholderMap.containsKey("number")) {
+                    finalParams = finalParams.replace("{number}", placeholderMap["number"] ?: "")
+                } else if (placeholderMap.containsKey("text")) {
+                    finalParams = finalParams.replace("{text}", placeholderMap["text"] ?: "")
                 }
 
                 try {
@@ -546,6 +609,37 @@ class VoiceCommandManager(private val context: Context) {
                         }
                         "show_recents" -> {
                             viewModel.triggerRecentsAction()
+                        }
+                        "type_text" -> {
+                            val text = params.optString("text", "")
+                            val service = AiraAccessibilityService.instance
+                            if (service != null) {
+                                val result = service.universalTypeText(text)
+                                viewModel.speakText(result)
+                            } else {
+                                viewModel.speakText("Please enable Aira Accessibility Service in Settings to use Universal Typing.")
+                            }
+                        }
+                        "type_into_field" -> {
+                            val text = params.optString("text", "")
+                            val hint = params.optString("hint", "")
+                            val service = AiraAccessibilityService.instance
+                            if (service != null) {
+                                val result = service.universalTypeText(text, fieldHint = hint.ifBlank { null })
+                                viewModel.speakText(result)
+                            } else {
+                                viewModel.speakText("Please enable Aira Accessibility Service in Settings to use Universal Typing.")
+                            }
+                        }
+                        "search_text" -> {
+                            val text = params.optString("text", "")
+                            val service = AiraAccessibilityService.instance
+                            if (service != null) {
+                                val result = service.universalTypeText(text, fieldHint = "search")
+                                viewModel.speakText(result)
+                            } else {
+                                viewModel.speakText("Please enable Aira Accessibility Service in Settings to use Universal Typing.")
+                            }
                         }
                     }
                 }

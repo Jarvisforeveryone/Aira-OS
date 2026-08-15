@@ -55,6 +55,7 @@ data class ParsedCommand(
     val intParam: Int? = null,
     val extraIntParam: Int? = null,
     val stringParam: String? = null,
+    val secondStringParam: String? = null,
     val summary: String
 )
 
@@ -392,18 +393,64 @@ object CommandParser {
             )
         }
 
-        // 23. Type Text
-        if (lower.startsWith("type ") || lower.startsWith("enter text ")) {
-            val txt = when {
+        // 23. Universal Typing & Input Commands
+        if (lower.startsWith("type ") ||
+            lower.startsWith("write ") ||
+            lower.startsWith("input ") ||
+            lower.startsWith("enter text ") ||
+            lower.startsWith("enter ") ||
+            (lower.startsWith("search ") && !lower.startsWith("search web") && !lower.startsWith("search google"))
+        ) {
+            val rawPrefixStripped = when {
                 lower.startsWith("type ") -> rawInput.substring("type ".length)
-                else -> rawInput.substring("enter text ".length)
+                lower.startsWith("write ") -> rawInput.substring("write ".length)
+                lower.startsWith("input ") -> rawInput.substring("input ".length)
+                lower.startsWith("enter text ") -> rawInput.substring("enter text ".length)
+                lower.startsWith("enter ") -> rawInput.substring("enter ".length)
+                lower.startsWith("search for ") -> rawInput.substring("search for ".length)
+                lower.startsWith("search ") -> rawInput.substring("search ".length)
+                else -> rawInput
             }.trim()
-            if (txt.isNotBlank()) {
+
+            val isSearchCommand = lower.startsWith("search ") || lower.startsWith("search for ")
+
+            var textToType: String
+            var targetField: String? = null
+
+            if (isSearchCommand) {
+                textToType = rawPrefixStripped
+                targetField = "search"
+            } else {
+                val lowerStripped = rawPrefixStripped.lowercase(Locale.ROOT)
+                val intoIndex = lowerStripped.lastIndexOf(" into ")
+                val inIndex = if (intoIndex == -1) lowerStripped.lastIndexOf(" in ") else -1
+
+                if (intoIndex != -1) {
+                    textToType = rawPrefixStripped.substring(0, intoIndex).trim()
+                    targetField = rawPrefixStripped.substring(intoIndex + " into ".length).trim()
+                } else if (inIndex != -1 && inIndex > 0) {
+                    textToType = rawPrefixStripped.substring(0, inIndex).trim()
+                    targetField = rawPrefixStripped.substring(inIndex + " in ".length).trim()
+                } else {
+                    textToType = rawPrefixStripped
+                    targetField = null
+                }
+            }
+
+            textToType = textToType.trim('"', '\'', '“', '”')
+
+            if (textToType.isNotBlank()) {
+                val summaryStr = if (!targetField.isNullOrBlank()) {
+                    "Universal Typing '$textToType' into '$targetField'"
+                } else {
+                    "Universal Typing '$textToType'"
+                }
                 return ParsedCommand(
                     type = CommandType.TYPE_TEXT,
                     originalInput = rawInput,
-                    stringParam = txt,
-                    summary = "Typing text '$txt'"
+                    stringParam = textToType,
+                    secondStringParam = targetField,
+                    summary = summaryStr
                 )
             }
         }
@@ -755,11 +802,20 @@ object CommandParser {
 
                 CommandType.TYPE_TEXT -> {
                     val txt = command.stringParam ?: ""
+                    val targetField = command.secondStringParam
                     val service = AiraAccessibilityService.instance
-                    if (service != null && service.typeText(txt)) {
-                        "Typed '$txt' into focused field."
+                    if (service != null) {
+                        service.universalTypeText(text = txt, fieldHint = targetField)
+                    } else if (ShizukuManager.isShizukuAvailable()) {
+                        val escaped = txt.replace(" ", "%s").replace("\"", "\\\"")
+                        val res = ShizukuManager.executeCommand("input text \"$escaped\"")
+                        if (res) {
+                            "Typed '$txt' via Shizuku system input."
+                        } else {
+                            "Universal Typing requires active Accessibility Service or Shizuku."
+                        }
                     } else {
-                        "Typing text requires active Accessibility Service with a focused field."
+                        "Universal Typing requires Aira Accessibility Service to be enabled in Settings."
                     }
                 }
 
