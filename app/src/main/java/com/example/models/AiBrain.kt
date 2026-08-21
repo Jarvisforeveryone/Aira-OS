@@ -519,17 +519,34 @@ Always address the user with conversational, polite terms like 'sir', 'at your s
             Log.e("AiBrain", "Cache lookup failed: ", e)
         }
 
-        // Execute query via ApiProvider (LLM)
-        val response = provider.generateResponse(query, combinedSystemInstruction)
+        // Execute query via ApiProvider (LLM) with prioritized fallback chain: Gemini -> Groq -> OpenAI -> Claude -> OpenRouter
+        val fallbackChain = providerManager.getFallbackChain()
+        var response = ""
+        var successfulProvider: ApiProvider? = null
 
-        if (response.isNotBlank()) {
+        for (candidateProvider in fallbackChain) {
+            try {
+                Log.d("AiBrain", "Executing query via provider: ${candidateProvider.javaClass.simpleName}")
+                val candidateResponse = candidateProvider.generateResponse(query, combinedSystemInstruction).trim()
+                if (candidateResponse.isNotBlank()) {
+                    response = candidateResponse
+                    successfulProvider = candidateProvider
+                    Log.d("AiBrain", "Query succeeded via ${candidateProvider.javaClass.simpleName}")
+                    break
+                }
+            } catch (e: Exception) {
+                Log.w("AiBrain", "Provider ${candidateProvider.javaClass.simpleName} failed: ${e.message}. Attempting next in chain...")
+            }
+        }
+
+        if (response.isNotBlank() && successfulProvider != null) {
             try {
                 queryCacheDao.insertCache(
                     QueryCache(
                         normalizedQuery = normalized,
                         originalQuery = query,
                         response = response,
-                        provider = provider.javaClass.simpleName,
+                        provider = successfulProvider.javaClass.simpleName,
                         hitCount = 1,
                         timestamp = System.currentTimeMillis(),
                         lastAccessed = System.currentTimeMillis()

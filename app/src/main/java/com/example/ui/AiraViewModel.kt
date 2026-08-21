@@ -554,6 +554,9 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     private val _sttState = MutableStateFlow<SttState>(SttState.IDLE)
     val sttState: StateFlow<SttState> = _sttState.asStateFlow()
 
+    private val _orbState = MutableStateFlow<com.example.ui.components.OrbState>(com.example.ui.components.OrbState.IDLE)
+    val orbState: StateFlow<com.example.ui.components.OrbState> = _orbState.asStateFlow()
+
     fun updateSttState(newState: SttState) {
         if (_sttState.value == newState) return
         val oldState = _sttState.value
@@ -563,19 +566,23 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         when (newState) {
             SttState.LISTENING -> {
                 _currentStatus.value = "Listening..."
+                _orbState.value = com.example.ui.components.OrbState.LISTENING
                 playSttFeedbackBeep(isStart = true)
             }
             SttState.PROCESSING -> {
                 _currentStatus.value = "Processing..."
+                _orbState.value = com.example.ui.components.OrbState.PROCESSING
                 if (oldState == SttState.LISTENING) {
                     playSttFeedbackBeep(isStart = false)
                 }
             }
             SttState.SPEAKING -> {
                 _currentStatus.value = "Speaking..."
+                _orbState.value = com.example.ui.components.OrbState.SPEAKING
             }
             SttState.IDLE -> {
                 _currentStatus.value = "Tap mic to speak"
+                _orbState.value = if (_isSpeaking.value) com.example.ui.components.OrbState.SPEAKING else com.example.ui.components.OrbState.IDLE
             }
         }
     }
@@ -1594,6 +1601,24 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                     Log.e("AiraViewModel", "Error collecting downloadStatusMessage", e)
                 }
             }
+            // Sync Piper TTS speaking state with OrbState and _isSpeaking
+            viewModelScope.launch {
+                try {
+                    piperTtsManager.isSpeakingFlow.collect { speaking ->
+                        _isSpeaking.value = speaking
+                        if (speaking) {
+                            _orbState.value = com.example.ui.components.OrbState.SPEAKING
+                        } else {
+                            if (_sttState.value == SttState.IDLE) {
+                                _orbState.value = com.example.ui.components.OrbState.IDLE
+                            }
+                        }
+                    }
+                } catch (e: Throwable) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    Log.e("AiraViewModel", "Error collecting isSpeaking", e)
+                }
+            }
             // Clean up expired local DB caches to optimize disk footprint and seed initial Room DB data if empty
             viewModelScope.launch(Dispatchers.IO) {
                 try {
@@ -2497,175 +2522,197 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     // --- AI Brain Process ---
     private fun processAssistantSession(userInput: String) {
         viewModelScope.launch {
-            Log.d("AiraViewModel", "Processing input: $userInput")
-            updateSttState(SttState.PROCESSING)
-            // Insert user speech to local SQLite via Room
-            chatDao.insertMessage(ChatMessage(sender = "user", message = userInput))
+            try {
+                Log.d("AiraViewModel", "Processing input: $userInput")
+                updateSttState(SttState.PROCESSING)
+                // Insert user speech to local SQLite via Room
+                chatDao.insertMessage(ChatMessage(sender = "user", message = userInput))
 
-            // Check for Macro trigger match first
-            val macroResult = com.example.utils.MacroManager.processMacro(getApplication(), userInput)
-            if (macroResult.executed) {
-                val reply = macroResult.summary
-                chatDao.insertMessage(ChatMessage(sender = "aira", message = reply))
-                addVoiceCommandLog(userInput, macroResult.macroName, "SUCCESS", reply)
-                processAIResponse(reply)
-                return@launch
-            }
-
-            // Check for manual save command first
-            val manualFactText = checkManualSaveMemory(userInput)
-            if (manualFactText == "[FORGOT_COMMAND_EXECUTED]" || manualFactText == "[SAVE_COMMAND_EXECUTED]") {
-                return@launch
-            }
-            if (manualFactText != null) {
-                val mem = Memory(factText = manualFactText, source = "manual", category = "Personal", isImportant = true)
-                val insertedId = db.memoryDao().insertMemory(mem)
-                _lastSavedMemory.value = mem.copy(id = insertedId)
-                val reply = "All done. Saved to memory ✅"
-                chatDao.insertMessage(ChatMessage(sender = "aira", message = reply))
-                processAIResponse(reply)
-                return@launch
-            }
-
-            val lowercaseInput = userInput.lowercase().trim()
-
-            // 1. Core Voice Commands Analyzer (Intelligent matching 80%+ / variables)
-            val voiceCommandMgr = VoiceCommandManager.getInstance(getApplication())
-            val matchedCmd = voiceCommandMgr.matchAndExecuteCommand(lowercaseInput, this@AiraViewModel)
-            if (matchedCmd) {
-                return@launch
-            }
-
-            // 2. Intelligent "Did you mean?" Fallback suggested match if between 50% & 80%
-            val fallbackMatch = voiceCommandMgr.getDidYouMeanCommand(lowercaseInput)
-            if (fallbackMatch != null) {
-                val suggestionText = "I didn't quite get that. Did you mean: '${fallbackMatch.triggerPhrase.uppercase()}'?"
-                chatDao.insertMessage(ChatMessage(sender = "aira", message = suggestionText))
-                processAIResponse(suggestionText)
-                return@launch
-            }
-
-            // 3. Intercept local device commands first
-            val intercepted = checkAndExecuteDeviceCommands(lowercaseInput)
-            if (intercepted) {
-                return@launch
-            }
-
-            // 4. Process Topic, Emotion & Temperature
-            topicTracker.processInput(userInput)
-            _currentTopic.value = topicTracker.getCurrentTopic()
-            _topicHistory.value = topicTracker.getTopicHistory()
-            val topicContextPrompt = topicTracker.buildTopicContextPrompt()
-
-            val (toneInstruction, detectedTemp) = if (_isEmotionDetectionEnabled.value) {
-                val emotionResult = com.example.utils.EmotionDetector.detectEmotion(userInput)
-                _currentEmotion.value = emotionResult.emotion
-                Pair(emotionResult.toneInstruction, emotionResult.recommendedTemperature)
-            } else {
-                _currentEmotion.value = com.example.utils.UserEmotion.NEUTRAL
-                Pair("", 0.6)
-            }
-
-            val queryTemperature = when (_temperatureMode.value) {
-                "Low (0.3)" -> 0.3
-                "Medium (0.6)" -> 0.6
-                "High (0.9)" -> 0.9
-                "Custom" -> {
-                    _customTemperatureText.value.toDoubleOrNull()?.coerceIn(0.0, 1.0) ?: 0.6
+                // Check for Macro trigger match first
+                val macroResult = com.example.utils.MacroManager.processMacro(getApplication(), userInput)
+                if (macroResult.executed) {
+                    val reply = macroResult.summary
+                    chatDao.insertMessage(ChatMessage(sender = "aira", message = reply))
+                    addVoiceCommandLog(userInput, macroResult.macroName, "SUCCESS", reply)
+                    processAIResponse(reply)
+                    updateSttState(SttState.IDLE)
+                    _currentStatus.value = "Done."
+                    return@launch
                 }
-                else -> detectedTemp
-            }
 
-            val baseSystemInstruction = com.example.models.AiBrain.JARVIS_SYSTEM_INSTRUCTION + "\nYou possess full phone control capabilities including Wi-Fi, Bluetooth, volume, brightness, flashlight, alarms, launching apps, settings, camera, screenshot, and screen locking."
-            val historyList = chatHistory.value.takeLast(10).map { Pair(it.sender, it.message) }
-
-            // Recall Memories
-            val relevantMemories = getRelevantMemories(userInput)
-            val finalSystemInstruction = buildString {
-                append(baseSystemInstruction).append("\n")
-                append(toneInstruction).append("\n")
-                append(topicContextPrompt)
-                if (relevantMemories.isNotEmpty()) {
-                    val factsStr = relevantMemories.mapIndexed { i, fact -> "${i + 1}. $fact" }.joinToString("\n")
-                    append("\nFacts about user:\n").append(factsStr).append("\nUse these facts in reply.")
+                // Check for manual save command first
+                val manualFactText = checkManualSaveMemory(userInput)
+                if (manualFactText == "[FORGOT_COMMAND_EXECUTED]" || manualFactText == "[SAVE_COMMAND_EXECUTED]") {
+                    updateSttState(SttState.IDLE)
+                    _currentStatus.value = "Done."
+                    return@launch
                 }
-            }
+                if (manualFactText != null) {
+                    val mem = Memory(factText = manualFactText, source = "manual", category = "Personal", isImportant = true)
+                    val insertedId = db.memoryDao().insertMemory(mem)
+                    _lastSavedMemory.value = mem.copy(id = insertedId)
+                    val reply = "All done. Saved to memory ✅"
+                    chatDao.insertMessage(ChatMessage(sender = "aira", message = reply))
+                    processAIResponse(reply)
+                    updateSttState(SttState.IDLE)
+                    _currentStatus.value = "Done."
+                    return@launch
+                }
 
-            var aiFinalResponse = ""
+                val lowercaseInput = userInput.lowercase().trim()
 
-            if (_isOfflineBrain.value) {
-                if (com.example.utils.MemoryManager.isSafeMode(getApplication())) {
-                    Log.w("AiraViewModel", "Safe Mode / RAM < 3GB active. Local Llama model execution skipped to prevent OOM crash.")
-                    _currentStatus.value = "Safe Mode Active: Using Cloud / Local Rules..."
-                    try {
-                        val (aiResponse, sourceEngine) = voiceCommandMgr.getRoutedAiResponse(userInput, finalSystemInstruction, historyList, queryTemperature)
-                        val reply = if (aiResponse.isNotBlank()) aiResponse else com.example.data.AiraPredefinedResponses.getRandomFallbackResponse(userInput)
+                // 1. Core Voice Commands Analyzer (Intelligent matching 80%+ / variables)
+                val voiceCommandMgr = VoiceCommandManager.getInstance(getApplication())
+                val matchedCmd = voiceCommandMgr.matchAndExecuteCommand(lowercaseInput, this@AiraViewModel)
+                if (matchedCmd) {
+                    updateSttState(SttState.IDLE)
+                    _currentStatus.value = "Done."
+                    return@launch
+                }
+
+                // 2. Intelligent "Did you mean?" Fallback suggested match if between 50% & 80%
+                val fallbackMatch = voiceCommandMgr.getDidYouMeanCommand(lowercaseInput)
+                if (fallbackMatch != null) {
+                    val suggestionText = "I didn't quite get that. Did you mean: '${fallbackMatch.triggerPhrase.uppercase()}'?"
+                    chatDao.insertMessage(ChatMessage(sender = "aira", message = suggestionText))
+                    processAIResponse(suggestionText)
+                    updateSttState(SttState.IDLE)
+                    _currentStatus.value = "Done."
+                    return@launch
+                }
+
+                // 3. Intercept local device commands first
+                val intercepted = checkAndExecuteDeviceCommands(lowercaseInput)
+                if (intercepted) {
+                    updateSttState(SttState.IDLE)
+                    _currentStatus.value = "Done."
+                    return@launch
+                }
+
+                // 4. Process Topic, Emotion & Temperature
+                topicTracker.processInput(userInput)
+                _currentTopic.value = topicTracker.getCurrentTopic()
+                _topicHistory.value = topicTracker.getTopicHistory()
+                val topicContextPrompt = topicTracker.buildTopicContextPrompt()
+
+                val (toneInstruction, detectedTemp) = if (_isEmotionDetectionEnabled.value) {
+                    val emotionResult = com.example.utils.EmotionDetector.detectEmotion(userInput)
+                    _currentEmotion.value = emotionResult.emotion
+                    Pair(emotionResult.toneInstruction, emotionResult.recommendedTemperature)
+                } else {
+                    _currentEmotion.value = com.example.utils.UserEmotion.NEUTRAL
+                    Pair("", 0.6)
+                }
+
+                val queryTemperature = when (_temperatureMode.value) {
+                    "Low (0.3)" -> 0.3
+                    "Medium (0.6)" -> 0.6
+                    "High (0.9)" -> 0.9
+                    "Custom" -> {
+                        _customTemperatureText.value.toDoubleOrNull()?.coerceIn(0.0, 1.0) ?: 0.6
+                    }
+                    else -> detectedTemp
+                }
+
+                val baseSystemInstruction = com.example.models.AiBrain.JARVIS_SYSTEM_INSTRUCTION + "\nYou possess full phone control capabilities including Wi-Fi, Bluetooth, volume, brightness, flashlight, alarms, launching apps, settings, camera, screenshot, and screen locking."
+                val historyList = chatHistory.value.takeLast(10).map { Pair(it.sender, it.message) }
+
+                // Recall Memories
+                val relevantMemories = getRelevantMemories(userInput)
+                val finalSystemInstruction = buildString {
+                    append(baseSystemInstruction).append("\n")
+                    append(toneInstruction).append("\n")
+                    append(topicContextPrompt)
+                    if (relevantMemories.isNotEmpty()) {
+                        val factsStr = relevantMemories.mapIndexed { i, fact -> "${i + 1}. $fact" }.joinToString("\n")
+                        append("\nFacts about user:\n").append(factsStr).append("\nUse these facts in reply.")
+                    }
+                }
+
+                var aiFinalResponse = ""
+
+                if (_isOfflineBrain.value) {
+                    if (com.example.utils.MemoryManager.isSafeMode(getApplication())) {
+                        Log.w("AiraViewModel", "Safe Mode / RAM < 3GB active. Local Llama model execution skipped to prevent OOM crash.")
+                        _currentStatus.value = "Safe Mode Active: Using Cloud / Local Rules..."
+                        try {
+                            val (aiResponse, sourceEngine) = voiceCommandMgr.getRoutedAiResponse(userInput, finalSystemInstruction, historyList, queryTemperature)
+                            val reply = if (aiResponse.isNotBlank()) aiResponse else com.example.data.AiraPredefinedResponses.getRandomFallbackResponse(userInput)
+                            aiFinalResponse = reply
+                            _currentStatus.value = "Processed via $sourceEngine (Online Fallback)"
+                            chatDao.insertMessage(ChatMessage(sender = "aira", message = reply, isOffline = false))
+                            processAIResponse(reply)
+                        } catch (e: Exception) {
+                            Log.e("AiraViewModel", "Online AI call failed, using offline predefined fallback response.", e)
+                            val reply = com.example.data.AiraPredefinedResponses.getRandomFallbackResponse(userInput)
+                            aiFinalResponse = reply
+                            _currentStatus.value = "Processed via Predefined Offline Fallback"
+                            chatDao.insertMessage(ChatMessage(sender = "aira", message = reply, isOffline = true))
+                            processAIResponse(reply)
+                        }
+                    } else {
+                        _currentStatus.value = com.example.data.AiraPredefinedResponses.getRandomProcessingPhrase()
+                        if (!com.example.utils.MemoryManager.isModelLoaded(com.example.utils.NativeModelType.LLAMA_CPP)) {
+                            llamaCppBrain.initializeNativeEngine(_llamaThreads.value)
+                        }
+                        val rawReply = llamaCppBrain.getResponse(userInput, finalSystemInstruction, historyList, queryTemperature)
+                        val reply = if (rawReply.isNotBlank()) rawReply else com.example.data.AiraPredefinedResponses.getRandomFallbackResponse(userInput)
                         aiFinalResponse = reply
-                        _currentStatus.value = "Processed via $sourceEngine (Online Fallback)"
-                        chatDao.insertMessage(ChatMessage(sender = "aira", message = reply, isOffline = false))
-                        processAIResponse(reply)
-                    } catch (e: Exception) {
-                        Log.e("AiraViewModel", "Online AI call failed, using offline predefined fallback response.", e)
-                        val reply = com.example.data.AiraPredefinedResponses.getRandomFallbackResponse(userInput)
-                        aiFinalResponse = reply
-                        _currentStatus.value = "Processed via Predefined Offline Fallback"
+                        _currentStatus.value = "Processed via Llama 3.2 (Offline)"
                         chatDao.insertMessage(ChatMessage(sender = "aira", message = reply, isOffline = true))
                         processAIResponse(reply)
                     }
                 } else {
                     _currentStatus.value = com.example.data.AiraPredefinedResponses.getRandomProcessingPhrase()
-                    if (!com.example.utils.MemoryManager.isModelLoaded(com.example.utils.NativeModelType.LLAMA_CPP)) {
-                        llamaCppBrain.initializeNativeEngine(_llamaThreads.value)
+                    val latencyJob = viewModelScope.launch {
+                        kotlinx.coroutines.delay(800L)
+                        val filler = com.example.models.JarvisLatencyFiller.getLatencyFiller(userInput)
+                        speakText(filler)
                     }
-                    val rawReply = llamaCppBrain.getResponse(userInput, finalSystemInstruction, historyList, queryTemperature)
-                    val reply = if (rawReply.isNotBlank()) rawReply else com.example.data.AiraPredefinedResponses.getRandomFallbackResponse(userInput)
-                    aiFinalResponse = reply
-                    _currentStatus.value = "Processed via Llama 3.2 (Offline)"
-                    chatDao.insertMessage(ChatMessage(sender = "aira", message = reply, isOffline = true))
-                    processAIResponse(reply)
-                }
-            } else {
-                _currentStatus.value = com.example.data.AiraPredefinedResponses.getRandomProcessingPhrase()
-                val latencyJob = viewModelScope.launch {
-                    kotlinx.coroutines.delay(800L)
-                    val filler = com.example.models.JarvisLatencyFiller.getLatencyFiller(userInput)
-                    speakText(filler)
-                }
-                try {
-                    val (aiResponse, sourceEngine) = voiceCommandMgr.getRoutedAiResponse(userInput, finalSystemInstruction, historyList, queryTemperature)
-                    latencyJob.cancel()
-                    val reply = if (aiResponse.isNotBlank()) aiResponse else com.example.data.AiraPredefinedResponses.getRandomFallbackResponse(userInput)
-                    aiFinalResponse = reply
-                    val isOffline = sourceEngine.contains("Llama") || sourceEngine.contains("Offline")
-                    _currentStatus.value = "Processed via $sourceEngine"
-                    chatDao.insertMessage(ChatMessage(sender = "aira", message = reply, isOffline = isOffline))
-                    processAIResponse(reply)
-                } catch (e: Exception) {
-                    latencyJob.cancel()
-                    Log.e("AiraViewModel", "Online model call failed, checking memory before transitioning to local Llama 3.2 model.", e)
-                    if (!com.example.utils.MemoryManager.isSafeMode(getApplication())) {
-                        _currentStatus.value = "Online failure. Transitioning to Llama 3.2..."
-                        if (!com.example.utils.MemoryManager.isModelLoaded(com.example.utils.NativeModelType.LLAMA_CPP)) {
-                            llamaCppBrain.initializeNativeEngine(_llamaThreads.value)
+                    try {
+                        val (aiResponse, sourceEngine) = voiceCommandMgr.getRoutedAiResponse(userInput, finalSystemInstruction, historyList, queryTemperature)
+                        latencyJob.cancel()
+                        val reply = if (aiResponse.isNotBlank()) aiResponse else com.example.data.AiraPredefinedResponses.getRandomFallbackResponse(userInput)
+                        aiFinalResponse = reply
+                        val isOffline = sourceEngine.contains("Llama") || sourceEngine.contains("Offline")
+                        _currentStatus.value = "Processed via $sourceEngine"
+                        chatDao.insertMessage(ChatMessage(sender = "aira", message = reply, isOffline = isOffline))
+                        processAIResponse(reply)
+                    } catch (e: Exception) {
+                        latencyJob.cancel()
+                        Log.e("AiraViewModel", "Online model call failed, checking memory before transitioning to local Llama 3.2 model.", e)
+                        if (!com.example.utils.MemoryManager.isSafeMode(getApplication())) {
+                            _currentStatus.value = "Online failure. Transitioning to Llama 3.2..."
+                            if (!com.example.utils.MemoryManager.isModelLoaded(com.example.utils.NativeModelType.LLAMA_CPP)) {
+                                llamaCppBrain.initializeNativeEngine(_llamaThreads.value)
+                            }
+                            val offlineReply = llamaCppBrain.getResponse(userInput, finalSystemInstruction, historyList, queryTemperature)
+                            val reply = if (offlineReply.isNotBlank()) offlineReply else com.example.data.AiraPredefinedResponses.getRandomFallbackResponse(userInput)
+                            aiFinalResponse = reply
+                            _currentStatus.value = "Processed via Llama 3.2 (Offline Fallback)"
+                            chatDao.insertMessage(ChatMessage(sender = "aira", message = reply, isOffline = true))
+                            processAIResponse(reply)
+                        } else {
+                            val reply = com.example.data.AiraPredefinedResponses.getRandomFallbackResponse(userInput)
+                            aiFinalResponse = reply
+                            _currentStatus.value = "Processed via Fallback Engine"
+                            chatDao.insertMessage(ChatMessage(sender = "aira", message = reply, isOffline = false))
+                            processAIResponse(reply)
                         }
-                        val offlineReply = llamaCppBrain.getResponse(userInput, finalSystemInstruction, historyList, queryTemperature)
-                        val reply = if (offlineReply.isNotBlank()) offlineReply else com.example.data.AiraPredefinedResponses.getRandomFallbackResponse(userInput)
-                        aiFinalResponse = reply
-                        _currentStatus.value = "Processed via Llama 3.2 (Offline Fallback)"
-                        chatDao.insertMessage(ChatMessage(sender = "aira", message = reply, isOffline = true))
-                        processAIResponse(reply)
-                    } else {
-                        val reply = com.example.data.AiraPredefinedResponses.getRandomFallbackResponse(userInput)
-                        aiFinalResponse = reply
-                        _currentStatus.value = "Processed via Fallback Engine"
-                        chatDao.insertMessage(ChatMessage(sender = "aira", message = reply, isOffline = false))
-                        processAIResponse(reply)
                     }
                 }
-            }
 
-            if (aiFinalResponse.isNotEmpty()) {
-                autoScanAndSaveMemory(userInput, aiFinalResponse)
+                if (aiFinalResponse.isNotEmpty()) {
+                    autoScanAndSaveMemory(userInput, aiFinalResponse)
+                }
+            } catch (e: Exception) {
+                Log.e("AiraViewModel", "Error in processAssistantSession", e)
+                _currentStatus.value = "Error processing command"
+                _orbState.value = com.example.ui.components.OrbState.ERROR
+            } finally {
+                if (_sttState.value == SttState.PROCESSING) {
+                    updateSttState(SttState.IDLE)
+                }
             }
         }
     }
@@ -2978,7 +3025,23 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     }
 
     private fun checkAndExecuteDeviceCommands(input: String): Boolean {
-        // 0. Predefined Assistant Responses Repository Matching
+        // 0. 3-Layer Intelligent Command System (Urdu / Roman Urdu / English Aliases + Fuzzy Matching)
+        val vcm = com.example.data.VoiceCommandManager.getInstance(getApplication())
+        val normInput = input.trim().lowercase(java.util.Locale.ROOT)
+        for ((action, aliases) in com.example.data.VoiceCommandManager.commandAliases) {
+            val isExact = aliases.any { it.lowercase(java.util.Locale.ROOT).trim() == normInput }
+            val match = if (!isExact) vcm.fuzzyMatch(normInput, aliases) else null
+            if (isExact || match != null) {
+                val actionResult = vcm.executeAction(action, this)
+                viewModelScope.launch {
+                    chatDao.insertMessage(ChatMessage(sender = "aira", message = actionResult))
+                    speakText(actionResult)
+                }
+                return true
+            }
+        }
+
+        // 0.1 Predefined Assistant Responses Repository Matching
         val weatherInfo = _openMeteoWeather.value?.formattedText ?: "72°F, Partly Cloudy"
         val predefinedMatch = com.example.data.AiraPredefinedResponses.findPredefinedResponse(
             getApplication(),

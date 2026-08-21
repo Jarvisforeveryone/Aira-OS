@@ -368,11 +368,14 @@ fun HomeScreen(
                 statusText.contains("Transitioning", ignoreCase = true) ||
                 statusText.contains("Thinking", ignoreCase = true)
 
+            val orbState by viewModel.orbState.collectAsState()
+
             // AIRA Voice Orb (180dp core, 3 concentric glow rings, gradient fill, dynamic state reactivity)
             AiraVoiceOrb(
                 isListening = isListening,
                 isProcessing = isProcessing,
                 isSpeaking = isSpeaking,
+                orbState = orbState,
                 audioAmp = audioAmp,
                 reduceAnimations = reduceAnimations,
                 derivedStatus = derivedStatus,

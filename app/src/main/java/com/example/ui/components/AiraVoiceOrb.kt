@@ -45,14 +45,16 @@ enum class OrbState {
     IDLE,
     LISTENING,
     PROCESSING,
-    SPEAKING
+    SPEAKING,
+    ERROR
 }
 
 @Composable
 fun AiraVoiceOrb(
-    isListening: Boolean,
-    isProcessing: Boolean,
-    isSpeaking: Boolean,
+    isListening: Boolean = false,
+    isProcessing: Boolean = false,
+    isSpeaking: Boolean = false,
+    orbState: OrbState? = null,
     audioAmp: Float = 0f,
     reduceAnimations: Boolean = false,
     derivedStatus: String = "",
@@ -61,8 +63,8 @@ fun AiraVoiceOrb(
 ) {
     val isDark = isSystemInDarkTheme()
 
-    // Determine current Orb state
-    val orbState = when {
+    // Determine current Orb state (prefer direct state if supplied)
+    val activeOrbState = orbState ?: when {
         isProcessing -> OrbState.PROCESSING
         isListening -> OrbState.LISTENING
         isSpeaking -> OrbState.SPEAKING
@@ -71,9 +73,11 @@ fun AiraVoiceOrb(
 
     // Light mode: #4A90E2 to #2563EB
     // Dark mode:  #3B82F6 to #1D4ED8
-    val startBlue = if (isDark) Color(0xFF3B82F6) else Color(0xFF4A90E2)
-    val endBlue = if (isDark) Color(0xFF1D4ED8) else Color(0xFF2563EB)
-    val glowColor = if (isDark) Color(0xFF3B82F6) else Color(0xFF4A90E2)
+    // Error mode: #EF4444 to #DC2626
+    val isError = activeOrbState == OrbState.ERROR
+    val startBlue = if (isError) Color(0xFFEF4444) else if (isDark) Color(0xFF3B82F6) else Color(0xFF4A90E2)
+    val endBlue = if (isError) Color(0xFFDC2626) else if (isDark) Color(0xFF1D4ED8) else Color(0xFF2563EB)
+    val glowColor = if (isError) Color(0xFFEF4444) else if (isDark) Color(0xFF3B82F6) else Color(0xFF4A90E2)
 
     val coreGradient = Brush.linearGradient(
         colors = listOf(startBlue, endBlue),
@@ -119,7 +123,7 @@ fun AiraVoiceOrb(
 
     // Audio amplitude reactive scaling during LISTENING/SPEAKING
     val animatedAmpScale by animateFloatAsState(
-        targetValue = when (orbState) {
+        targetValue = when (activeOrbState) {
             OrbState.LISTENING -> (audioAmp * 0.25f + 1.0f).coerceIn(1.0f, 1.25f)
             OrbState.SPEAKING -> (audioAmp * 0.18f + 1.0f).coerceIn(1.0f, 1.18f)
             else -> 1.0f
@@ -132,8 +136,8 @@ fun AiraVoiceOrb(
     )
 
     // Overall scale factor
-    val currentScale = when (orbState) {
-        OrbState.IDLE -> idlePulseScale
+    val currentScale = when (activeOrbState) {
+        OrbState.IDLE, OrbState.ERROR -> idlePulseScale
         OrbState.LISTENING -> listeningPulseScale * animatedAmpScale
         OrbState.PROCESSING -> 1.03f
         OrbState.SPEAKING -> animatedAmpScale
@@ -147,10 +151,11 @@ fun AiraVoiceOrb(
             .semantics {
                 liveRegion = LiveRegionMode.Polite
                 role = Role.Button
-                contentDescription = when (orbState) {
+                contentDescription = when (activeOrbState) {
                     OrbState.LISTENING -> "AIRA Voice Orb, listening to your voice. Tap to stop."
                     OrbState.PROCESSING -> "AIRA Voice Orb, processing request..."
                     OrbState.SPEAKING -> "AIRA Voice Orb, speaking response."
+                    OrbState.ERROR -> "AIRA Voice Orb, error state. Tap to retry."
                     OrbState.IDLE -> "AIRA Voice Orb, ready. Tap to speak."
                 }
                 stateDescription = derivedStatus
@@ -169,7 +174,7 @@ fun AiraVoiceOrb(
     ) {
         // High-tech CSS radar energy wave pulses behind orb during listening/speaking
         CssPulsingEffect(
-            isListening = orbState == OrbState.LISTENING || orbState == OrbState.SPEAKING,
+            isListening = activeOrbState == OrbState.LISTENING || activeOrbState == OrbState.SPEAKING,
             pulseColor = glowColor,
             modifier = Modifier.size(280.dp),
             pulseCount = 3
@@ -181,7 +186,7 @@ fun AiraVoiceOrb(
             modifier = Modifier
                 .size(270.dp)
                 .scale(currentScale)
-                .background(glowColor.copy(alpha = if (orbState == OrbState.LISTENING) 0.18f else 0.10f), CircleShape)
+                .background(glowColor.copy(alpha = if (activeOrbState == OrbState.LISTENING) 0.18f else 0.10f), CircleShape)
         )
 
         // Middle Glow Ring (130% = 234dp, 20% opacity)
@@ -189,7 +194,7 @@ fun AiraVoiceOrb(
             modifier = Modifier
                 .size(234.dp)
                 .scale(currentScale)
-                .background(glowColor.copy(alpha = if (orbState == OrbState.LISTENING) 0.28f else 0.20f), CircleShape)
+                .background(glowColor.copy(alpha = if (activeOrbState == OrbState.LISTENING) 0.28f else 0.20f), CircleShape)
         )
 
         // Inner Glow Ring (110% = 198dp, 30% opacity)
@@ -197,7 +202,7 @@ fun AiraVoiceOrb(
             modifier = Modifier
                 .size(198.dp)
                 .scale(currentScale)
-                .background(glowColor.copy(alpha = if (orbState == OrbState.LISTENING) 0.42f else 0.30f), CircleShape)
+                .background(glowColor.copy(alpha = if (activeOrbState == OrbState.LISTENING) 0.42f else 0.30f), CircleShape)
         )
 
         // 4. CORE: Perfect circle, 180dp diameter with solid blue gradient fill
@@ -206,7 +211,7 @@ fun AiraVoiceOrb(
                 .size(180.dp)
                 .scale(currentScale)
                 .shadow(
-                    elevation = if (orbState == OrbState.LISTENING) 24.dp else 12.dp,
+                    elevation = if (activeOrbState == OrbState.LISTENING) 24.dp else 12.dp,
                     shape = CircleShape,
                     ambientColor = glowColor,
                     spotColor = glowColor
@@ -220,7 +225,7 @@ fun AiraVoiceOrb(
                 modifier = Modifier
                     .fillMaxSize()
             ) {
-                if (orbState == OrbState.PROCESSING) {
+                if (activeOrbState == OrbState.PROCESSING) {
                     rotate(rotationAngle) {
                         val strokePx = 4.dp.toPx()
                         drawArc(
@@ -262,8 +267,8 @@ fun AiraVoiceOrb(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
-                if (orbState == OrbState.SPEAKING || orbState == OrbState.LISTENING) {
-                    AnimatedWaveformBars(audioAmp = audioAmp, isListening = (orbState == OrbState.LISTENING))
+                if (activeOrbState == OrbState.SPEAKING || activeOrbState == OrbState.LISTENING) {
+                    AnimatedWaveformBars(audioAmp = audioAmp, isListening = (activeOrbState == OrbState.LISTENING))
                 }
 
                 Icon(
@@ -273,8 +278,8 @@ fun AiraVoiceOrb(
                     modifier = Modifier.size(52.dp)
                 )
 
-                if (orbState == OrbState.SPEAKING || orbState == OrbState.LISTENING) {
-                    AnimatedWaveformBars(audioAmp = audioAmp, isListening = (orbState == OrbState.LISTENING))
+                if (activeOrbState == OrbState.SPEAKING || activeOrbState == OrbState.LISTENING) {
+                    AnimatedWaveformBars(audioAmp = audioAmp, isListening = (activeOrbState == OrbState.LISTENING))
                 }
             }
         }

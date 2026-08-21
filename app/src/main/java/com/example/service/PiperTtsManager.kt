@@ -64,6 +64,9 @@ class PiperTtsManager(private val context: Context) {
     private val _isSpeakCalled = MutableStateFlow(false)
     val isSpeakCalled: StateFlow<Boolean> = _isSpeakCalled.asStateFlow()
 
+    private val _isSpeakingFlow = MutableStateFlow(false)
+    val isSpeakingFlow: StateFlow<Boolean> = _isSpeakingFlow.asStateFlow()
+
     private var nativeTts: android.speech.tts.TextToSpeech? = null
     private var isNativeTtsReady = false
     private val pendingUtteranceQueue = java.util.concurrent.ConcurrentLinkedQueue<Pair<String, Float>>()
@@ -209,22 +212,26 @@ class PiperTtsManager(private val context: Context) {
                     // Setup utterance progress listener to trigger callbacks and audio focus management
                     nativeTts?.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
                         override fun onStart(utteranceId: String?) {
+                            _isSpeakingFlow.value = true
                             com.example.utils.AiraAudioFocusManager.getInstance(context).requestTtsFocus { stop() }
                             mainScope.launch { onStartSpeaking?.invoke() }
                         }
 
                         override fun onDone(utteranceId: String?) {
+                            _isSpeakingFlow.value = false
                             com.example.utils.AiraAudioFocusManager.getInstance(context).releaseTtsFocus()
                             mainScope.launch { onStopSpeaking?.invoke() }
                         }
 
                         @Deprecated("Deprecated in Java")
                         override fun onError(utteranceId: String?) {
+                            _isSpeakingFlow.value = false
                             com.example.utils.AiraAudioFocusManager.getInstance(context).releaseTtsFocus()
                             mainScope.launch { onStopSpeaking?.invoke() }
                         }
 
                         override fun onError(utteranceId: String?, errorCode: Int) {
+                            _isSpeakingFlow.value = false
                             com.example.utils.AiraAudioFocusManager.getInstance(context).releaseTtsFocus()
                             mainScope.launch { onStopSpeaking?.invoke() }
                             Log.e("PiperTtsManager", "Utterance synthesis error code: $errorCode")
@@ -587,27 +594,79 @@ class PiperTtsManager(private val context: Context) {
         speak(text, brainSpeedMultiplier)
     }
 
-    fun speak(text: String, brainSpeedMultiplier: Float = 1.0f) {
+    fun speakWithEmotion(
+        text: String,
+        emotion: String = "neutral",
+        pitchMultiplier: Float = 1.0f,
+        speedMultiplier: Float = 1.0f
+    ) {
+        val (emotionPitch, emotionSpeed) = when (emotion.lowercase().trim()) {
+            "happy" -> Pair(1.2f, 1.1f)
+            "sad" -> Pair(0.8f, 0.8f)
+            "angry" -> Pair(1.1f, 1.2f)
+            else -> Pair(1.0f, 1.0f)
+        }
+        speak(text, speedMultiplier * emotionSpeed, pitchMultiplier * emotionPitch, emotion)
+    }
+
+    fun speak(
+        text: String,
+        brainSpeedMultiplier: Float = 1.0f,
+        brainPitchMultiplier: Float = 1.0f,
+        explicitEmotion: String? = null
+    ) {
         ensureInitialized()
         Log.d("PiperDebug", "MODEL_PATH exists: " + MODEL_PATH.exists() + " Path: " + MODEL_PATH.absolutePath)
         _isSpeakCalled.value = true
-        Log.d("TTS_AUDIT", "PiperTtsManager.speak() was called with text: $text, speed: $brainSpeedMultiplier")
+        Log.d("TTS_AUDIT", "PiperTtsManager.speak() called text: $text, speed: $brainSpeedMultiplier, pitch: $brainPitchMultiplier, emotion: $explicitEmotion")
 
-        if (hasUrduCharacters(text)) {
-            speakUrdu(text)
+        // Parse optional SSML <prosody> tags if present
+        var cleanText = text
+        var tagPitchMultiplier = 1.0f
+        var tagRateMultiplier = 1.0f
+
+        val prosodyRegex = Regex("(?s)<prosody(?:\\s+pitch=\"([^\"]+)\")?(?:\\s+rate=\"([^\"]+)\")?>(.*?)</prosody>")
+        prosodyRegex.find(text)?.let { match ->
+            val pStr = match.groupValues.getOrNull(1)
+            val rStr = match.groupValues.getOrNull(2)
+            val content = match.groupValues.getOrNull(3)
+            if (pStr != null) {
+                tagPitchMultiplier = when (pStr.lowercase()) {
+                    "high" -> 1.2f
+                    "low" -> 0.8f
+                    else -> pStr.toFloatOrNull() ?: 1.0f
+                }
+            }
+            if (rStr != null) {
+                tagRateMultiplier = when (rStr.lowercase()) {
+                    "fast" -> 1.2f
+                    "slow" -> 0.8f
+                    else -> rStr.toFloatOrNull() ?: 1.0f
+                }
+            }
+            if (!content.isNullOrBlank()) {
+                cleanText = text.replace(prosodyRegex, content).trim()
+            }
+        }
+
+        val finalSpeed = brainSpeedMultiplier * tagRateMultiplier
+        val finalPitch = brainPitchMultiplier * tagPitchMultiplier
+
+        if (hasUrduCharacters(cleanText)) {
+            speakUrdu(cleanText)
             return
         }
 
         val voiceId = _activeVoice.value
-        val sentiment = com.example.utils.SentimentAnalysisUtility.analyzeSentiment(text)
-        val humanizedText = formatNaturalPauses(text, sentiment)
+        val sentiment = com.example.utils.SentimentAnalysisUtility.analyzeSentiment(cleanText)
+        val humanizedText = formatNaturalPauses(cleanText, sentiment)
 
         // HIERARCHY LEVEL 1: PRIMARY - Google TTS
         var level1Success = false
         if (isNativeTtsReady && nativeTts != null) {
             try {
                 Log.d("PiperTtsManager", "TTS Hierarchy Level 1: Attempting Primary Google TTS...")
-                level1Success = speakGoogleTtsVoicePrimary(voiceId, humanizedText, brainSpeedMultiplier)
+                level1Success = speakGoogleTtsVoicePrimary(voiceId, humanizedText, finalSpeed, finalPitch, explicitEmotion)
             } catch (e: Throwable) {
                 Log.e("PiperTtsManager", "Google TTS primary engine failed: ${e.message}", e)
             }
@@ -639,10 +698,16 @@ class PiperTtsManager(private val context: Context) {
 
         // HIERARCHY LEVEL 3: FINAL FALLBACK - System Default TTS
         Log.w("PiperTtsManager", "TTS Hierarchy Level 2 failed/unavailable. Transitioning to Level 3 (System Default TTS Final Fallback)...")
-        speakOnlineFallback(humanizedText, 1.0f, 1.0f)
+        speakOnlineFallback(humanizedText, finalSpeed, finalPitch)
     }
 
-    private fun speakGoogleTtsVoicePrimary(voiceId: String, text: String, brainSpeedMultiplier: Float = 1.0f): Boolean {
+    private fun speakGoogleTtsVoicePrimary(
+        voiceId: String,
+        text: String,
+        brainSpeedMultiplier: Float = 1.0f,
+        brainPitchMultiplier: Float = 1.0f,
+        explicitEmotion: String? = null
+    ): Boolean {
         if (!isNativeTtsReady || nativeTts == null) return false
 
         val userPrefs = com.example.utils.SecurePrefs.getEncryptedSharedPreferences(context, "voice_prefs")
@@ -660,7 +725,7 @@ class PiperTtsManager(private val context: Context) {
             else -> Triple(java.util.Locale.US, 1.0f, 1.0f)
         }
 
-        val effectivePitch = (basePitch * userPitchMultiplier).coerceIn(0.5f, 2.0f)
+        val effectivePitch = (basePitch * userPitchMultiplier * brainPitchMultiplier).coerceIn(0.5f, 2.0f)
         val effectiveSpeed = (baseSpeed * userSpeedFactor * brainSpeedMultiplier).coerceIn(0.5f, 2.0f)
 
         // ALWAYS apply voice profile / locale FIRST before setting custom pitch and speech rate,
@@ -683,21 +748,21 @@ class PiperTtsManager(private val context: Context) {
         }
 
         val sentiment = com.example.utils.SentimentAnalysisUtility.analyzeSentiment(text)
-        val prosodyPitchMultiplier = when (sentiment.emotion) {
-            com.example.models.UserEmotion.HAPPY -> 1.08f + (sentiment.valence * 0.05f)
-            com.example.models.UserEmotion.SAD -> 0.90f + (sentiment.valence * 0.04f)
-            com.example.models.UserEmotion.ANGRY -> 0.94f
-            com.example.models.UserEmotion.CONFUSED -> 1.04f
-            com.example.models.UserEmotion.CURIOSITY -> 1.05f
+        val prosodyPitchMultiplier = when (explicitEmotion?.lowercase() ?: sentiment.emotion.name.lowercase()) {
+            "happy" -> 1.20f
+            "sad" -> 0.80f
+            "angry" -> 1.10f
+            "confused" -> 1.04f
+            "curiosity" -> 1.05f
             else -> 1.00f + (sentiment.valence * 0.03f)
         }
 
-        val prosodySpeedMultiplier = when (sentiment.emotion) {
-            com.example.models.UserEmotion.HAPPY -> 1.05f
-            com.example.models.UserEmotion.SAD -> 0.88f
-            com.example.models.UserEmotion.ANGRY -> 0.96f
-            com.example.models.UserEmotion.CONFUSED -> 0.92f
-            com.example.models.UserEmotion.CURIOSITY -> 1.02f
+        val prosodySpeedMultiplier = when (explicitEmotion?.lowercase() ?: sentiment.emotion.name.lowercase()) {
+            "happy" -> 1.10f
+            "sad" -> 0.80f
+            "angry" -> 1.20f
+            "confused" -> 0.92f
+            "curiosity" -> 1.02f
             else -> 1.00f
         }
 
@@ -719,8 +784,7 @@ class PiperTtsManager(private val context: Context) {
             null,
             "AiraVoice_$voiceId"
         )
-
-        return result != android.speech.tts.TextToSpeech.ERROR
+        return result == android.speech.tts.TextToSpeech.SUCCESS
     }
 
     private fun lowerPromptContains(text: String, vararg keywords: String): Boolean {
@@ -952,6 +1016,7 @@ class PiperTtsManager(private val context: Context) {
     fun stop() {
         try {
             Log.d("PiperTtsManager", "Stopping all ongoing speech...")
+            _isSpeakingFlow.value = false
             piperTtsEngine.stop()
             if (nativeTts != null) {
                 nativeTts?.stop()
@@ -966,6 +1031,7 @@ class PiperTtsManager(private val context: Context) {
     fun release() {
         try {
             Log.d("PiperTtsManager", "Releasing Piper TTS resources...")
+            _isSpeakingFlow.value = false
             piperTtsEngine.release()
             nativeTts?.stop()
             nativeTts?.shutdown()
@@ -983,6 +1049,7 @@ class PiperTtsManager(private val context: Context) {
     fun shutdown() {
         try {
             Log.d("PiperTtsManager", "Shutting down TextToSpeech engine...")
+            _isSpeakingFlow.value = false
             piperTtsEngine.shutdown()
             if (nativeTts != null) {
                 nativeTts?.stop()

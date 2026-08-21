@@ -1,12 +1,15 @@
 package com.example.network.api
 
 import android.util.Log
+import okhttp3.Cache
+import okhttp3.ConnectionPool
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 import java.util.concurrent.TimeUnit
 
 enum class ApiProviderType(val displayName: String, val isPaid: Boolean) {
@@ -41,12 +44,25 @@ object ApiDefaults {
 }
 
 /**
- * Common OkHttpClient with resilient timeouts for all network clients.
+ * Common OkHttpClient with high-performance connection pooling (10 connections, 5min keepalive),
+ * optimized timeouts (5s connect, 10s read, 10s write), and automatic gzip compression.
  */
+val commonConnectionPool: ConnectionPool by lazy {
+    ConnectionPool(10, 5L, TimeUnit.MINUTES)
+}
+
 val commonOkHttpClient: OkHttpClient by lazy {
     OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
+        .connectionPool(commonConnectionPool)
+        .connectTimeout(5, TimeUnit.SECONDS)
         .readTimeout(10, TimeUnit.SECONDS)
         .writeTimeout(10, TimeUnit.SECONDS)
+        .retryOnConnectionFailure(true)
+        .addInterceptor { chain ->
+            val req = chain.request().newBuilder()
+                .header("Accept-Encoding", "gzip")
+                .build()
+            chain.proceed(req)
+        }
         .build()
 }
