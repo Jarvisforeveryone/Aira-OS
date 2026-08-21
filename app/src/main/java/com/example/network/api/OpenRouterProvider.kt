@@ -12,10 +12,6 @@ class OpenRouterProvider(private val context: Context) : ApiProvider {
         val model = apiManager.getSelectedModel(ApiProviderType.OPENROUTER)
 
         val result = client.generateText(key, model, query, context)
-        return if (result.isSuccess) {
-            result.getOrDefault("")
-        } else {
-            apiManager.queryAi(query, context).getOrNull()?.second ?: ""
-        }
+        return result.getOrNull() ?: ""
     }
 }

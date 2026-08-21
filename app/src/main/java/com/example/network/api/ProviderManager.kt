@@ -1,12 +1,13 @@
 package com.example.network.api
 
 import android.content.Context
+import com.example.data.ChatKeyManager
 
 class ProviderManager(private val context: Context) {
 
     fun getProvider(providerName: String? = null): ApiProvider {
-        val prefs = context.getSharedPreferences("aira_settings", Context.MODE_PRIVATE)
-        val selected = providerName ?: prefs.getString("selected_ai_provider", "Gemini") ?: "Gemini"
+        val keyManager = ChatKeyManager.getInstance(context)
+        val selected = providerName ?: keyManager.getSelectedProvider()
 
         return when (selected.uppercase()) {
             "GROQ" -> GroqProvider(context)
@@ -22,8 +23,8 @@ class ProviderManager(private val context: Context) {
      * Primary Selected -> Gemini -> Groq -> OpenAI -> Claude -> OpenRouter
      */
     fun getFallbackChain(primary: String? = null): List<ApiProvider> {
-        val prefs = context.getSharedPreferences("aira_settings", Context.MODE_PRIVATE)
-        val selected = (primary ?: prefs.getString("selected_ai_provider", "Gemini") ?: "Gemini").uppercase()
+        val keyManager = ChatKeyManager.getInstance(context)
+        val selected = (primary ?: keyManager.getSelectedProvider()).uppercase()
 
         val allProviders = linkedMapOf<String, ApiProvider>(
             "GEMINI" to GeminiProvider(context),
@@ -44,7 +45,8 @@ class ProviderManager(private val context: Context) {
     }
 
     fun setProvider(providerName: String) {
+        ChatKeyManager.getInstance(context).setSelectedProvider(providerName)
         val prefs = context.getSharedPreferences("aira_settings", Context.MODE_PRIVATE)
-        prefs.edit().putString("selected_ai_provider", providerName).apply()
+        prefs.edit().putString("selected_ai_provider", providerName).putString("active_api_provider", providerName).apply()
     }
 }

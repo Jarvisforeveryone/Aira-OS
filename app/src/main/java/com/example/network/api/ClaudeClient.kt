@@ -10,6 +10,9 @@ import org.json.JSONObject
 class ClaudeClient {
 
     fun generateText(apiKey: String, model: String, prompt: String, systemInstruction: String? = null): Result<String> {
+        if (apiKey.isBlank()) {
+            return Result.failure(Exception("Claude API key is blank or not configured"))
+        }
         return try {
             val modelName = if (model.isBlank()) "claude-3-5-sonnet-20241022" else model
             val url = "https://api.anthropic.com/v1/messages"

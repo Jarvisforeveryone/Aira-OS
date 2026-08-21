@@ -10,6 +10,9 @@ import org.json.JSONObject
 class HuggingFaceClient {
 
     fun generateText(apiKey: String, model: String, prompt: String, systemInstruction: String? = null): Result<String> {
+        if (apiKey.isBlank()) {
+            return Result.failure(Exception("HuggingFace API key is blank or not configured"))
+        }
         return try {
             val modelName = if (model.isBlank()) "Qwen/Qwen2.5-72B-Instruct" else model
             val url = "https://router.huggingface.co/hf-inference/v1/chat/completions"

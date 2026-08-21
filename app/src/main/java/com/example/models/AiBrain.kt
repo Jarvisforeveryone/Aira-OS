@@ -29,20 +29,16 @@ data class EmotionState(
 object JarvisEmotionEngine {
     private var lastEmotion: UserEmotion = UserEmotion.NEUTRAL
 
-    suspend fun detectEmotion(text: String, provider: ApiProvider): EmotionState {
-        return try {
-            val prompt = """Detect the emotional state from the text: '$text'.
-Choose emotion from [HAPPY, SAD, ANGRY, CONFUSED, CURIOSITY, FRUSTRATED, NEUTRAL] and intensity from [HIGH, MEDIUM, LOW].
-Respond ONLY in JSON format: {"emotion": "NEUTRAL", "intensity": "MEDIUM"}"""
-            val jsonStr = provider.generateResponse(prompt)
-            val json = JSONObject(jsonStr.substringAfter("{").substringBeforeLast("}").let { "{$it}" })
-            val emotion = UserEmotion.valueOf(json.optString("emotion", "NEUTRAL").uppercase())
-            val intensity = EmotionIntensity.valueOf(json.optString("intensity", "MEDIUM").uppercase())
-            lastEmotion = emotion
-            EmotionState(emotion, intensity)
-        } catch (e: Exception) {
-            EmotionState(lastEmotion, EmotionIntensity.MEDIUM)
+    fun detectEmotion(text: String, provider: ApiProvider? = null): EmotionState {
+        val detected = com.example.utils.EmotionDetector.detectEmotion(text)
+        val emotion = when (detected.emotion) {
+            com.example.utils.UserEmotion.HAPPY -> UserEmotion.HAPPY
+            com.example.utils.UserEmotion.SAD -> UserEmotion.SAD
+            com.example.utils.UserEmotion.ANGRY -> UserEmotion.ANGRY
+            com.example.utils.UserEmotion.NEUTRAL -> UserEmotion.NEUTRAL
         }
+        lastEmotion = emotion
+        return EmotionState(emotion, EmotionIntensity.MEDIUM)
     }
 }
 
@@ -50,20 +46,20 @@ object JarvisReinforcementEngine {
     private const val PREFS_NAME = "jarvis_reinforcement_prefs"
     private const val KEY_SATISFACTION = "user_satisfaction_score"
 
-    suspend fun updateImplicitFeedback(context: Context, userFeedback: String, provider: ApiProvider) {
+    fun updateImplicitFeedback(context: Context, userFeedback: String, provider: ApiProvider? = null) {
         try {
-            val prompt = """Analyze user feedback: '$userFeedback'. Provide satisfaction score adjustment delta (-0.2 to +0.2).
-Respond ONLY in JSON format: {"delta": 0.05}"""
-            val jsonStr = provider.generateResponse(prompt)
-            val json = JSONObject(jsonStr.substringAfter("{").substringBeforeLast("}").let { "{$it}" })
-            val delta = json.optDouble("delta", 0.0).toFloat()
-
+            val lower = userFeedback.lowercase()
+            val delta = when {
+                lower.contains("great") || lower.contains("good") || lower.contains("thanks") || lower.contains("awesome") -> 0.05f
+                lower.contains("bad") || lower.contains("wrong") || lower.contains("stop") || lower.contains("stupid") -> -0.05f
+                else -> 0.0f
+            }
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val currentScore = prefs.getFloat(KEY_SATISFACTION, 0.7f)
             val newScore = (currentScore + delta).coerceIn(0.1f, 1.0f)
             prefs.edit().putFloat(KEY_SATISFACTION, newScore).apply()
         } catch (e: Exception) {
-            Log.e("JarvisReinforcementEngine", "Failed LLM feedback analysis", e)
+            Log.e("JarvisReinforcementEngine", "Failed feedback analysis", e)
         }
     }
 
@@ -74,35 +70,27 @@ Respond ONLY in JSON format: {"delta": 0.05}"""
 }
 
 object JarvisMemoryExtractor {
-    suspend fun extractAndStoreMemories(context: Context, userInput: String, provider: ApiProvider) {
+    suspend fun extractAndStoreMemories(context: Context, userInput: String, provider: ApiProvider? = null) {
         try {
-            val db = AppDatabase.getDatabase(context)
-            val memoryDao = db.memoryDao()
-
-            val prompt = """Extract key personal facts, preferences, or identity details from this text: '$userInput'.
-Respond ONLY in JSON format: {"facts": [{"factText": "User loves coffee", "category": "Preferences"}]}"""
-            val jsonStr = provider.generateResponse(prompt)
-            val json = JSONObject(jsonStr.substringAfter("{").substringBeforeLast("}").let { "{$it}" })
-            val factsArray = json.optJSONArray("facts") ?: JSONArray()
-
-            val existing = memoryDao.getAllMemoriesList()
-            for (i in 0 until factsArray.length()) {
-                val item = factsArray.getJSONObject(i)
-                val factText = item.optString("factText", "").trim()
-                val category = item.optString("category", "General")
-                if (factText.isNotBlank() && existing.none { it.factText.equals(factText, ignoreCase = true) }) {
+            val lower = userInput.lowercase()
+            if (lower.contains("my name is") || lower.contains("i like") || lower.contains("i love") || lower.contains("my favorite")) {
+                val db = AppDatabase.getDatabase(context)
+                val memoryDao = db.memoryDao()
+                val existing = memoryDao.getAllMemoriesList()
+                val factText = userInput.trim()
+                if (existing.none { it.factText.equals(factText, ignoreCase = true) }) {
                     memoryDao.insertMemory(
                         Memory(
                             factText = factText,
-                            source = "llm_jarvis_brain",
-                            category = category,
+                            source = "user_interaction",
+                            category = "Preferences",
                             isImportant = true
                         )
                     )
                 }
             }
         } catch (e: Exception) {
-            Log.e("JarvisMemoryExtractor", "Failed LLM memory extraction", e)
+            Log.e("JarvisMemoryExtractor", "Failed memory extraction", e)
         }
     }
 
@@ -146,24 +134,13 @@ data class EntityNode(val id: String, val label: String, val type: String)
 data class RelationEdge(val fromId: String, val relation: String, val toId: String)
 
 object JarvisKnowledgeGraphManager {
-    suspend fun getKnowledgeGraphContext(context: Context, provider: ApiProvider): String {
+    suspend fun getKnowledgeGraphContext(context: Context, provider: ApiProvider? = null): String {
         return try {
             val db = AppDatabase.getDatabase(context)
             val memories = db.memoryDao().getAllMemoriesList()
             if (memories.isEmpty()) return ""
-
-            val rawFacts = memories.take(6).joinToString("; ") { it.factText }
-            val prompt = """Extract semantic knowledge graph relationships from these user facts: '$rawFacts'.
-Format each as (Entity1)-[RELATION]->(Entity2).
-Respond ONLY in JSON format: {"triples": ["(User)-[PREFERS]->(Coffee)"]}"""
-            val jsonStr = provider.generateResponse(prompt)
-            val json = JSONObject(jsonStr.substringAfter("{").substringBeforeLast("}").let { "{$it}" })
-            val array = json.optJSONArray("triples") ?: JSONArray()
-            val triplesList = mutableListOf<String>()
-            for (i in 0 until array.length()) {
-                triplesList.add(array.getString(i))
-            }
-            if (triplesList.isEmpty()) "" else "\n[Structured Knowledge Graph Triples: ${triplesList.joinToString("; ")}]\n"
+            val rawFacts = memories.take(4).joinToString("; ") { it.factText }
+            "\n[User Knowledge Context: $rawFacts]\n"
         } catch (e: Exception) {
             ""
         }
@@ -171,17 +148,12 @@ Respond ONLY in JSON format: {"triples": ["(User)-[PREFERS]->(Coffee)"]}"""
 }
 
 object JarvisProactiveAlertEngine {
-    suspend fun getProactiveBriefing(context: Context, provider: ApiProvider): String? {
+    fun getProactiveBriefing(context: Context, provider: ApiProvider? = null): String? {
         return try {
             val bm = context.getSystemService(Context.BATTERY_SERVICE) as? android.os.BatteryManager
             val batteryLevel = bm?.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: 100
-            val prompt = """Given system status (Battery: $batteryLevel%), decide if a proactive warning is required.
-Respond ONLY in JSON format: {"should_speak": true, "message": "Proactive Alert: Battery level low."}"""
-            val jsonStr = provider.generateResponse(prompt)
-            val json = JSONObject(jsonStr.substringAfter("{").substringBeforeLast("}").let { "{$it}" })
-            if (json.optBoolean("should_speak", false)) {
-                val msg = json.optString("message", "")
-                if (msg.isNotBlank()) msg else null
+            if (batteryLevel <= 15) {
+                "[Proactive Notice: Battery is at $batteryLevel%, sir.]"
             } else null
         } catch (e: Exception) {
             null
@@ -190,12 +162,10 @@ Respond ONLY in JSON format: {"should_speak": true, "message": "Proactive Alert:
 }
 
 object JarvisSummarizer {
-    suspend fun generateRollingSummary(history: List<Pair<String, String>>, provider: ApiProvider): String {
+    fun generateRollingSummary(history: List<Pair<String, String>>, provider: ApiProvider? = null): String {
         if (history.size < 4) return ""
-        val historyText = history.takeLast(6).joinToString("\n") { "User: ${it.first}\nAI: ${it.second}" }
-        val prompt = "Summarize the recent conversation briefly in 1-2 sentences:\n$historyText"
-        val summary = provider.generateResponse(prompt).trim()
-        return if (summary.isNotBlank()) "\n[Hierarchical Rolling Summary: $summary]\n" else ""
+        val recentTopics = history.takeLast(4).map { it.first }.joinToString(", ")
+        return "\n[Recent conversation context topics: $recentTopics]\n"
     }
 }
 
@@ -459,18 +429,17 @@ Always address the user with conversational, polite terms like 'sir', 'at your s
         temperature: Double? = null
     ): String = withContext(Dispatchers.IO) {
         val query = prompt.trim()
-        val provider = providerManager.getProvider()
 
-        val emotionState = JarvisEmotionEngine.detectEmotion(query, provider)
-        JarvisReinforcementEngine.updateImplicitFeedback(context, query, provider)
-        JarvisMemoryExtractor.extractAndStoreMemories(context, query, provider)
+        val emotionState = JarvisEmotionEngine.detectEmotion(query)
+        JarvisReinforcementEngine.updateImplicitFeedback(context, query)
+        JarvisMemoryExtractor.extractAndStoreMemories(context, query)
 
         val (trimmedHistory, prunedSummary) = JarvisTokenMemoryManager.trimHistoryToTokenBudget(history, 2048)
         val memoryContext = JarvisMemoryExtractor.getFormattedMemoryContext(context, query)
-        val kgContext = JarvisKnowledgeGraphManager.getKnowledgeGraphContext(context, provider)
+        val kgContext = JarvisKnowledgeGraphManager.getKnowledgeGraphContext(context)
         val formalityContext = JarvisPersonaFormalityManager.getPersonaInstruction(context)
-        val proactiveAlert = JarvisProactiveAlertEngine.getProactiveBriefing(context, provider)
-        val rollingSummary = JarvisSummarizer.generateRollingSummary(trimmedHistory, provider)
+        val proactiveAlert = JarvisProactiveAlertEngine.getProactiveBriefing(context)
+        val rollingSummary = JarvisSummarizer.generateRollingSummary(trimmedHistory)
 
         val combinedSystemInstruction = buildString {
             append(JARVIS_SYSTEM_INSTRUCTION)

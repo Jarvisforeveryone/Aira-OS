@@ -25,8 +25,8 @@ enum class ApiProviderType(val displayName: String, val isPaid: Boolean) {
 
 object ApiDefaults {
     val modelsMap = mapOf(
-        ApiProviderType.GEMINI to listOf("gemini-3.5-flash", "gemini-3.1-pro-preview", "gemini-3.1-flash-lite-preview", "gemini-3.6-flash", "gemini-2.5-flash"),
-        ApiProviderType.GROQ to listOf("llama-3.3-70b-versatile", "llama-3.1-8b-instant", "gemma2-9b-it", "gpt-oss-120b", "llama-4-scout-17b"),
+        ApiProviderType.GEMINI to listOf("gemini-2.5-flash", "gemini-3.1-pro-preview", "gemini-3.1-flash-lite-preview", "gemini-3.5-flash"),
+        ApiProviderType.GROQ to listOf("llama-3.3-70b-versatile", "llama-3.1-8b-instant", "gemma2-9b-it"),
         ApiProviderType.OPENAI to listOf("gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"),
         ApiProviderType.CLAUDE to listOf("claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"),
         ApiProviderType.OPENROUTER to listOf(

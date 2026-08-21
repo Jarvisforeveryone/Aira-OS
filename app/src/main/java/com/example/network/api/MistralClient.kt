@@ -10,6 +10,9 @@ import org.json.JSONObject
 class MistralClient {
 
     fun generateText(apiKey: String, model: String, prompt: String, systemInstruction: String? = null): Result<String> {
+        if (apiKey.isBlank()) {
+            return Result.failure(Exception("Mistral API key is blank or not configured"))
+        }
         return try {
             val modelName = if (model.isBlank()) "mistral-small-latest" else model
             val url = "https://api.mistral.ai/v1/chat/completions"

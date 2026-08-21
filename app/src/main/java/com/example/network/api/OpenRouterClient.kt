@@ -10,6 +10,9 @@ import org.json.JSONObject
 class OpenRouterClient {
 
     fun generateText(apiKey: String, model: String, prompt: String, systemInstruction: String? = null): Result<String> {
+        if (apiKey.isBlank()) {
+            return Result.failure(Exception("OpenRouter API key is blank or not configured"))
+        }
         return try {
             val modelName = if (model.isBlank()) "nvidia/nemotron-3-ultra-550b-a55b:free" else model
             val url = "https://openrouter.ai/api/v1/chat/completions"

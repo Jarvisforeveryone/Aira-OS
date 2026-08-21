@@ -12,10 +12,6 @@ class ClaudeProvider(private val context: Context) : ApiProvider {
         val model = apiManager.getSelectedModel(ApiProviderType.CLAUDE)
 
         val result = client.generateText(key, model, query, context)
-        return if (result.isSuccess) {
-            result.getOrDefault("")
-        } else {
-            apiManager.queryAi(query, context).getOrNull()?.second ?: ""
-        }
+        return result.getOrNull() ?: ""
     }
 }

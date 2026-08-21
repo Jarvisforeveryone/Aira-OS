@@ -10,6 +10,9 @@ import org.json.JSONObject
 class OpenAIClient {
 
     fun generateText(apiKey: String, model: String, prompt: String, systemInstruction: String? = null): Result<String> {
+        if (apiKey.isBlank()) {
+            return Result.failure(Exception("OpenAI API key is blank or not configured"))
+        }
         return try {
             val modelName = if (model.isBlank()) "gpt-4o-mini" else model
             val url = "https://api.openai.com/v1/chat/completions"

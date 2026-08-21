@@ -10,6 +10,9 @@ import org.json.JSONObject
 class GroqClient {
 
     fun generateText(apiKey: String, model: String, prompt: String, systemInstruction: String? = null): Result<String> {
+        if (apiKey.isBlank()) {
+            return Result.failure(Exception("Groq API key is blank or not configured"))
+        }
         return try {
             val modelName = if (model.isBlank()) "llama-3.3-70b-versatile" else model
             val url = "https://api.groq.com/openai/v1/chat/completions"

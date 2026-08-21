@@ -16,8 +16,12 @@ class GeminiClient {
         systemInstruction: String? = null,
         enableThinkingMode: Boolean = false
     ): Result<String> {
+        if (apiKey.isBlank()) {
+            return Result.failure(Exception("Gemini API key is blank or not configured"))
+        }
+
         return try {
-            val resolvedModel = if (model.isBlank()) "gemini-3.5-flash" else model
+            val resolvedModel = if (model.isBlank()) "gemini-2.5-flash" else model
             val isThinkingModel = enableThinkingMode || resolvedModel.contains("gemini-3.1-pro") || resolvedModel.contains("thinking")
             val modelName = if (isThinkingModel && !resolvedModel.contains("gemini-3.1-pro")) "gemini-3.1-pro-preview" else resolvedModel
 

@@ -10,6 +10,9 @@ import org.json.JSONObject
 class CohereClient {
 
     fun generateText(apiKey: String, model: String, prompt: String, systemInstruction: String? = null): Result<String> {
+        if (apiKey.isBlank()) {
+            return Result.failure(Exception("Cohere API key is blank or not configured"))
+        }
         return try {
             val modelName = if (model.isBlank()) "command-r-plus" else model
             val url = "https://api.cohere.com/v2/chat"
