@@ -16,6 +16,27 @@ class ChatKeyManager private constructor(private val context: Context) {
     private val multiKeyManager = MultiKeyManager.getInstance(context)
     private val sharedPreferences: SharedPreferences = com.example.utils.SecurePrefs.getEncryptedSharedPreferences(context, "aira_secure_api_keys")
 
+    init {
+        // Cleanse any sensitive keys mistakenly saved in legacy unencrypted aira_settings
+        try {
+            val legacyPrefs = context.getSharedPreferences("aira_settings", Context.MODE_PRIVATE)
+            val secretKeys = listOf(
+                "gemini_api_key", "gemini_key", "api_key", "user_api_key",
+                "groq_api_key", "openai_api_key", "claude_api_key",
+                "openrouter_api_key", "mistral_api_key", "cohere_api_key", "huggingface_api_key"
+            )
+            val editor = legacyPrefs.edit()
+            for (key in secretKeys) {
+                if (legacyPrefs.contains(key)) {
+                    editor.remove(key)
+                }
+            }
+            editor.apply()
+        } catch (e: Throwable) {
+            Log.w("ChatKeyManager", "Legacy key cleanup: ${e.message}")
+        }
+    }
+
     /**
      * Scans keys for GEMINI from MultiKeyManager and returns next valid key.
      */
@@ -23,7 +44,7 @@ class ChatKeyManager private constructor(private val context: Context) {
         val multiKey = multiKeyManager.getNextKey("GEMINI")
         if (!multiKey.isNullOrBlank()) return multiKey
 
-        // Fallback check legacy key aliases
+        // Fallback check legacy key aliases in secure prefs
         val keyAliases = listOf("gemini_api_key", "gemini_key", "api_key", "user_api_key")
         for (alias in keyAliases) {
             val key = sharedPreferences.getString(alias, "")?.trim() ?: ""
@@ -96,25 +117,12 @@ class ChatKeyManager private constructor(private val context: Context) {
     }
 
     fun getProviderKey(prefKey: String): String {
-        val secureKey = sharedPreferences.getString(prefKey, "")?.trim() ?: ""
-        if (secureKey.isNotEmpty()) return secureKey
-        return try {
-            val fallbackPrefs = context.getSharedPreferences("aira_settings", Context.MODE_PRIVATE)
-            fallbackPrefs.getString(prefKey, "")?.trim() ?: ""
-        } catch (e: Exception) {
-            ""
-        }
+        return sharedPreferences.getString(prefKey, "")?.trim() ?: ""
     }
 
     fun saveProviderKey(prefKey: String, key: String) {
         val trimmed = key.trim()
         sharedPreferences.edit().putString(prefKey, trimmed).apply()
-        try {
-            val fallbackPrefs = context.getSharedPreferences("aira_settings", Context.MODE_PRIVATE)
-            fallbackPrefs.edit().putString(prefKey, trimmed).apply()
-        } catch (e: Exception) {
-            Log.e("ChatKeyManager", "Failed saving $prefKey: ", e)
-        }
     }
 
     fun getSelectedProvider(): String {
@@ -124,12 +132,6 @@ class ChatKeyManager private constructor(private val context: Context) {
 
     fun setSelectedProvider(providerName: String) {
         sharedPreferences.edit().putString("active_api_provider", providerName).apply()
-        try {
-            val fallbackPrefs = context.getSharedPreferences("aira_settings", Context.MODE_PRIVATE)
-            fallbackPrefs.edit().putString("active_api_provider", providerName).apply()
-        } catch (e: Exception) {
-            Log.e("ChatKeyManager", "Failed saving active provider", e)
-        }
     }
 
     fun getSelectedModel(providerName: String, defaultModel: String): String {
@@ -141,12 +143,6 @@ class ChatKeyManager private constructor(private val context: Context) {
     fun setSelectedModel(providerName: String, modelName: String) {
         val key = "model_for_${providerName.lowercase()}"
         sharedPreferences.edit().putString(key, modelName.trim()).apply()
-        try {
-            val fallbackPrefs = context.getSharedPreferences("aira_settings", Context.MODE_PRIVATE)
-            fallbackPrefs.edit().putString(key, modelName.trim()).apply()
-        } catch (e: Exception) {
-            Log.e("ChatKeyManager", "Failed saving model for $providerName", e)
-        }
     }
 
     companion object {

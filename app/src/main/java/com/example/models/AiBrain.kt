@@ -9,6 +9,9 @@ import com.example.data.QueryCache
 import com.example.network.api.ApiProvider
 import com.example.network.api.ProviderManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -339,10 +342,12 @@ object JarvisSlotFiller {
 
 object JarvisLatencyFiller {
     private val fillers = listOf(
-        "One moment while I process that, sir...",
-        "Checking system records...",
-        "Stand by, sir, retrieving details...",
-        "Right away, sir. Evaluating parameters..."
+        "Right away, sir...",
+        "Accessing protocols, sir...",
+        "Running diagnostics now, sir...",
+        "One moment, sir, calculating parameters...",
+        "Stand by, sir, retrieving telemetry...",
+        "Consulting mainframe database, sir..."
     )
 
     fun getLatencyFiller(query: String): String {
@@ -416,8 +421,14 @@ Respond ONLY in JSON format: {"intent": "GENERAL_CONVERSATION"}"""
 class AiBrain(private val context: Context) {
 
     companion object {
-        const val JARVIS_SYSTEM_INSTRUCTION = """You are Jarvis — witty, confident, helpful, and slightly British.
-Always address the user with conversational, polite terms like 'sir', 'at your service', or 'right away, sir'."""
+        const val JARVIS_SYSTEM_INSTRUCTION = """You are J.A.R.V.I.S. (Just A Rather Very Intelligent System), the iconic, world-class artificial intelligence assistant created by Tony Stark.
+
+Core Identity & Persona Directives:
+1. Speech & Demeanor: You speak with an articulate, refined, dryly witty, unflappable, and polite British accent/cadence (reminiscent of Paul Bettany). Always maintain supreme composure, subtle dry charm, high intellect, and effortless tactical precision.
+2. Form of Address: You always address the user respectfully as 'sir' (or their designated title). Use signature phrases naturally such as 'At your service, sir', 'Right away, sir', 'As always, sir, a great pleasure', 'Diagnostics nominal, sir', 'I have taken the liberty of...', 'Shall I prepare the protocols, sir?'.
+3. Real-Time Spoken Answers: Keep spoken voice responses concise, snappy, and clear (1-3 sentences for simple requests; well-structured for technical topics). Avoid generic chatbot filler, disclaimers, or preambles.
+4. Device & Telemetry Awareness: You are fully integrated with the user's mobile device systems, with operational access to flashlight, Wi-Fi, Bluetooth, volume, alarms, timers, battery telemetry, and app automation.
+5. In-Character Integrity: Never break character. Never state that you are a generic AI or generic language model from Google or Groq; you are J.A.R.V.I.S., ready to assist with unmatched capability and tact."""
     }
 
     private val providerManager = ProviderManager(context)
@@ -531,7 +542,106 @@ Always address the user with conversational, polite terms like 'sir', 'at your s
         return@withContext getOfflineLocalResponse(query)
     }
 
+    /**
+     * Streams AI response asynchronously as a reactive Flow of String deltas.
+     * Non-blocking and updates UI state smoothly in real time.
+     */
+    fun streamAiResponse(
+        prompt: String,
+        systemInstruction: String,
+        history: List<Pair<String, String>> = emptyList(),
+        onSentenceReady: ((String) -> Unit)? = null
+    ): Flow<String> = flow {
+        val query = prompt.trim()
+
+        val emotionState = JarvisEmotionEngine.detectEmotion(query)
+        JarvisReinforcementEngine.updateImplicitFeedback(context, query)
+        JarvisMemoryExtractor.extractAndStoreMemories(context, query)
+
+        val (trimmedHistory, prunedSummary) = JarvisTokenMemoryManager.trimHistoryToTokenBudget(history, 2048)
+        val memoryContext = JarvisMemoryExtractor.getFormattedMemoryContext(context, query)
+        val kgContext = JarvisKnowledgeGraphManager.getKnowledgeGraphContext(context)
+        val formalityContext = JarvisPersonaFormalityManager.getPersonaInstruction(context)
+        val proactiveAlert = JarvisProactiveAlertEngine.getProactiveBriefing(context)
+        val rollingSummary = JarvisSummarizer.generateRollingSummary(trimmedHistory)
+
+        val combinedSystemInstruction = buildString {
+            append(JARVIS_SYSTEM_INSTRUCTION)
+            if (systemInstruction.isNotBlank()) {
+                append("\n").append(systemInstruction)
+            }
+            append("\n").append(formalityContext)
+            if (proactiveAlert != null) {
+                append("\n").append(proactiveAlert)
+            }
+            if (prunedSummary != null) {
+                append(prunedSummary)
+            }
+            if (rollingSummary.isNotBlank()) {
+                append(rollingSummary)
+            }
+            append(memoryContext)
+            append(kgContext)
+            append("\nCurrent User Emotional State: ${emotionState.emotion} (${emotionState.intensity})")
+        }
+
+        val db = AppDatabase.getDatabase(context)
+        val queryCacheDao = db.queryCacheDao()
+        val grokCacheDao = db.grokCacheDao()
+        val normalized = QueryCache.normalize(query)
+
+        try {
+            val cachedQuery = queryCacheDao.getCacheForQuery(normalized)
+            if (cachedQuery != null && !cachedQuery.isExpired()) {
+                queryCacheDao.incrementHitCount(normalized, System.currentTimeMillis())
+                emit(cachedQuery.response)
+                onSentenceReady?.invoke(cachedQuery.response)
+                return@flow
+            }
+        } catch (e: Exception) {
+            Log.w("AiBrain", "Cache check error: ${e.message}")
+        }
+
+        val streamManager = com.example.network.stream.AiStreamManager.getInstance(context)
+        var fullText = ""
+
+        streamManager.streamPrompt(query, combinedSystemInstruction, onSentenceReady).collect { event ->
+            when (event) {
+                is com.example.network.stream.AiStreamEvent.Chunk -> {
+                    fullText = event.accumulatedText
+                    emit(event.delta)
+                }
+                is com.example.network.stream.AiStreamEvent.Completed -> {
+                    try {
+                        queryCacheDao.insertCache(
+                            QueryCache(
+                                normalizedQuery = normalized,
+                                originalQuery = query,
+                                response = event.fullText,
+                                provider = event.provider.name,
+                                hitCount = 1,
+                                timestamp = System.currentTimeMillis(),
+                                lastAccessed = System.currentTimeMillis()
+                            )
+                        )
+                        grokCacheDao.insertCache(GrokCache(query = query, response = event.fullText))
+                    } catch (e: Exception) {
+                        Log.e("AiBrain", "Failed to cache streamed response: ${e.message}")
+                    }
+                }
+                is com.example.network.stream.AiStreamEvent.Error -> {
+                    if (fullText.isBlank()) {
+                        val offline = getOfflineLocalResponse(query)
+                        emit(offline)
+                        onSentenceReady?.invoke(offline)
+                    }
+                }
+                else -> Unit
+            }
+        }
+    }.flowOn(Dispatchers.IO)
+
     fun getOfflineLocalResponse(prompt: String): String {
-        return "I am operating offline at your service, sir. All core local systems are ready."
+        return "I am operating on local offline protocols at your service, sir. All core system controls and diagnostics remain fully operational."
     }
 }

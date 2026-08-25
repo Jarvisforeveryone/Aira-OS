@@ -30,6 +30,7 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.util.Log
+import com.example.util.Logger
 import android.Manifest
 import android.content.pm.PackageManager
 import android.location.Location
@@ -113,6 +114,29 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     val queryCacheDao: QueryCacheDao = db.queryCacheDao()
     private val aiBrain = AiBrain(application)
     val automationEngine = com.example.service.AiraAutomationEngine(application)
+
+    // --- Modular Feature ViewModels / Delegates ---
+    val memoryFeature: com.example.presentation.memory.MemoryViewModel by lazy {
+        com.example.presentation.memory.MemoryViewModel(application)
+    }
+    val systemControlFeature: com.example.presentation.device.SystemControlViewModel by lazy {
+        com.example.presentation.device.SystemControlViewModel(application)
+    }
+    val voiceAssistantFeature: com.example.presentation.voice.VoiceAssistantViewModel by lazy {
+        com.example.presentation.voice.VoiceAssistantViewModel(application)
+    }
+    val chatConversationFeature: com.example.presentation.chat.ChatConversationViewModel by lazy {
+        com.example.presentation.chat.ChatConversationViewModel(application)
+    }
+    val settingsPreferencesFeature: com.example.presentation.settings.SettingsPreferencesViewModel by lazy {
+        com.example.presentation.settings.SettingsPreferencesViewModel(application)
+    }
+    val weatherNewsFeature: com.example.presentation.weather.WeatherNewsViewModel by lazy {
+        com.example.presentation.weather.WeatherNewsViewModel(application)
+    }
+    val wakeWordTrainerFeature: com.example.presentation.wakeword.WakeWordTrainerViewModel by lazy {
+        com.example.presentation.wakeword.WakeWordTrainerViewModel(application)
+    }
 
     val feedbackList: StateFlow<List<ResponseFeedback>> = feedbackDao.getAllFeedback()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -551,6 +575,9 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     private val _isListening = MutableStateFlow(false)
     val isListening: StateFlow<Boolean> = _isListening.asStateFlow()
 
+    private val _isProcessing = MutableStateFlow(false)
+    val isProcessing: StateFlow<Boolean> = _isProcessing.asStateFlow()
+
     private val _sttState = MutableStateFlow<SttState>(SttState.IDLE)
     val sttState: StateFlow<SttState> = _sttState.asStateFlow()
 
@@ -561,15 +588,19 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         if (_sttState.value == newState) return
         val oldState = _sttState.value
         _sttState.value = newState
-        Log.d("STTFeedback", "STT State changed: $oldState -> $newState")
+        Logger.d("STTFeedback", "STT State changed: $oldState -> $newState")
 
         when (newState) {
             SttState.LISTENING -> {
+                _isListening.value = true
+                _isProcessing.value = false
                 _currentStatus.value = "Listening..."
                 _orbState.value = com.example.ui.components.OrbState.LISTENING
                 playSttFeedbackBeep(isStart = true)
             }
             SttState.PROCESSING -> {
+                _isListening.value = false
+                _isProcessing.value = true
                 _currentStatus.value = "Processing..."
                 _orbState.value = com.example.ui.components.OrbState.PROCESSING
                 if (oldState == SttState.LISTENING) {
@@ -577,10 +608,14 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                 }
             }
             SttState.SPEAKING -> {
+                _isListening.value = false
+                _isProcessing.value = false
                 _currentStatus.value = "Speaking..."
                 _orbState.value = com.example.ui.components.OrbState.SPEAKING
             }
             SttState.IDLE -> {
+                _isListening.value = false
+                _isProcessing.value = false
                 _currentStatus.value = "Tap mic to speak"
                 _orbState.value = if (_isSpeaking.value) com.example.ui.components.OrbState.SPEAKING else com.example.ui.components.OrbState.IDLE
             }
@@ -766,7 +801,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         speakText("Onboarding guide reset.")
     }
 
-    private val _wakeWord = MutableStateFlow(sharedPrefs.getString("wake_word", "Hey Aira") ?: "Hey Aira")
+    private val _wakeWord = MutableStateFlow(sharedPrefs.getString("wake_word", "Jarvis") ?: "Jarvis")
     val wakeWord: StateFlow<String> = _wakeWord.asStateFlow()
 
     // --- System Diagnostic Panel State ---
@@ -787,6 +822,53 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
 
     private val _isTestingLocalProcessing = MutableStateFlow(false)
     val isTestingLocalProcessing: StateFlow<Boolean> = _isTestingLocalProcessing.asStateFlow()
+
+    // --- 24 J.A.R.V.I.S. Core Feature StateFlows ---
+    private val _privacyMode = MutableStateFlow(sharedPrefs.getBoolean("privacy_mode", false))
+    val privacyMode: StateFlow<Boolean> = _privacyMode.asStateFlow()
+
+    fun setPrivacyMode(enabled: Boolean) {
+        _privacyMode.value = enabled
+        sharedPrefs.edit().putBoolean("privacy_mode", enabled).apply()
+        val msg = if (enabled) "Privacy mode activated, sir. All queries will be processed 100% locally." else "Privacy mode deactivated, sir. Cloud neural intelligence restored."
+        speakText(msg)
+    }
+
+    private val _isDoNotDisturb = MutableStateFlow(sharedPrefs.getBoolean("dnd_mode", false))
+    val isDoNotDisturb: StateFlow<Boolean> = _isDoNotDisturb.asStateFlow()
+
+    fun setDoNotDisturb(enabled: Boolean) {
+        _isDoNotDisturb.value = enabled
+        sharedPrefs.edit().putBoolean("dnd_mode", enabled).apply()
+        if (enabled) {
+            automationEngine.dndOn()
+            speakText("Do Not Disturb engaged, sir. Silent protocols active.")
+        } else {
+            automationEngine.dndOff()
+            speakText("Do Not Disturb disabled, sir. Audio notifications restored.")
+        }
+    }
+
+    val isMuteMode: StateFlow<Boolean> get() = _speakReplies
+
+    fun toggleMuteMode() {
+        toggleSpeakReplies(!_speakReplies.value)
+    }
+
+    private val _smartReplies = MutableStateFlow(
+        listOf("Run diagnostics", "System status report", "What's the weather?", "Read clipboard")
+    )
+    val smartReplies: StateFlow<List<String>> = _smartReplies.asStateFlow()
+
+    fun updateSmartReplies(replies: List<String>) {
+        _smartReplies.value = replies
+    }
+
+    // Structured Asynchronous AI Streaming StateFlows
+    private val streamManager = com.example.network.stream.AiStreamManager.getInstance(application)
+    val liveStreamingText: StateFlow<String> = streamManager.liveStreamingText
+    val streamState: StateFlow<com.example.network.stream.AiStreamState> = streamManager.streamState
+    val isStreamingActive: StateFlow<Boolean> = streamManager.isStreamingActive
 
     fun runGeminiDiagnosticCheck() {
         viewModelScope.launch(Dispatchers.IO) {
@@ -2519,6 +2601,10 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         speakText(text)
     }
 
+    fun sendUserInput(userInput: String) {
+        processAssistantSession(userInput)
+    }
+
     // --- AI Brain Process ---
     private fun processAssistantSession(userInput: String) {
         viewModelScope.launch {
@@ -2670,14 +2756,37 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                         speakText(filler)
                     }
                     try {
-                        val (aiResponse, sourceEngine) = voiceCommandMgr.getRoutedAiResponse(userInput, finalSystemInstruction, historyList, queryTemperature)
+                        val accumulatedSb = StringBuilder()
+                        var firstChunkReceived = false
+
+                        voiceCommandMgr.streamRoutedAiResponse(
+                            userInput = userInput,
+                            systemInstruction = finalSystemInstruction,
+                            history = historyList,
+                            onSentenceReady = { sentence ->
+                                if (!firstChunkReceived) {
+                                    firstChunkReceived = true
+                                    latencyJob.cancel()
+                                }
+                                processAIResponse(sentence, userInput)
+                            }
+                        ).collect { delta ->
+                            if (!firstChunkReceived && delta.isNotBlank()) {
+                                firstChunkReceived = true
+                                latencyJob.cancel()
+                            }
+                            accumulatedSb.append(delta)
+                        }
+
                         latencyJob.cancel()
-                        val reply = if (aiResponse.isNotBlank()) aiResponse else com.example.data.AiraPredefinedResponses.getRandomFallbackResponse(userInput)
+                        val fullStreamed = accumulatedSb.toString().trim()
+                        val reply = if (fullStreamed.isNotBlank()) fullStreamed else com.example.data.AiraPredefinedResponses.getRandomFallbackResponse(userInput)
                         aiFinalResponse = reply
-                        val isOffline = sourceEngine.contains("Llama") || sourceEngine.contains("Offline")
-                        _currentStatus.value = "Processed via $sourceEngine"
-                        chatDao.insertMessage(ChatMessage(sender = "aira", message = reply, isOffline = isOffline))
-                        processAIResponse(reply)
+                        _currentStatus.value = "Processed via AI Stream"
+                        chatDao.insertMessage(ChatMessage(sender = "aira", message = reply, isOffline = false))
+                        if (!firstChunkReceived) {
+                            processAIResponse(reply, userInput)
+                        }
                     } catch (e: Exception) {
                         latencyJob.cancel()
                         Log.e("AiraViewModel", "Online model call failed, checking memory before transitioning to local Llama 3.2 model.", e)
@@ -2706,10 +2815,11 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                     autoScanAndSaveMemory(userInput, aiFinalResponse)
                 }
             } catch (e: Exception) {
-                Log.e("AiraViewModel", "Error in processAssistantSession", e)
+                Logger.e("AiraViewModel", "Error in processAssistantSession", e)
                 _currentStatus.value = "Error processing command"
                 _orbState.value = com.example.ui.components.OrbState.ERROR
             } finally {
+                _isProcessing.value = false
                 if (_sttState.value == SttState.PROCESSING) {
                     updateSttState(SttState.IDLE)
                 }
@@ -3071,6 +3181,140 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             viewModelScope.launch {
                 chatDao.insertMessage(ChatMessage(sender = "aira", message = finalMsg))
                 speakText(predefinedMatch.spokenResponse)
+                _smartReplies.value = com.example.models.JarvisSpecializedToolkit.generateSmartReplies(finalMsg, input)
+            }
+            return true
+        }
+
+        // 0.2 Specialized J.A.R.V.I.S. Toolkit: Calculator & Math Evaluation
+        val mathResult = com.example.models.JarvisSpecializedToolkit.tryEvaluateMath(input)
+        if (mathResult != null) {
+            viewModelScope.launch {
+                chatDao.insertMessage(ChatMessage(sender = "aira", message = mathResult))
+                speakText(mathResult)
+                _smartReplies.value = com.example.models.JarvisSpecializedToolkit.generateSmartReplies(mathResult, input)
+            }
+            return true
+        }
+
+        // 0.3 Specialized J.A.R.V.I.S. Toolkit: Unit & Currency Conversions
+        val convResult = com.example.models.JarvisSpecializedToolkit.tryEvaluateConversion(input)
+        if (convResult != null) {
+            viewModelScope.launch {
+                chatDao.insertMessage(ChatMessage(sender = "aira", message = convResult))
+                speakText(convResult)
+                _smartReplies.value = com.example.models.JarvisSpecializedToolkit.generateSmartReplies(convResult, input)
+            }
+            return true
+        }
+
+        // 0.4 Specialized J.A.R.V.I.S. Toolkit: Web Searches (Google, YouTube, Wikipedia)
+        val searchResult = com.example.models.JarvisSpecializedToolkit.handleWebSearch(getApplication(), input)
+        if (searchResult != null) {
+            viewModelScope.launch {
+                chatDao.insertMessage(ChatMessage(sender = "aira", message = searchResult))
+                speakText(searchResult)
+                _smartReplies.value = com.example.models.JarvisSpecializedToolkit.generateSmartReplies(searchResult, input)
+            }
+            return true
+        }
+
+        // 0.5 Specialized J.A.R.V.I.S. Toolkit: Clipboard Reader & Copier
+        val lower = input.lowercase(java.util.Locale.ROOT).trim()
+        if (lower.contains("read clipboard") || lower.contains("what's on my clipboard") || lower.contains("what is on my clipboard") || lower.contains("speak clipboard") || lower == "clipboard") {
+            val clipText = com.example.models.JarvisSpecializedToolkit.readClipboard(getApplication())
+            viewModelScope.launch {
+                chatDao.insertMessage(ChatMessage(sender = "aira", message = clipText))
+                speakText(clipText)
+                _smartReplies.value = com.example.models.JarvisSpecializedToolkit.generateSmartReplies(clipText, input)
+            }
+            return true
+        }
+        if (lower.startsWith("copy ") && lower.contains("to clipboard")) {
+            val toCopy = lower.removePrefix("copy ").substringBefore("to clipboard").trim()
+            val copyMsg = com.example.models.JarvisSpecializedToolkit.copyToClipboard(getApplication(), toCopy)
+            viewModelScope.launch {
+                chatDao.insertMessage(ChatMessage(sender = "aira", message = copyMsg))
+                speakText(copyMsg)
+                _smartReplies.value = com.example.models.JarvisSpecializedToolkit.generateSmartReplies(copyMsg, input)
+            }
+            return true
+        }
+
+        // 0.6 Specialized J.A.R.V.I.S. Toolkit: Screen OCR & Text Reading
+        if (lower.contains("screen ocr") || lower.contains("extract text from screen") || lower.contains("ocr") || lower == "read screen") {
+            val ocrText = com.example.models.JarvisSpecializedToolkit.extractScreenText(getApplication())
+            viewModelScope.launch {
+                chatDao.insertMessage(ChatMessage(sender = "aira", message = ocrText))
+                speakText(ocrText)
+                _smartReplies.value = com.example.models.JarvisSpecializedToolkit.generateSmartReplies(ocrText, input)
+            }
+            return true
+        }
+
+        // 0.7 Specialized J.A.R.V.I.S. Toolkit: Notification Reader
+        if (lower.contains("read notification") || lower.contains("read my notifications") || lower.contains("check notification")) {
+            val notifText = com.example.models.JarvisSpecializedToolkit.readNotifications(getApplication())
+            viewModelScope.launch {
+                chatDao.insertMessage(ChatMessage(sender = "aira", message = notifText))
+                speakText(notifText)
+                _smartReplies.value = com.example.models.JarvisSpecializedToolkit.generateSmartReplies(notifText, input)
+            }
+            return true
+        }
+
+        // 0.8 Specialized J.A.R.V.I.S. Toolkit: QR & Barcode Scanner
+        if (lower.contains("scan qr") || lower.contains("scan barcode") || lower.contains("qr scanner") || lower.contains("open scanner")) {
+            val qrMsg = com.example.models.JarvisSpecializedToolkit.launchQrScanner(getApplication())
+            viewModelScope.launch {
+                chatDao.insertMessage(ChatMessage(sender = "aira", message = qrMsg))
+                speakText(qrMsg)
+                _smartReplies.value = com.example.models.JarvisSpecializedToolkit.generateSmartReplies(qrMsg, input)
+            }
+            return true
+        }
+
+        // 0.9 Privacy Mode Toggle
+        if (lower.contains("privacy mode")) {
+            val enable = !lower.contains("off") && !lower.contains("disable") && !lower.contains("stop")
+            setPrivacyMode(enable)
+            val msg = if (enable) "Privacy Mode engaged, sir. All queries are now strictly locked to on-device processing." else "Privacy Mode disabled, sir. Online neural capabilities restored."
+            viewModelScope.launch {
+                chatDao.insertMessage(ChatMessage(sender = "aira", message = msg))
+                _smartReplies.value = listOf("Run diagnostics", "System status", "Check battery")
+            }
+            return true
+        }
+
+        // 0.10 Do Not Disturb Mode Toggle
+        if (lower.contains("do not disturb") || lower.contains("dnd mode") || lower == "dnd") {
+            val enable = !lower.contains("off") && !lower.contains("disable") && !lower.contains("stop")
+            setDoNotDisturb(enable)
+            val msg = if (enable) "Do Not Disturb activated, sir. All incoming audible alerts silenced." else "Do Not Disturb deactivated, sir. Notifications and sound alerts active."
+            viewModelScope.launch {
+                chatDao.insertMessage(ChatMessage(sender = "aira", message = msg))
+                _smartReplies.value = listOf("Run diagnostics", "System status", "Check battery")
+            }
+            return true
+        }
+
+        // 0.11 Mute Mode Toggle
+        if (lower.contains("mute mode") || lower.contains("mute audio") || lower.contains("silent assistant") || lower == "mute") {
+            toggleSpeakReplies(false)
+            val msg = "Mute Mode engaged, sir. Responses will appear on screen without speech."
+            viewModelScope.launch {
+                chatDao.insertMessage(ChatMessage(sender = "aira", message = msg))
+                _smartReplies.value = listOf("Unmute assistant", "System status", "Run diagnostics")
+            }
+            return true
+        }
+        if (lower.contains("unmute") || lower.contains("unmute audio") || lower.contains("voice on")) {
+            toggleSpeakReplies(true)
+            val msg = "Speech audio restored, sir. I am speaking aloud once again."
+            viewModelScope.launch {
+                chatDao.insertMessage(ChatMessage(sender = "aira", message = msg))
+                speakText(msg)
+                _smartReplies.value = listOf("Run diagnostics", "System status", "Mute assistant")
             }
             return true
         }
@@ -4419,6 +4663,11 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     override fun onCleared() {
         super.onCleared()
         try {
+            stopAllSpeech()
+        } catch (e: Exception) {
+            Log.e("AiraViewModel", "Error stopping speech in onCleared", e)
+        }
+        try {
             handler.removeCallbacksAndMessages(null)
         } catch (e: Exception) {
             Log.e("AiraViewModel", "Error clearing handler messages in onCleared", e)
@@ -4429,9 +4678,25 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             Log.e("AiraViewModel", "Error in releaseAllNativeModels in onCleared", e)
         }
         try {
+            releaseVoskModel()
+        } catch (e: Exception) {
+            Log.e("AiraViewModel", "Error releasing Vosk model in onCleared", e)
+        }
+        try {
             piperTts.shutdown()
         } catch (e: Exception) {
             Log.e("AiraViewModel", "Error shutting down offline piperTts in onCleared", e)
+        }
+        try {
+            piperTtsManager.shutdown()
+        } catch (e: Exception) {
+            Log.e("AiraViewModel", "Error shutting down piperTtsManager in onCleared", e)
+        }
+        try {
+            com.example.utils.AiraAudioFocusManager.getInstance(getApplication()).releaseTtsFocus()
+            com.example.utils.AiraAudioFocusManager.getInstance(getApplication()).releaseSttFocus()
+        } catch (e: Exception) {
+            Log.e("AiraViewModel", "Error releasing audio focus in onCleared", e)
         }
         try {
             sharedPrefs.unregisterOnSharedPreferenceChangeListener(prefChangeListener)
@@ -4446,7 +4711,11 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         } catch (e: Exception) {
             Log.e("AiraViewModel", "Error unregistering networkCallback", e)
         }
-        speechRecognizer?.destroy()
+        try {
+            speechRecognizer?.destroy()
+        } catch (e: Exception) {
+            Log.e("AiraViewModel", "Error destroying speechRecognizer in onCleared", e)
+        }
     }
 
     private fun loadVoiceCommandLogs() {

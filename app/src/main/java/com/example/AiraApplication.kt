@@ -5,7 +5,8 @@ import android.app.Application
 import android.content.Context
 import android.os.Build
 import android.os.Process
-import android.util.Log
+import com.example.util.LifecycleObserverManager
+import com.example.util.Logger
 import com.example.utils.MemoryManager
 
 /**
@@ -22,20 +23,23 @@ class AiraApplication : Application() {
         MemoryManager.setupCrashGuard(this)
 
         val processName = getProcessName(this)
-        Log.i("AiraApplication", "Initializing AiraApplication in process: '$processName' (PID: ${Process.myPid()})")
+        Logger.i("AiraApplication", "Initializing AiraApplication in process: '$processName' (PID: ${Process.myPid()})")
 
         // Guard initialization: prevent auto-initializing heavy libraries in the ':assistant' process
         if (processName.endsWith(":assistant")) {
-            Log.i("AiraApplication", "Secondary process ':assistant' detected. Skipping heavy library auto-initialization.")
+            Logger.i("AiraApplication", "Secondary process ':assistant' detected. Skipping heavy library auto-initialization.")
             return
         }
+
+        // Register activity lifecycle observer
+        registerActivityLifecycleCallbacks(LifecycleObserverManager)
 
         // Initialize main process auto-initializing libraries and components
         initMainProcessComponents()
     }
 
     private fun initMainProcessComponents() {
-        Log.i("AiraApplication", "Main process components initialized.")
+        Logger.i("AiraApplication", "Main process components initialized.")
     }
 
     private fun getProcessName(context: Context): String {

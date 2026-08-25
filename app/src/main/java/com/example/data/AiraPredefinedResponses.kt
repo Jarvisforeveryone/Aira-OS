@@ -49,60 +49,58 @@ object AiraPredefinedResponses {
 
     // --- 1. FUN & ENGAGING PROCESSING PHRASES ---
     private val processingPhrases = listOf(
-        "Consulting local neural pathways...",
-        "Analyzing your request...",
-        "Crunching bytes for you...",
-        "Scanning system telemetry...",
-        "On it, boss! One moment...",
-        "Processing with local AI brain...",
-        "Engaging assistant sub-routines...",
-        "Querying core database..."
+        "Consulting tactical neural pathways, sir...",
+        "Accessing mainframe database, sir...",
+        "Running diagnostic telemetry, sir...",
+        "Right away, sir. Processing request...",
+        "Analyzing parameters, sir...",
+        "Stand by, sir. Engaging sub-routines...",
+        "Calibrating system models, sir...",
+        "At your service, sir. Calculating..."
     )
 
-    // --- 2. FUN & HELPFUL FALLBACK RESPONSES (WHEN AIRA DOESN'T UNDERSTAND) ---
+    // --- 2. FUN & HELPFUL FALLBACK RESPONSES (WHEN JARVIS DOESN'T UNDERSTAND) ---
     private val fallbackResponses = listOf(
-        "I'm not quite sure about that one yet, but I can check the time, weather, or control your WiFi & Flashlight!",
-        "My neural circuits missed that phrase. Try asking 'What time is it?' or 'Turn on WiFi'!",
-        "I didn't catch that command, but I'm all ears! Ask me 'What can you do?' to see my features.",
-        "Hmm, I'm still learning that phrase! Try asking me about the weather, setting an alarm, or toggling Bluetooth.",
-        "I couldn't process that request clearly. Say 'Help' or ask me 'Status report' for system insights!",
-        "That's a new one for me! Try commands like 'Turn on Flashlight', 'What's the weather?', or 'Tell me a joke'."
+        "I didn't quite catch that, sir. However, all device controls, alarms, and diagnostics are online and at your service.",
+        "My sensors did not register that command clearly, sir. Shall I run diagnostics or adjust device settings?",
+        "A momentary communication lapse, sir. You may ask for system status, weather telemetry, or device automation.",
+        "I am standing by, sir. Try requesting device actions like 'Turn on Flashlight', 'What's the weather?', or 'Set an alarm'.",
+        "Apologies, sir. My auditory buffers missed that. All core phone controls and AI functions remain ready at your command."
     )
 
     // --- 3. JOKES & HUMOR ---
     private val jokes = listOf(
-        "Why do programmers prefer dark mode? Because light attracts bugs!",
-        "There are 10 types of people in the world: those who understand binary, and those who don't.",
-        "Why was the cell phone wearing glasses? Because it lost its contacts!",
+        "Why do programmers prefer dark mode, sir? Because light attracts bugs.",
+        "There are 10 types of people in the world, sir: those who understand binary, and those who do not.",
+        "Why was the cell phone wearing glasses, sir? Because it lost its contacts.",
         "An SQL query walks into a bar, walks up to two tables and asks... 'Can I join you?'",
-        "Why did the smartphone get a job? Because it had too many applications!",
-        "Hardware: The part of a computer that you can kick when the software crashes."
+        "Hardware, sir: The part of a computer that one can kick when the software crashes."
     )
 
     // --- 4. GREETINGS ---
     private val morningGreetings = listOf(
-        "Good morning! Hope you have a productive day ahead. How can I assist you?",
-        "Top of the morning! All systems are online and ready for your commands.",
-        "Good morning! Weather and system diagnostics are updated. What's on your agenda?"
+        "Good morning, sir. All systems are nominal and ready for your command.",
+        "Good morning, sir. Environmental sensors and schedules have been prepared.",
+        "Top of the morning, sir. Power levels at maximum efficiency. What is on our agenda today?"
     )
 
     private val afternoonGreetings = listOf(
-        "Good afternoon! How is your day going? I'm standing by to help.",
-        "Good afternoon! Neural engine running smoothly. How can I assist?",
-        "Hello there! Ready when you are."
+        "Good afternoon, sir. All systems operational. How may I be of service?",
+        "Good afternoon, sir. Neural engine running smoothly. Standing by.",
+        "A pleasant afternoon to you, sir. Ready when you are."
     )
 
     private val eveningGreetings = listOf(
-        "Good evening! Ready to wind down or tackle remaining tasks?",
-        "Good evening! I'm here if you need alarms set, weather checked, or notes saved.",
-        "Good evening! All system parameters normal. What can I do for you?"
+        "Good evening, sir. Hope your day has been productive. All subroutines at your disposal.",
+        "Good evening, sir. I am standing by for any alarms, weather telemetry, or tasks.",
+        "Good evening, sir. All system parameters nominal. What can I do for you?"
     )
 
     private val generalGreetings = listOf(
-        "Hello! I am Aira, your personal AI assistant. How can I help you today?",
-        "Hey there! Ready to assist with device controls, questions, or reminders.",
-        "Greetings! How can I make your day easier?",
-        "Aira at your service. What's on your mind?"
+        "J.A.R.V.I.S. at your service, sir. What are your orders?",
+        "Always a pleasure, sir. How may I assist you today?",
+        "Online and listening, sir. What is on your mind?",
+        "At your service, sir. All systems ready."
     )
 
     // --- 5. REGISTERED COMMAND RULES ---
@@ -172,9 +170,9 @@ object AiraPredefinedResponses {
                 val lower = input.lowercase(Locale.ROOT)
                 val enable = !lower.contains("off") && !lower.contains("disable") && !lower.contains("disconnect") && !lower.contains("stop")
                 val text = if (enable) {
-                    "Turning Wi-Fi ON. Connecting to network..."
+                    "Wi-Fi activated, sir. Connecting to network..."
                 } else {
-                    "Turning Wi-Fi OFF. Internet connection disabled."
+                    "Wi-Fi deactivated, sir. Network connections disabled."
                 }
                 PredefinedResponse(
                     textResponse = text,
@@ -201,7 +199,7 @@ object AiraPredefinedResponses {
             generator = { _, input, _ ->
                 val lower = input.lowercase(Locale.ROOT)
                 val enable = !lower.contains("off") && !lower.contains("disable") && !lower.contains("stop")
-                val text = if (enable) "Turning Bluetooth ON." else "Turning Bluetooth OFF."
+                val text = if (enable) "Bluetooth enabled, sir." else "Bluetooth deactivated, sir."
                 PredefinedResponse(
                     textResponse = text,
                     commandType = CommandType.TOGGLE_BLUETOOTH,
@@ -227,7 +225,7 @@ object AiraPredefinedResponses {
             generator = { _, input, _ ->
                 val lower = input.lowercase(Locale.ROOT)
                 val enable = !lower.contains("off") && !lower.contains("stop") && !lower.contains("disable")
-                val text = if (enable) "Flashlight turned ON." else "Flashlight turned OFF."
+                val text = if (enable) "Flashlight activated, sir." else "Flashlight deactivated, sir."
                 PredefinedResponse(
                     textResponse = text,
                     commandType = CommandType.TOGGLE_FLASHLIGHT,
@@ -280,11 +278,12 @@ object AiraPredefinedResponses {
         // IDENTITY / NAME COMMANDS
         PredefinedCommandRule(
             id = "identity_query",
-            keywords = listOf("who are you", "what is your name", "what's your name", "who made you", "your name"),
+            keywords = listOf("who are you", "what is your name", "what's your name", "who made you", "your name", "identify yourself"),
             category = ResponseCategory.ASSISTANT_IDENTITY,
             generator = { _, _, _ ->
                 PredefinedResponse(
-                    textResponse = "I am Aira, your intelligent AI assistant built with local offline neural processing and real-time device automation capabilities.",
+                    textResponse = "I am J.A.R.V.I.S. (Just A Rather Very Intelligent System), your personal AI assistant. Online, fully operational, and at your service, sir.",
+                    spokenResponse = "I am J.A.R.V.I.S. (Just A Rather Very Intelligent System), your personal AI assistant. Online, fully operational, and at your service, sir.",
                     category = ResponseCategory.ASSISTANT_IDENTITY
                 )
             }
@@ -293,21 +292,21 @@ object AiraPredefinedResponses {
         // CAPABILITIES / HELP COMMANDS
         PredefinedCommandRule(
             id = "capabilities_query",
-            keywords = listOf("what can you do", "help", "commands", "features", "capabilities"),
+            keywords = listOf("what can you do", "help", "commands", "features", "capabilities", "what are your capabilities"),
             category = ResponseCategory.ASSISTANT_IDENTITY,
             generator = { _, _, _ ->
                 val helpText = """
-                    Here is what I can do for you:
-                    ⚡ Device Toggles: WiFi, Bluetooth, Flashlight, Brightness
-                    ⏰ Utilities: Set Alarms, Timers, Check Time & Date
-                    🌤️ Telemetry: Weather Forecasts, System Status Reports
-                    🧠 Memory: Save & Recall personal notes and facts
-                    💬 AI Brain: Answer questions online or 100% offline via Llama 3.2
-                    📱 Navigation: Go Home, Back, Recents, and Screen Screenshots
+                    All systems at your disposal, sir:
+                    ⚡ Hardware Controls: Wi-Fi, Bluetooth, Flashlight, Brightness, Sound Modes
+                    ⏰ Chronometer & Alarms: Set Alarms, Timers, Check Time & Date
+                    🌤️ Telemetry: Live Weather, Environmental Sensors, System Diagnostics
+                    🧠 Memory Subsystems: Extract and recall personal context and preferences
+                    💬 Advanced LLM Intelligence: Realtime conversational AI online and offline
+                    📱 Application & Navigation: App launching, Camera, Screenshots, and System Actions
                 """.trimIndent()
                 PredefinedResponse(
                     textResponse = helpText,
-                    spokenResponse = "I can control device toggles like WiFi and Flashlight, set alarms, check the weather and time, recall personal memories, and answer questions offline or online.",
+                    spokenResponse = "All systems are at your disposal, sir. I can control device hardware, set alarms and timers, check weather telemetry, recall personal memories, and stream realtime AI intelligence.",
                     category = ResponseCategory.ASSISTANT_IDENTITY
                 )
             }
@@ -329,7 +328,7 @@ object AiraPredefinedResponses {
         // GREETING COMMANDS
         PredefinedCommandRule(
             id = "greeting_command",
-            keywords = listOf("hello", "hi", "hey", "good morning", "good afternoon", "good evening", "how are you"),
+            keywords = listOf("hello", "hi", "hey", "good morning", "good afternoon", "good evening", "how are you", "jarvis", "hey jarvis", "ok jarvis"),
             category = ResponseCategory.GREETING,
             generator = { _, input, _ ->
                 val lower = input.lowercase(Locale.ROOT)
@@ -337,7 +336,7 @@ object AiraPredefinedResponses {
                     lower.contains("morning") -> morningGreetings.random()
                     lower.contains("afternoon") -> afternoonGreetings.random()
                     lower.contains("evening") -> eveningGreetings.random()
-                    lower.contains("how are you") -> "I'm operating at peak efficiency! How are you doing today?"
+                    lower.contains("how are you") -> "I am operating at peak efficiency, sir. All core diagnostics nominal. How may I assist you?"
                     else -> generalGreetings.random()
                 }
                 PredefinedResponse(textResponse = response, category = ResponseCategory.GREETING)
@@ -347,14 +346,14 @@ object AiraPredefinedResponses {
         // GRATITUDE COMMANDS
         PredefinedCommandRule(
             id = "gratitude_command",
-            keywords = listOf("thank you", "thanks", "appreciate it", "good job"),
+            keywords = listOf("thank you", "thanks", "appreciate it", "good job", "well done"),
             category = ResponseCategory.GRATITUDE,
             generator = { _, _, _ ->
                 val phrase = listOf(
-                    "You're very welcome! Always here to assist.",
-                    "Anytime! Let me know if you need anything else.",
-                    "Glad I could help!",
-                    "My pleasure! Standing by for your next command."
+                    "You are most welcome, sir.",
+                    "Always a pleasure to assist, sir.",
+                    "At your service, sir, always.",
+                    "My pleasure, sir. Standing by for your next instruction."
                 ).random()
                 PredefinedResponse(textResponse = phrase, category = ResponseCategory.GRATITUDE)
             }

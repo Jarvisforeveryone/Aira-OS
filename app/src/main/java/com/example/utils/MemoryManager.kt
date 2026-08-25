@@ -1,8 +1,10 @@
 package com.example.utils
 
+import android.app.Activity
 import android.app.ActivityManager
 import android.content.Context
-import android.util.Log
+import com.example.util.Logger
+import java.lang.ref.WeakReference
 
 enum class NativeModelType {
     LLAMA_CPP,
@@ -25,26 +27,41 @@ object MemoryManager {
 
     private val loadedModels = mutableSetOf<NativeModelType>()
     private var appContext: Context? = null
+    private var currentActivityRef: WeakReference<Activity>? = null
 
     /**
      * Sets up Uncaught Exception Handler to auto-detect crashes and enable Safe Mode on next startup.
      */
     fun setupCrashGuard(context: Context) {
         appContext = context.applicationContext
+        if (context is Activity) {
+            currentActivityRef = WeakReference(context)
+        }
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             try {
-                Log.e(TAG, "Uncaught exception caught by Safety Guard! Enabling Safe Mode for next boot.", throwable)
-                val prefs = context.getSharedPreferences(PREFS_SAFETY, Context.MODE_PRIVATE)
+                Logger.e(TAG, "Uncaught exception caught by Safety Guard! Enabling Safe Mode for next boot.", throwable)
+                val prefs = context.applicationContext.getSharedPreferences(PREFS_SAFETY, Context.MODE_PRIVATE)
                 val count = prefs.getInt(KEY_CRASH_COUNT, 0) + 1
                 prefs.edit()
                     .putInt(KEY_CRASH_COUNT, count)
                     .putBoolean(KEY_SAFE_MODE, true)
                     .apply()
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to record crash in preferences", e)
+                Logger.e(TAG, "Failed to record crash in preferences", e)
             }
             defaultHandler?.uncaughtException(thread, throwable)
+        }
+    }
+
+    /**
+     * Unregisters activity references to prevent memory leaks.
+     */
+    fun unregister(activity: Activity? = null) {
+        if (activity == null || currentActivityRef?.get() == activity) {
+            currentActivityRef?.clear()
+            currentActivityRef = null
+            Logger.d(TAG, "MemoryManager activity reference cleared safely.")
         }
     }
 
@@ -52,19 +69,21 @@ object MemoryManager {
      * Checks if the app is running in Auto-Safe Mode due to past crashes or low RAM (< 3GB).
      */
     fun isSafeMode(context: Context): Boolean {
-        val prefs = context.getSharedPreferences(PREFS_SAFETY, Context.MODE_PRIVATE)
+        val safeContext = context.applicationContext
+        val prefs = safeContext.getSharedPreferences(PREFS_SAFETY, Context.MODE_PRIVATE)
         val forcedSafeMode = prefs.getBoolean(KEY_SAFE_MODE, false)
-        return forcedSafeMode || !isDeviceCapable(context)
+        return forcedSafeMode || !isDeviceCapable(safeContext)
     }
 
     /**
      * Returns user-facing warning text if device RAM is low or safe mode is active.
      */
     fun getLowRamWarningText(context: Context): String? {
-        val ramMb = getTotalRamMb(context)
+        val safeContext = context.applicationContext
+        val ramMb = getTotalRamMb(safeContext)
         return if (ramMb < 3072) {
             "2GB device detected ($ramMb MB). Cloud mode enabled for safety. Offline features disabled to prevent crashes."
-        } else if (isSafeMode(context)) {
+        } else if (isSafeMode(safeContext)) {
             "Safe Mode active due to a previous unexpected event. Heavy background native models have been safely paused."
         } else {
             null
@@ -75,7 +94,7 @@ object MemoryManager {
      * Resets safe mode after successful boot without crashes.
      */
     fun clearSafeMode(context: Context) {
-        context.getSharedPreferences(PREFS_SAFETY, Context.MODE_PRIVATE)
+        context.applicationContext.getSharedPreferences(PREFS_SAFETY, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_SAFE_MODE, false)
             .putInt(KEY_CRASH_COUNT, 0)
@@ -88,16 +107,16 @@ object MemoryManager {
      */
     fun isLlamaSupported(context: Context): Boolean {
         return try {
-            val actManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+            val actManager = context.applicationContext.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
             if (actManager == null) return false
             val memInfo = ActivityManager.MemoryInfo()
             actManager.getMemoryInfo(memInfo)
             val totalRam = memInfo.totalMem
             val isLowRam = actManager.isLowRamDevice
-            Log.d(TAG, "Device total RAM: ${totalRam / (1024 * 1024)} MB, isLowRamDevice: $isLowRam")
+            Logger.d(TAG, "Device total RAM: ${totalRam / (1024 * 1024)} MB, isLowRamDevice: $isLowRam")
             !isLowRam && totalRam >= MIN_RAM_BYTES_FOR_LLAMA
         } catch (e: Exception) {
-            Log.e(TAG, "Error checking system RAM, defaulting to false for safety", e)
+            Logger.e(TAG, "Error checking system RAM, defaulting to false for safety", e)
             false
         }
     }
@@ -106,26 +125,26 @@ object MemoryManager {
      * Checks if the device has sufficient RAM (>= 3GB) to run Piper ONNX TTS natively without OOM.
      */
     fun isPiperSupported(context: Context): Boolean {
-        return isLlamaSupported(context)
+        return isLlamaSupported(context.applicationContext)
     }
 
     /**
      * Checks if the device has sufficient RAM (>= 3GB) to run Vosk STT natively without OOM.
      */
     fun isVoskSupported(context: Context): Boolean {
-        return isLlamaSupported(context)
+        return isLlamaSupported(context.applicationContext)
     }
 
     /**
      * Checks if the device has sufficient total RAM (>= 3GB) to run heavy JNI models.
      */
-    fun isDeviceCapable(context: Context): Boolean = isLlamaSupported(context)
+    fun isDeviceCapable(context: Context): Boolean = isLlamaSupported(context.applicationContext)
 
     /**
      * Checks if Offline Mode (Llama, Piper, Vosk) is supported on this device.
      * Offline mode is disabled ONLY on 2GB devices (< 3GB RAM).
      */
-    fun isOfflineSupported(context: Context): Boolean = isLlamaSupported(context)
+    fun isOfflineSupported(context: Context): Boolean = isLlamaSupported(context.applicationContext)
 
     fun isOfflineSupported(): Boolean {
         val ctx = appContext
@@ -141,7 +160,7 @@ object MemoryManager {
      */
     fun getTotalRamMb(context: Context): Long {
         return try {
-            val actManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager ?: return 2048L
+            val actManager = context.applicationContext.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager ?: return 2048L
             val memInfo = ActivityManager.MemoryInfo()
             actManager.getMemoryInfo(memInfo)
             memInfo.totalMem / (1024 * 1024)
@@ -155,7 +174,7 @@ object MemoryManager {
      */
     fun isLowMemory(context: Context): Boolean {
         return try {
-            val actManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager ?: return false
+            val actManager = context.applicationContext.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager ?: return false
             val memInfo = ActivityManager.MemoryInfo()
             actManager.getMemoryInfo(memInfo)
             memInfo.lowMemory
@@ -170,27 +189,28 @@ object MemoryManager {
      */
     @Synchronized
     fun loadModelOnDemand(context: Context, type: NativeModelType, onLoadAction: () -> Unit): Boolean {
-        if (type == NativeModelType.LLAMA_CPP && !isLlamaSupported(context)) {
-            Log.w(TAG, "Device RAM < 3GB. Skipping heavy Llama 3.2 local model to prevent native memory crash.")
+        val safeContext = context.applicationContext
+        if (type == NativeModelType.LLAMA_CPP && !isLlamaSupported(safeContext)) {
+            Logger.w(TAG, "Device RAM < 3GB. Skipping heavy Llama 3.2 local model to prevent native memory crash.")
             return false
         }
-        if (type == NativeModelType.PIPER_TTS && !isPiperSupported(context)) {
-            Log.w(TAG, "Device RAM < 3GB. Skipping native Piper TTS engine to prevent native memory crash.")
+        if (type == NativeModelType.PIPER_TTS && !isPiperSupported(safeContext)) {
+            Logger.w(TAG, "Device RAM < 3GB. Skipping native Piper TTS engine to prevent native memory crash.")
             return false
         }
-        if (type == NativeModelType.VOSK_STT && !isVoskSupported(context)) {
-            Log.w(TAG, "Device RAM < 3GB. Skipping native Vosk STT engine to prevent native memory crash.")
+        if (type == NativeModelType.VOSK_STT && !isVoskSupported(safeContext)) {
+            Logger.w(TAG, "Device RAM < 3GB. Skipping native Vosk STT engine to prevent native memory crash.")
             return false
         }
 
         return try {
-            Log.i(TAG, "Loading native model on demand: $type")
+            Logger.i(TAG, "Loading native model on demand: $type")
             onLoadAction()
             loadedModels.add(type)
-            Log.i(TAG, "Successfully loaded $type. Currently active models: $loadedModels")
+            Logger.i(TAG, "Successfully loaded $type. Currently active models: $loadedModels")
             true
         } catch (e: Throwable) {
-            Log.e(TAG, "Failed to load native model $type on demand", e)
+            Logger.e(TAG, "Failed to load native model $type on demand", e)
             false
         }
     }
@@ -201,12 +221,12 @@ object MemoryManager {
     @Synchronized
     fun releaseModel(type: NativeModelType, onReleaseAction: () -> Unit) {
         try {
-            Log.i(TAG, "Releasing native model memory: $type")
+            Logger.i(TAG, "Releasing native model memory: $type")
             onReleaseAction()
             loadedModels.remove(type)
-            Log.i(TAG, "Successfully released $type. Currently active models: $loadedModels")
+            Logger.i(TAG, "Successfully released $type. Currently active models: $loadedModels")
         } catch (e: Throwable) {
-            Log.e(TAG, "Error while releasing native model $type", e)
+            Logger.e(TAG, "Error while releasing native model $type", e)
         }
     }
 

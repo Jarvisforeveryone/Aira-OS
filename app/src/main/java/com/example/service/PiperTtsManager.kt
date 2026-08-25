@@ -92,7 +92,7 @@ class PiperTtsManager(private val context: Context) {
     var onStopSpeaking: (() -> Unit)? = null
 
     // State flows representing Piper Status (Migrated from PiperTtsEngine)
-    private val _activeVoice = MutableStateFlow("en_US-amy-medium")
+    private val _activeVoice = MutableStateFlow("google-jarvis")
     val activeVoice = _activeVoice.asStateFlow()
 
     private val _isEngineActive = MutableStateFlow(true)
@@ -137,6 +137,7 @@ class PiperTtsManager(private val context: Context) {
     }
 
     private val _isModelDownloaded = MutableStateFlow(mapOf(
+        "google-jarvis" to true,
         "en_US-amy-medium" to isVoiceDownloadedForReal("en_US-amy-medium"),
         "google-lily" to true,
         "google-zara" to true,
@@ -151,6 +152,7 @@ class PiperTtsManager(private val context: Context) {
     val downloadStatusMessage = _downloadStatusMessage.asStateFlow()
 
     val availableVoices = listOf(
+        PiperVoice("google-jarvis", "J.A.R.V.I.S. - British Intelligence", "Male", "Google TTS (en-GB)", 20, "Sophisticated, calm British AI assistant tone. Locale: en-GB, Pitch: 0.92, Speed: 1.05."),
         PiperVoice("en_US-amy-medium", "Amy - Real Piper", "Female", "22.5kHz Neural", 45, "Offline high quality natural female voice model powered by Real Piper ONNX JNI engine."),
         PiperVoice("google-lily", "Lily - Playful Childish", "Female", "Google TTS (en-US)", 25, "Playful & energetic childish voice. Locale: en-US, Pitch: 1.3, Speed: 1.1."),
         PiperVoice("google-zara", "Zara - Cocky & Confident", "Female", "Google TTS (en-US)", 20, "Bold & confident tone. Locale: en-US, Pitch: 0.8, Speed: 1.3."),

@@ -25,7 +25,13 @@ enum class ApiProviderType(val displayName: String, val isPaid: Boolean) {
 
 object ApiDefaults {
     val modelsMap = mapOf(
-        ApiProviderType.GEMINI to listOf("gemini-2.5-flash", "gemini-3.1-pro-preview", "gemini-3.1-flash-lite-preview", "gemini-3.5-flash"),
+        ApiProviderType.GEMINI to listOf(
+            "gemini-3.5-flash",
+            "gemini-flash-latest",
+            "gemini-3.1-pro-preview",
+            "gemini-3.1-flash-lite-preview",
+            "gemini-2.5-flash-image"
+        ),
         ApiProviderType.GROQ to listOf("llama-3.3-70b-versatile", "llama-3.1-8b-instant", "gemma2-9b-it"),
         ApiProviderType.OPENAI to listOf("gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"),
         ApiProviderType.CLAUDE to listOf("claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"),
@@ -44,19 +50,19 @@ object ApiDefaults {
 }
 
 /**
- * Common OkHttpClient with high-performance connection pooling (10 connections, 5min keepalive),
- * optimized timeouts (5s connect, 10s read, 10s write), and automatic gzip compression.
+ * Common OkHttpClient with high-performance connection pooling,
+ * robust 60-second timeouts for complex LLM generation and reasoning, and automatic gzip compression.
  */
 val commonConnectionPool: ConnectionPool by lazy {
-    ConnectionPool(10, 5L, TimeUnit.MINUTES)
+    ConnectionPool(15, 5L, TimeUnit.MINUTES)
 }
 
 val commonOkHttpClient: OkHttpClient by lazy {
     OkHttpClient.Builder()
         .connectionPool(commonConnectionPool)
-        .connectTimeout(5, TimeUnit.SECONDS)
-        .readTimeout(10, TimeUnit.SECONDS)
-        .writeTimeout(10, TimeUnit.SECONDS)
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
         .retryOnConnectionFailure(true)
         .addInterceptor { chain ->
             val req = chain.request().newBuilder()

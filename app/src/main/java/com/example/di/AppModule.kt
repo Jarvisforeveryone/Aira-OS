@@ -60,6 +60,22 @@ class AppModule(private val context: Context) {
         GetWeatherUseCase(weatherCacheRepository = weatherCacheRepository)
     }
 
+    val appRepository: com.example.domain.repositories.AppRepository by lazy {
+        com.example.data.repositories.AppRepositoryImpl(database)
+    }
+
+    val cacheManager: com.example.data.CacheManager by lazy {
+        com.example.data.CacheManager.getInstance(context)
+    }
+
+    val securityManager: com.example.util.SecurityManager by lazy {
+        com.example.util.SecurityManager.getInstance(context)
+    }
+
+    val fileManager: com.example.util.FileManager by lazy {
+        com.example.util.FileManager.getInstance(context)
+    }
+
     val permissionManager: PermissionManager by lazy {
         PermissionManager.getInstance(context)
     }

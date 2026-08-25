@@ -18,11 +18,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.GraphicEq
@@ -132,6 +134,8 @@ fun HomeScreen(
     val modelReadyState by viewModel.modelReadyState.collectAsState()
     val morningBriefing by viewModel.morningBriefing.collectAsState()
     val isBriefingLoading by viewModel.isBriefingLoading.collectAsState()
+    val smartReplies by viewModel.smartReplies.collectAsState()
+    var textCommandInput by remember { mutableStateOf("") }
 
     // Dynamic greeting text based on current hour
     val currentHour = remember { java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY) }
@@ -143,11 +147,12 @@ fun HomeScreen(
 
     // Dynamic selected voice simple name
     val selectedVoiceName = when (piperActiveVoice) {
+        "google-jarvis", "jarvis", "classic-jarvis" -> "J.A.R.V.I.S."
         "en_US-amy-medium", "amy" -> "Amy"
         "google-lily", "en_US-lily", "lily" -> "Lily"
         "google-zara", "en_US-zara", "zara" -> "Zara"
         "google-ella", "en_UK-ella", "en_GB-ella", "ella" -> "Ella"
-        else -> "Amy"
+        else -> "J.A.R.V.I.S."
     }
     val voiceLabel = "Voice"
 
@@ -520,7 +525,101 @@ fun HomeScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(Dimens.GapLarge))
+            Spacer(modifier = Modifier.height(Dimens.GapMedium))
+
+            // Smart Replies Quick Suggestion Chips (Feature 8)
+            if (smartReplies.isNotEmpty()) {
+                LazyRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = Dimens.GapSmall)
+                        .testTag("smart_replies_row"),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(smartReplies) { replyOption ->
+                        SuggestionChip(
+                            onClick = {
+                                viewModel.sendUserInput(replyOption)
+                            },
+                            label = {
+                                Text(
+                                    text = replyOption,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            },
+                            icon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.AutoAwesome,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            shape = RoundedCornerShape(16.dp),
+                            colors = SuggestionChipDefaults.suggestionChipColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                                labelColor = MaterialTheme.colorScheme.onSurface
+                            ),
+                            border = SuggestionChipDefaults.suggestionChipBorder(
+                                enabled = true,
+                                borderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                            ),
+                            modifier = Modifier.testTag("smart_reply_chip_${replyOption.take(10)}")
+                        )
+                    }
+                }
+            }
+
+            // Text Input Fallback Bar (Feature 22: Text Fallback)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = Dimens.GapSmall),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = textCommandInput,
+                    onValueChange = { textCommandInput = it },
+                    placeholder = { Text("Ask J.A.R.V.I.S. or enter command...", fontSize = 13.sp) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("home_text_command_input"),
+                    shape = RoundedCornerShape(20.dp),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                    )
+                )
+
+                IconButton(
+                    onClick = {
+                        if (textCommandInput.isNotBlank()) {
+                            val text = textCommandInput.trim()
+                            textCommandInput = ""
+                            viewModel.sendUserInput(text)
+                        }
+                    },
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(MaterialTheme.colorScheme.primary, CircleShape)
+                        .testTag("home_send_text_command_btn"),
+                    enabled = textCommandInput.isNotBlank()
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Send,
+                        contentDescription = "Send Text Command",
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(Dimens.GapMedium))
 
             // Iron Man Morning Briefing Card
             AiraCard(

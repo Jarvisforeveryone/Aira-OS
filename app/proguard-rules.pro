@@ -1,19 +1,10 @@
 # Add project specific ProGuard rules here.
 # You can control the set of applied configuration files using the
 # proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
-
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
 
 # Keep project classes and models
 -keep class com.example.aira.** { *; }
 -keep class com.aira.voice.** { *; }
--keep class org.vosk.** { *; }
--keep class com.tencent.piperncnn.** { *; }
 -keep class com.example.utils.** { *; }
 -keep class com.example.models.** { *; }
 -keep class com.example.service.** { *; }
@@ -21,20 +12,124 @@
 -keep class com.example.ui.** { *; }
 -keep class com.example.** { *; }
 -keep class com.google.** { *; }
+
+# ==============================================================================
+# JNI & Native Method Rules
+# ==============================================================================
+-keepclasseswithmembernames,includedescriptorclasses class * {
+    native <methods>;
+}
+
+-keepclassmembers class * {
+    native <methods>;
+}
+
+# ==============================================================================
+# Vosk Speech Recognition Engine (JNI & JNA)
+# ==============================================================================
+-keep class org.vosk.** { *; }
+-keepclassmembers class org.vosk.** {
+    native <methods>;
+    public <methods>;
+    public <fields>;
+}
+-keep class com.sun.jna.** { *; }
+-keepclassmembers class com.sun.jna.** {
+    native <methods>;
+    public <methods>;
+    public <fields>;
+}
+-dontwarn org.vosk.**
+-dontwarn com.sun.jna.**
+
+# ==============================================================================
+# Piper TTS Engine & ONNX Runtime (JNI / NCNN)
+# ==============================================================================
+-keep class com.tencent.piperncnn.** { *; }
+-keepclassmembers class com.tencent.piperncnn.** {
+    native <methods>;
+    public <methods>;
+    public <fields>;
+}
+-keep class com.aira.voice.** { *; }
+-keepclassmembers class com.aira.voice.** {
+    native <methods>;
+    public <methods>;
+    public <fields>;
+}
+-keep class com.rhasspy.** { *; }
+-keepclassmembers class com.rhasspy.** {
+    native <methods>;
+    public <methods>;
+    public <fields>;
+}
+-keep class ai.onnxruntime.** { *; }
+-keepclassmembers class ai.onnxruntime.** {
+    native <methods>;
+    public <methods>;
+    public <fields>;
+}
+-keep class com.example.util.NativeLibraryLoader { *; }
+-dontwarn com.tencent.piperncnn.**
+-dontwarn com.rhasspy.**
+-dontwarn ai.onnxruntime.**
+
+# ==============================================================================
+# Room Database Components (Entities, DAOs, Migrations, and SQLite)
+# ==============================================================================
+-keep class * extends androidx.room.RoomDatabase
+-keep class * extends androidx.room.RoomDatabase$Callback
+-keep class * extends androidx.room.migration.Migration
+-keep @androidx.room.Entity class * { *; }
+-keep @androidx.room.Dao interface * { *; }
+-keep @androidx.room.Database class * { *; }
+-keep class * extends androidx.room.Dao
+-keep class * extends androidx.sqlite.db.SupportSQLiteOpenHelper$Factory
+-keep class androidx.room.** { *; }
+-keep class androidx.sqlite.** { *; }
+-keep class androidx.sqlite.db.** { *; }
+-keep class androidx.sqlite.db.framework.** { *; }
+
+-keepclassmembers class * extends androidx.room.RoomDatabase {
+    public void <init>();
+    public <methods>;
+}
+
+-keepclassmembers class * implements androidx.room.RoomDatabase$Callback {
+    public void <init>();
+}
+
+-keep class *_Impl { *; }
+-keepclassmembers class *_Impl {
+    public <init>(...);
+    public <methods>;
+    public <fields>;
+}
+
+-keepclassmembers class * {
+    @androidx.room.TypeConverter <methods>;
+    @androidx.room.TypeConverters <methods>;
+}
+-dontwarn androidx.room.**
+-dontwarn androidx.sqlite.**
+
+# ==============================================================================
+# Shizuku & Dev Rikka Components
+# ==============================================================================
 -keep class rikka.shizuku.** { *; }
 -keep class dev.rikka.shizuku.** { *; }
 -dontwarn rikka.shizuku.**
 -dontwarn dev.rikka.shizuku.**
+
+# ==============================================================================
+# Networking & Serialization (OkHttp, Retrofit, Moshi)
+# ==============================================================================
 -keep class okhttp3.** { *; }
 -keep class retrofit2.** { *; }
 -dontwarn okhttp3.**
 -dontwarn retrofit2.**
 
--keepclasseswithmembernames class * {
-    native <methods>;
-}
-
--keepclassmembers class * implements java.io.Serializable {
+-keep class * implements java.io.Serializable {
     static final long serialVersionUID;
     private static final java.io.ObjectStreamField[] serialPersistentFields;
     private void writeObject(java.io.ObjectOutputStream);
@@ -43,28 +138,18 @@
     java.lang.Object readResolve();
 }
 
+-keep class * { @com.squareup.moshi.JsonQualifier <fields>; }
+-dontwarn com.squareup.moshi.**
+
+# ==============================================================================
+# General XML & 3rd Party Warnings Suppression
+# ==============================================================================
 -dontwarn org.xmlpull.v1.**
 -dontwarn javax.xml.stream.**
 -dontwarn org.simpleframework.xml.**
 -dontwarn com.google.api.client.**
 -dontwarn javax.lang.model.**
 -dontwarn org.joda.time.**
-
-# Keep Room components
--keep class * extends androidx.room.RoomDatabase
--keep class * extends androidx.room.Dao
--dontwarn androidx.room.**
-
-# Keep Piper TTS JNI classes and native methods
--keep class com.rhasspy.** { *; }
--keepclassmembers class com.rhasspy.** {
-    native <methods>;
-}
-
-# Keep our data model classes for Moshi serialization
--keep class com.example.data.** { *; }
--keep class * { @com.squareup.moshi.JsonQualifier <fields>; }
--dontwarn com.squareup.moshi.**
 
 # Kotlin reflection, annotations and signature attributes
 -keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod,SourceFile,LineNumberTable
@@ -78,4 +163,3 @@
     public static int w(...);
     public static int e(...);
 }
-

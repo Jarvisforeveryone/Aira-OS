@@ -1990,6 +1990,32 @@ class VoiceCommandManager(private val context: Context) {
             }
         }
     }
+
+    /**
+     * Streams AI response asynchronously as a reactive Flow of String deltas.
+     */
+    fun streamRoutedAiResponse(
+        userInput: String,
+        systemInstruction: String,
+        history: List<Pair<String, String>> = emptyList(),
+        onSentenceReady: ((String) -> Unit)? = null
+    ): kotlinx.coroutines.flow.Flow<String> {
+        val isOnline = isInternetAvailable()
+        val apiBrain = com.example.models.AiBrain(context)
+        val combinedInstruction = if (systemInstruction.contains("Jarvis")) systemInstruction else "${com.example.models.AiBrain.JARVIS_SYSTEM_INSTRUCTION}\n$systemInstruction"
+
+        return if (isOnline) {
+            _currentEngineSource.value = "Gemini Stream (Online)"
+            apiBrain.streamAiResponse(userInput, combinedInstruction, history, onSentenceReady)
+        } else {
+            _currentEngineSource.value = "Jarvis Local Brain (Offline)"
+            kotlinx.coroutines.flow.flow {
+                val resp = apiBrain.getOfflineLocalResponse(userInput)
+                emit(resp)
+                onSentenceReady?.invoke(resp)
+            }
+        }
+    }
 }
 
 class LocalLlamaModelInstance(private val context: Context) {

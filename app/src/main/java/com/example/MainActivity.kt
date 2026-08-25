@@ -45,6 +45,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.*
 import com.example.ui.theme.*
+import com.example.util.Logger
+import com.example.utils.MemoryManager
 
 class MainActivity : ComponentActivity() {
 
@@ -56,21 +58,21 @@ class MainActivity : ComponentActivity() {
     ) { results ->
         // Handle runtime results gracefully inside assistant logic
         results.forEach { (permission, isGranted) ->
-            android.util.Log.d("AiraMainActivity", "Permission: $permission, Granted: $isGranted")
+            Logger.d("AiraMainActivity", "Permission: $permission, Granted: $isGranted")
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        com.example.utils.MemoryManager.setupCrashGuard(this)
+        MemoryManager.setupCrashGuard(this)
         enableEdgeToEdge()
 
         runCatching {
             if (!android.speech.SpeechRecognizer.isRecognitionAvailable(this)) {
-                android.util.Log.i("AiraMainActivity", "SpeechRecognizer not available natively. Offline engine enabled.")
+                Logger.i("AiraMainActivity", "SpeechRecognizer not available natively. Offline engine enabled.")
             }
         }.onFailure { e ->
-            android.util.Log.w("AiraMainActivity", "Speech recognizer availability check bypassed", e)
+            Logger.w("AiraMainActivity", "Speech recognizer availability check bypassed", e)
         }
 
         // Request core permissions on startup including notifications on Android 13+ (API 33)
@@ -335,6 +337,12 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         activeViewModel?.onAppBackgrounded()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        MemoryManager.unregister(this)
+        activeViewModel = null
     }
 
     override fun onTrimMemory(level: Int) {

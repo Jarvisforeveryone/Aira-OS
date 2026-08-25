@@ -51,9 +51,11 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "aira_database"
+                    DatabaseSchema.DATABASE_NAME
                 )
-                .fallbackToDestructiveMigration(true)
+                .addMigrations(*DatabaseSchema.ALL_MIGRATIONS)
+                .enableMultiInstanceInvalidation()
+                .fallbackToDestructiveMigrationOnDowngrade()
                 .build()
                 INSTANCE = instance
                 instance

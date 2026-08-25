@@ -549,7 +549,17 @@ object CommandParser {
                             viewModel.toggleWifiAccessibilityFallback(enable)
                             "Wi-Fi toggling initiated (Accessibility Fallback)."
                         } else {
-                            "Wi-Fi state modified to ${if (enable) "ON" else "OFF"}."
+                            try {
+                                val intent = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                                    Intent(Settings.Panel.ACTION_WIFI).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+                                } else {
+                                    Intent(Settings.ACTION_WIFI_SETTINGS).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+                                }
+                                context.startActivity(intent)
+                                "Opened Wi-Fi settings panel (Direct toggling requires Shizuku or Accessibility Service)."
+                            } catch (e: Exception) {
+                                "Wi-Fi toggle requires Shizuku or Accessibility Service."
+                            }
                         }
                     }
                 }
@@ -599,7 +609,13 @@ object CommandParser {
                             viewModel.toggleBluetoothAccessibilityFallback(enable)
                             "Bluetooth toggling initiated (Accessibility Fallback)."
                         } else {
-                            "Bluetooth configured to ${if (enable) "ON" else "OFF"}."
+                            try {
+                                val intent = Intent(Settings.ACTION_BLUETOOTH_SETTINGS).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+                                context.startActivity(intent)
+                                "Opened Bluetooth settings panel (Direct toggling requires Shizuku or Accessibility Service)."
+                            } catch (e: Exception) {
+                                "Bluetooth toggle requires Shizuku or Accessibility Service."
+                            }
                         }
                     }
                 }

@@ -19,8 +19,14 @@ data class KeyStatusInfo(
 class MultiKeyManager private constructor(private val context: Context) {
 
     private val sharedPreferences: SharedPreferences = SecurePrefs.getEncryptedSharedPreferences(context, "aira_multi_api_keys")
-    private val fallbackPrefs: SharedPreferences by lazy {
-        context.getSharedPreferences("aira_multi_api_keys_fallback", Context.MODE_PRIVATE)
+
+    init {
+        // Clean up any legacy unencrypted fallback storage for security hardening
+        try {
+            context.deleteSharedPreferences("aira_multi_api_keys_fallback")
+        } catch (e: Throwable) {
+            Log.w("MultiKeyManager", "Legacy fallback preference cleanup: ${e.message}")
+        }
     }
 
     private val cooldowns = ConcurrentHashMap<String, Long>()
@@ -29,8 +35,7 @@ class MultiKeyManager private constructor(private val context: Context) {
 
     fun getKeys(provider: String): List<String> {
         val provKey = provider.uppercase().trim()
-        val jsonStr = sharedPreferences.getString("keys_$provKey", null)
-            ?: fallbackPrefs.getString("keys_$provKey", "[]") ?: "[]"
+        val jsonStr = sharedPreferences.getString("keys_$provKey", null) ?: "[]"
         val list = mutableListOf<String>()
         try {
             val array = JSONArray(jsonStr)
@@ -171,11 +176,6 @@ class MultiKeyManager private constructor(private val context: Context) {
         keys.forEach { array.put(it) }
         val jsonStr = array.toString()
         sharedPreferences.edit().putString("keys_$provider", jsonStr).apply()
-        try {
-            fallbackPrefs.edit().putString("keys_$provider", jsonStr).apply()
-        } catch (e: Exception) {
-            Log.e("MultiKeyManager", "Fallback prefs error", e)
-        }
     }
 
     companion object {

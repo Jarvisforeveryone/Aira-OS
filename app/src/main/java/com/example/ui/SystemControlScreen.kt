@@ -157,6 +157,9 @@ fun AutomationHomeScreen(
             // ================== GOOGLE ASSISTANT INTEGRATION ==================
             AssistantGoogleControlCard(viewModel = viewModel)
 
+            // ================== J.A.R.V.I.S. CORE PROTOCOLS & TOOLS ==================
+            JarvisCoreProtocolsCard(viewModel = viewModel)
+
             // ================== SYSTEM UTILS ==================
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(
@@ -2598,6 +2601,230 @@ private fun AssistantStatusRow(
                 color = if (isGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                 fontFamily = FontFamily.SansSerif
             )
+        }
+    }
+}
+
+@Composable
+fun JarvisCoreProtocolsCard(viewModel: AiraViewModel) {
+    val privacyMode by viewModel.privacyMode.collectAsState()
+    val isDnd by viewModel.isDoNotDisturb.collectAsState()
+    val speakReplies by viewModel.speakReplies.collectAsState()
+    val context = LocalContext.current
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("jarvis_protocols_card"),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(22.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Security,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(22.dp)
+                )
+                Text(
+                    text = "J.A.R.V.I.S. Core Protocols & Tools",
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontFamily = FontFamily.SansSerif
+                )
+            }
+
+            // Quick Security & Mode Toggles
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Privacy Mode Toggle Card
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable { viewModel.setPrivacyMode(!privacyMode) }
+                        .testTag("toggle_privacy_mode_btn"),
+                    color = if (privacyMode) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                    border = BorderStroke(
+                        1.dp,
+                        if (privacyMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+                    ),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (privacyMode) Icons.Default.Lock else Icons.Default.LockOpen,
+                            contentDescription = "Privacy Mode",
+                            tint = if (privacyMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "Privacy Mode",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (privacyMode) "Locked Local" else "Cloud Enabled",
+                            fontSize = 10.sp,
+                            color = if (privacyMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                // DND Mode Toggle Card
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable { viewModel.setDoNotDisturb(!isDnd) }
+                        .testTag("toggle_dnd_btn"),
+                    color = if (isDnd) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                    border = BorderStroke(
+                        1.dp,
+                        if (isDnd) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+                    ),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isDnd) Icons.Default.DoNotDisturbOn else Icons.Default.DoNotDisturbOff,
+                            contentDescription = "Do Not Disturb",
+                            tint = if (isDnd) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "Do Not Disturb",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (isDnd) "Active" else "Off",
+                            fontSize = 10.sp,
+                            color = if (isDnd) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                // Mute / Speech Mode Toggle Card
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable { viewModel.toggleSpeakReplies(!speakReplies) }
+                        .testTag("toggle_mute_btn"),
+                    color = if (!speakReplies) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant,
+                    border = BorderStroke(
+                        1.dp,
+                        if (!speakReplies) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outlineVariant
+                    ),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (speakReplies) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeMute,
+                            contentDescription = "Mute Mode",
+                            tint = if (!speakReplies) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "Voice Output",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (speakReplies) "Audible" else "Muted (Text)",
+                            fontSize = 10.sp,
+                            color = if (!speakReplies) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
+            // Quick Tool Action Buttons
+            Text(
+                text = "Quick Tools & Optical Scanners",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                fontFamily = FontFamily.SansSerif
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // QR Scanner
+                OutlinedButton(
+                    onClick = {
+                        val msg = com.example.models.JarvisSpecializedToolkit.launchQrScanner(context)
+                        viewModel.speakText(msg)
+                    },
+                    modifier = Modifier.weight(1f).testTag("quick_qr_btn"),
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.QrCodeScanner, contentDescription = "QR Scanner", modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("QR Scan", fontSize = 11.sp, maxLines = 1)
+                }
+
+                // Screen OCR
+                OutlinedButton(
+                    onClick = {
+                        val msg = com.example.models.JarvisSpecializedToolkit.extractScreenText(context)
+                        viewModel.speakText(msg)
+                    },
+                    modifier = Modifier.weight(1f).testTag("quick_ocr_btn"),
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.DocumentScanner, contentDescription = "Screen OCR", modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Screen OCR", fontSize = 11.sp, maxLines = 1)
+                }
+
+                // Clipboard Reader
+                OutlinedButton(
+                    onClick = {
+                        val msg = com.example.models.JarvisSpecializedToolkit.readClipboard(context)
+                        viewModel.speakText(msg)
+                    },
+                    modifier = Modifier.weight(1f).testTag("quick_clipboard_btn"),
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.ContentPaste, contentDescription = "Read Clipboard", modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Clipboard", fontSize = 11.sp, maxLines = 1)
+                }
+            }
         }
     }
 }

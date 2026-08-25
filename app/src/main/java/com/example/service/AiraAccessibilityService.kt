@@ -171,7 +171,27 @@ class AiraAccessibilityService : AccessibilityService() {
         return sb.toString().trim().ifEmpty { "No visible text on screen." }
     }
 
+    internal fun isSensitiveNode(node: AccessibilityNodeInfo): Boolean {
+        if (node.isPassword) return true
+        val resId = node.viewIdResourceName?.lowercase() ?: ""
+        val hint = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) node.hintText?.toString()?.lowercase() ?: "" else ""
+        val className = node.className?.toString()?.lowercase() ?: ""
+        
+        val sensitiveKeywords = listOf("password", "pin", "cvv", "credit_card", "passcode", "secret", "auth_token")
+        for (keyword in sensitiveKeywords) {
+            if (resId.contains(keyword) || hint.contains(keyword) || className.contains("password")) {
+                return true
+            }
+        }
+        return false
+    }
+
     private fun collectTextRecursive(node: AccessibilityNodeInfo, sb: StringBuilder) {
+        if (isSensitiveNode(node)) {
+            sb.append("[PROTECTED_FIELD]").append("\n")
+            return
+        }
+
         val text = node.text?.toString()?.trim()
         val desc = node.contentDescription?.toString()?.trim()
         if (!text.isNullOrBlank()) {
@@ -194,7 +214,11 @@ class AiraAccessibilityService : AccessibilityService() {
             val focused = rootNode.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
                 ?: rootNode.findFocus(AccessibilityNodeInfo.FOCUS_ACCESSIBILITY)
             if (focused != null) {
-                val text = focused.text?.toString() ?: focused.contentDescription?.toString() ?: ""
+                val text = if (isSensitiveNode(focused)) {
+                    "[PROTECTED_FIELD]"
+                } else {
+                    focused.text?.toString() ?: focused.contentDescription?.toString() ?: ""
+                }
                 focused.recycle()
                 text
             } else {

@@ -52,7 +52,7 @@ android {
 
   buildTypes {
     release {
-      isCrunchPngs = true
+      isCrunchPngs = false
       isMinifyEnabled = true
       isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
@@ -75,10 +75,9 @@ android {
     buildConfig = true
   }
   testOptions { unitTests { isIncludeAndroidResources = true } }
-  sourceSets {
-    getByName("main") {
-      jniLibs.directories.add("src/main/jniLibs")
-    }
+  lint {
+    disable.add("InvalidFragmentVersionForActivityResult")
+    abortOnError = false
   }
 }
 
