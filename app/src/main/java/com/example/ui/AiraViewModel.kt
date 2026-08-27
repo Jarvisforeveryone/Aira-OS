@@ -56,6 +56,7 @@ import com.example.data.QueryCacheDao
 import com.example.data.Command
 import com.example.data.VoiceCommandManager
 import com.example.models.AiBrain
+import com.example.network.api.AiraApiException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -2730,6 +2731,11 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                             processAIResponse(reply)
                         } catch (e: Exception) {
                             Log.e("AiraViewModel", "Online AI call failed, using offline predefined fallback response.", e)
+                            if (e is AiraApiException || e.cause is AiraApiException || e.message?.contains("API_KEY_MISSING") == true || e.message?.contains("AIRA API key not found") == true) {
+                                viewModelScope.launch(Dispatchers.Main) {
+                                    Toast.makeText(getApplication(), "API keys missing. Please go to Settings and re-enter your keys.", Toast.LENGTH_LONG).show()
+                                }
+                            }
                             val reply = com.example.data.AiraPredefinedResponses.getRandomFallbackResponse(userInput)
                             aiFinalResponse = reply
                             _currentStatus.value = "Processed via Predefined Offline Fallback"
@@ -2790,6 +2796,11 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                     } catch (e: Exception) {
                         latencyJob.cancel()
                         Log.e("AiraViewModel", "Online model call failed, checking memory before transitioning to local Llama 3.2 model.", e)
+                        if (e is AiraApiException || e.cause is AiraApiException || e.message?.contains("API_KEY_MISSING") == true || e.message?.contains("AIRA API key not found") == true) {
+                            viewModelScope.launch(Dispatchers.Main) {
+                                Toast.makeText(getApplication(), "API keys missing. Please go to Settings and re-enter your keys.", Toast.LENGTH_LONG).show()
+                            }
+                        }
                         if (!com.example.utils.MemoryManager.isSafeMode(getApplication())) {
                             _currentStatus.value = "Online failure. Transitioning to Llama 3.2..."
                             if (!com.example.utils.MemoryManager.isModelLoaded(com.example.utils.NativeModelType.LLAMA_CPP)) {

@@ -97,7 +97,10 @@ class MultiKeyManager private constructor(private val context: Context) {
     fun getNextKey(provider: String): String? {
         val provKey = provider.uppercase().trim()
         val keys = getKeys(provKey)
-        if (keys.isEmpty()) return null
+        if (keys.isEmpty()) {
+            Log.e("MultiKeyManager", "API key vault is empty. Keystore may be corrupted or keys not set.")
+            return null
+        }
 
         val currentTime = System.currentTimeMillis()
         val validKeys = keys.filter { key ->

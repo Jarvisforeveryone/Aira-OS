@@ -64,11 +64,19 @@ val commonOkHttpClient: OkHttpClient by lazy {
         .readTimeout(60, TimeUnit.SECONDS)
         .writeTimeout(60, TimeUnit.SECONDS)
         .retryOnConnectionFailure(true)
-        .addInterceptor { chain ->
-            val req = chain.request().newBuilder()
-                .header("Accept-Encoding", "gzip")
-                .build()
-            chain.proceed(req)
-        }
         .build()
 }
+
+/**
+ * Standardized API Exception for AIRA Network and AI provider errors.
+ */
+open class AiraApiException(
+    val code: String,
+    override val message: String,
+    cause: Throwable? = null
+) : Exception(message, cause) {
+    class ApiKeyMissingException(
+        message: String = "AIRA API key not found. Please re-enter your API keys in Settings."
+    ) : AiraApiException("API_KEY_MISSING", message)
+}
+

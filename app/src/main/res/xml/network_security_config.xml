@@ -1,8 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
+    <!-- Default configuration: Strictly forbid cleartext (HTTP) traffic app-wide -->
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
     </base-config>
+
+    <!-- Explicit configuration for Cloud AI APIs, Model Repositories, and System Services -->
+    <domain-config cleartextTrafficPermitted="false">
+        <!-- Google & Gemini Services -->
+        <domain includeSubdomains="true">googleapis.com</domain>
+        <domain includeSubdomains="true">google.com</domain>
+
+        <!-- Cloud AI & LLM Providers -->
+        <domain includeSubdomains="true">groq.com</domain>
+        <domain includeSubdomains="true">openai.com</domain>
+        <domain includeSubdomains="true">anthropic.com</domain>
+        <domain includeSubdomains="true">mistral.ai</domain>
+        <domain includeSubdomains="true">cohere.com</domain>
+        <domain includeSubdomains="true">openrouter.ai</domain>
+        <domain includeSubdomains="true">huggingface.co</domain>
+
+        <!-- Weather, Geocoding & Location APIs -->
+        <domain includeSubdomains="true">open-meteo.com</domain>
+        <domain includeSubdomains="true">ipapi.co</domain>
+
+        <!-- Speech & TTS Model Repositories (Vosk & Piper) -->
+        <domain includeSubdomains="true">alphacephei.com</domain>
+        <domain includeSubdomains="true">github.com</domain>
+        <domain includeSubdomains="true">githubusercontent.com</domain>
+
+        <!-- Trust standard system CAs for TLS certificate validation -->
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
 </network-security-config>

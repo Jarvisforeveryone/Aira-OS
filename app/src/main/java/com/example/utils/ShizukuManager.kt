@@ -15,12 +15,79 @@ object ShizukuManager {
     private const val TAG = "ShizukuManager"
     const val SHIZUKU_PERMISSION_REQUEST_CODE = 7001
 
+    const val SHIZUKU_PACKAGE = "moe.shizuku.privileged.api"
+    const val LADB_PACKAGE = "com.draco.ladb"
+    const val LADB_SHIZUKU_START_COMMAND = "adb shell sh /sdcard/Android/data/moe.shizuku.privileged.api/start.sh"
+
     fun isShizukuInstalled(context: Context): Boolean {
         return try {
-            context.packageManager.getPackageInfo("moe.shizuku.privileged.api", 0)
+            context.packageManager.getPackageInfo(SHIZUKU_PACKAGE, 0)
             true
         } catch (e: Exception) {
             false
+        }
+    }
+
+    fun isLadbInstalled(context: Context): Boolean {
+        return try {
+            context.packageManager.getPackageInfo(LADB_PACKAGE, 0)
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    fun openShizukuApp(context: Context): Boolean {
+        return try {
+            val intent = context.packageManager.getLaunchIntentForPackage(SHIZUKU_PACKAGE)
+            if (intent != null) {
+                intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(intent)
+                true
+            } else {
+                openPlayStore(context, SHIZUKU_PACKAGE)
+                false
+            }
+        } catch (e: Exception) {
+            openPlayStore(context, SHIZUKU_PACKAGE)
+            false
+        }
+    }
+
+    fun openLadbApp(context: Context): Boolean {
+        return try {
+            val intent = context.packageManager.getLaunchIntentForPackage(LADB_PACKAGE)
+            if (intent != null) {
+                intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(intent)
+                true
+            } else {
+                openPlayStore(context, LADB_PACKAGE)
+                false
+            }
+        } catch (e: Exception) {
+            openPlayStore(context, LADB_PACKAGE)
+            false
+        }
+    }
+
+    fun openPlayStore(context: Context, packageName: String) {
+        try {
+            val marketIntent = android.content.Intent(
+                android.content.Intent.ACTION_VIEW,
+                android.net.Uri.parse("market://details?id=$packageName")
+            ).apply {
+                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(marketIntent)
+        } catch (e: Exception) {
+            val webIntent = android.content.Intent(
+                android.content.Intent.ACTION_VIEW,
+                android.net.Uri.parse("https://play.google.com/store/apps/details?id=$packageName")
+            ).apply {
+                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(webIntent)
         }
     }
 

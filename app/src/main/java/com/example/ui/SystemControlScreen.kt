@@ -54,6 +54,7 @@ import com.example.data.Command
 import com.example.data.Reminder
 import com.example.data.VoiceCommandManager
 import com.example.data.AppDatabase
+import com.example.ui.components.DeviceControlSetupCard
 import kotlinx.coroutines.launch
 
 @Composable
@@ -154,6 +155,9 @@ fun AutomationHomeScreen(
                 .padding(Dimens.responsiveScreenPadding),
             verticalArrangement = Arrangement.spacedBy(Dimens.SectionSpacing)
         ) {
+            // ================== DEVICE CONTROL SETUP & STATUS ==================
+            DeviceControlSetupCard(viewModel = viewModel)
+
             // ================== GOOGLE ASSISTANT INTEGRATION ==================
             AssistantGoogleControlCard(viewModel = viewModel)
 

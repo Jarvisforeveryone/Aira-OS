@@ -922,18 +922,10 @@ class AiraAccessibilityService : AccessibilityService() {
 
     // --- SYSTEM TOGGLE API ---
     fun toggleWifi(enable: Boolean): String {
-        val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
-        if (wifiManager != null) {
-            try {
-                if (wifiManager.isWifiEnabled == enable) {
-                    return "Wi-Fi is already ${if (enable) "enabled" else "disabled"}."
-                }
-                val success = wifiManager.setWifiEnabled(enable)
-                if (success) {
-                    return "Successfully toggled Wi-Fi programmatically via WifiManager."
-                }
-            } catch (e: Exception) {
-                Log.d("AiraAccessibility", "Programmatic Wifi toggle failed: ${e.message}")
+        if (com.example.utils.ShizukuManager.isShizukuAvailable()) {
+            val success = com.example.utils.ShizukuManager.toggleWiFi(enable)
+            if (success) {
+                return "Successfully toggled Wi-Fi via Shizuku privileged shell (svc wifi ${if (enable) "enable" else "disable"})."
             }
         }
 
@@ -947,21 +939,11 @@ class AiraAccessibilityService : AccessibilityService() {
         }
     }
 
-    @android.annotation.SuppressLint("MissingPermission")
     fun toggleBluetooth(enable: Boolean): String {
-        val adapter = BluetoothAdapter.getDefaultAdapter()
-        if (adapter != null) {
-            try {
-                val isCurrentlyEnabled = adapter.isEnabled
-                if (isCurrentlyEnabled == enable) {
-                    return "Bluetooth is already ${if (enable) "enabled" else "disabled"}."
-                }
-                val success = if (enable) adapter.enable() else adapter.disable()
-                if (success) {
-                    return "Successfully toggled Bluetooth programmatically."
-                }
-            } catch (e: Exception) {
-                Log.d("AiraAccessibility", "Programmatic Bluetooth toggle failed: ${e.message}")
+        if (com.example.utils.ShizukuManager.isShizukuAvailable()) {
+            val success = com.example.utils.ShizukuManager.toggleBluetooth(enable)
+            if (success) {
+                return "Successfully toggled Bluetooth via Shizuku privileged shell (svc bluetooth ${if (enable) "enable" else "disable"})."
             }
         }
 

@@ -65,6 +65,7 @@ import com.example.ui.theme.success
 import com.example.ui.theme.warning
 import com.example.ui.theme.Dimens
 import com.example.ui.components.AdaptiveGrid
+import com.example.ui.components.DeviceControlSetupCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -3040,90 +3041,10 @@ fun ShizukuSettingsScreen(
                 .padding(Dimens.GapLarge),
             verticalArrangement = Arrangement.spacedBy(Dimens.GapMedium)
         ) {
-            // Status Card
-            Card(
-                modifier = Modifier.fillMaxWidth().testTag("shizuku_status_card"),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (isShizukuRunning && isShizukuGranted) {
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
-                    } else {
-                        MaterialTheme.colorScheme.surface
-                    }
-                ),
-                shape = RoundedCornerShape(Dimens.CornerRadiusLarge),
-                border = BorderStroke(
-                    1.dp,
-                    if (isShizukuRunning && isShizukuGranted) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                    else MaterialTheme.colorScheme.outlineVariant
-                )
-            ) {
-                Column(modifier = Modifier.padding(Dimens.GapLarge)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(Dimens.GapSmall)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(Dimens.GapSmall)
-                                .background(
-                                    if (isShizukuRunning && isShizukuGranted) colorResource(id = R.color.aira_success_light)
-                                    else colorResource(id = R.color.aira_warning_light),
-                                    CircleShape
-                                )
-                        )
-                        Text(
-                            text = when {
-                                isShizukuRunning && isShizukuGranted -> "Shizuku Connected & Authorized"
-                                isShizukuRunning -> "Shizuku Running (Permission Required)"
-                                else -> "Shizuku Service Not Running"
-                            },
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
+            // Device Control Setup & Bootstrap Card
+            DeviceControlSetupCard(viewModel = viewModel)
 
-                    Spacer(modifier = Modifier.height(Dimens.GapSmall))
-
-                    Text(
-                        text = when {
-                            isShizukuRunning && isShizukuGranted -> "AIRA can execute direct privileged system shell commands without requiring accessibility overlays."
-                            isShizukuRunning -> "Shizuku service is running in background. Click below to grant ADB permission to AIRA."
-                            else -> "Shizuku is not running. AIRA will automatically fall back to AccessibilityService and system dialogs seamlessly."
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Spacer(modifier = Modifier.height(Dimens.GapMedium))
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(Dimens.GapMedium)
-                    ) {
-                        Button(
-                            onClick = { viewModel.refreshShizukuStatus() },
-                            shape = RoundedCornerShape(Dimens.CornerRadiusMedium),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                            modifier = Modifier.testTag("refresh_shizuku_btn")
-                        ) {
-                            Text("Refresh Status", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-
-                        if (isShizukuRunning && !isShizukuGranted) {
-                            Button(
-                                onClick = { viewModel.requestShizukuPermission() },
-                                shape = RoundedCornerShape(Dimens.CornerRadiusMedium),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                                modifier = Modifier.testTag("request_shizuku_perm_btn")
-                            ) {
-                                Text("Request Permission", style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Quick Test Controls Card
+            // Quick Test Controls Card (when Shizuku is active)
             if (isShizukuRunning && isShizukuGranted) {
                 val executionLogs by com.example.service.ShizukuVoiceExecutionService.executionHistory.collectAsState()
                 var customVoiceInput by remember { mutableStateOf("") }
@@ -3290,76 +3211,6 @@ fun ShizukuSettingsScreen(
                                         )
                                     }
                                 }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Setup Guide Card
-            Card(
-                modifier = Modifier.fillMaxWidth().testTag("shizuku_guide_card"),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(22.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        text = "Shizuku Step-by-Step Setup Guide",
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 16.sp,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Follow these instructions when you are ready to enable ADB level system actions:",
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    val steps = listOf(
-                        "1. Download Shizuku" to "Install Shizuku from Google Play Store or GitHub releases.",
-                        "2. Enable Developer Options" to "Go to Phone Settings > About Phone > Tap 'Build Number' 7 times until Developer Mode is unlocked.",
-                        "3. Turn On Wireless Debugging" to "Go to System > Developer Options > Enable 'Wireless Debugging'.",
-                        "4. Pair with Shizuku Code" to "Open Shizuku app > Select 'Pairing' > Enter the Wireless Debugging pairing code.",
-                        "5. Start Service & Authorize AIRA" to "Start Shizuku service, then return to AIRA settings and tap 'Request Permission'."
-                    )
-
-                    steps.forEachIndexed { idx, (title, desc) ->
-                        Row(
-                            verticalAlignment = Alignment.Top,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.padding(vertical = 6.dp)
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                                modifier = Modifier.size(24.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text(
-                                        text = "${idx + 1}",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                }
-                            }
-                            Column {
-                                Text(
-                                    text = title,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = desc,
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    lineHeight = 16.sp
-                                )
                             }
                         }
                     }
