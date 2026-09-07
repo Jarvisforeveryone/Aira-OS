@@ -440,20 +440,20 @@ fun ExtrasScreen(
                                                     onClick = {
                                                         viewModel.speakText(speechText)
                                                     },
-                                                    modifier = Modifier.size(36.dp)
+                                                    modifier = Modifier.size(Dimens.IconLarge)
                                                 ) {
                                                     Icon(
                                                         imageVector = Icons.Default.PlayArrow,
                                                         contentDescription = "Read headline aloud",
                                                         tint = MaterialTheme.colorScheme.primary,
-                                                        modifier = Modifier.size(24.dp)
+                                                        modifier = Modifier.size(Dimens.IconStandard)
                                                     )
                                                 }
 
                                                 // Right Image
                                                 Box(
                                                     modifier = Modifier
-                                                        .size(72.dp)
+                                                        .size(Dimens.CardHeightDefault)
                                                         .clip(RoundedCornerShape(Dimens.CornerRadiusSmall))
                                                         .background(MaterialTheme.colorScheme.surfaceVariant),
                                                     contentAlignment = Alignment.Center
@@ -580,19 +580,19 @@ fun ExtrasScreen(
                                                     onClick = {
                                                         viewModel.speakText(article)
                                                     },
-                                                    modifier = Modifier.size(36.dp)
+                                                    modifier = Modifier.size(Dimens.IconLarge)
                                                 ) {
                                                     Icon(
                                                         imageVector = Icons.Default.PlayArrow,
                                                         contentDescription = "Read headline aloud",
                                                         tint = MaterialTheme.colorScheme.primary,
-                                                        modifier = Modifier.size(24.dp)
+                                                        modifier = Modifier.size(Dimens.IconStandard)
                                                     )
                                                 }
 
                                                 Box(
                                                     modifier = Modifier
-                                                        .size(72.dp)
+                                                        .size(Dimens.CardHeightDefault)
                                                         .clip(RoundedCornerShape(Dimens.CornerRadiusSmall))
                                                         .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
                                                     contentAlignment = Alignment.Center
@@ -746,19 +746,19 @@ fun ExtrasScreen(
                                             onClick = {
                                                 viewModel.speakText(speechText)
                                             },
-                                            modifier = Modifier.size(36.dp)
+                                            modifier = Modifier.size(Dimens.IconLarge)
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.PlayArrow,
                                                 contentDescription = "Read finance news aloud",
                                                 tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(24.dp)
+                                                modifier = Modifier.size(Dimens.IconStandard)
                                             )
                                         }
 
                                         Box(
                                             modifier = Modifier
-                                                .size(72.dp)
+                                                .size(Dimens.CardHeightDefault)
                                                 .clip(RoundedCornerShape(Dimens.CornerRadiusSmall))
                                                 .background(MaterialTheme.colorScheme.surfaceVariant),
                                             contentAlignment = Alignment.Center
@@ -832,19 +832,19 @@ fun ExtrasScreen(
                                             onClick = {
                                                 viewModel.speakText(speechText)
                                             },
-                                            modifier = Modifier.size(36.dp)
+                                            modifier = Modifier.size(Dimens.IconLarge)
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.PlayArrow,
                                                 contentDescription = "Read finance news aloud",
                                                 tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(24.dp)
+                                                modifier = Modifier.size(Dimens.IconStandard)
                                             )
                                         }
 
                                         Box(
-                                            modifier = Modifier
-                                                .size(72.dp)
+                                             modifier = Modifier
+                                                .size(Dimens.CardHeightDefault)
                                                 .clip(RoundedCornerShape(Dimens.CornerRadiusSmall))
                                                 .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
                                             contentAlignment = Alignment.Center

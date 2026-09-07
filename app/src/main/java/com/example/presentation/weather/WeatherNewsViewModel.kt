@@ -44,42 +44,40 @@ class WeatherNewsViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     fun fetchWeather(latitude: Double = 37.7749, longitude: Double = -122.4194) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _uiState.value = _uiState.value.copy(isLoadingWeather = true)
             try {
-                withContext(Dispatchers.IO) {
-                    val urlStr = "https://api.open-meteo.com/v1/forecast?latitude=$latitude&longitude=$longitude&current_weather=true"
-                    val url = URL(urlStr)
-                    val conn = url.openConnection() as HttpURLConnection
-                    conn.connectTimeout = 8000
-                    conn.readTimeout = 8000
+                val urlStr = "https://api.open-meteo.com/v1/forecast?latitude=$latitude&longitude=$longitude&current_weather=true"
+                val url = URL(urlStr)
+                val conn = url.openConnection() as HttpURLConnection
+                conn.connectTimeout = 8000
+                conn.readTimeout = 8000
 
-                    if (conn.responseCode == 200) {
-                        val response = conn.inputStream.bufferedReader().use { it.readText() }
-                        val jsonObj = JSONObject(response)
-                        val currentWeather = jsonObj.getJSONObject("current_weather")
-                        val temp = currentWeather.getDouble("temperature")
-                        val weatherCode = currentWeather.getInt("weathercode")
+                if (conn.responseCode == 200) {
+                    val response = conn.inputStream.bufferedReader().use { it.readText() }
+                    val jsonObj = JSONObject(response)
+                    val currentWeather = jsonObj.getJSONObject("current_weather")
+                    val temp = currentWeather.getDouble("temperature")
+                    val weatherCode = currentWeather.getInt("weathercode")
 
-                        val conditionText = when (weatherCode) {
-                            0 -> "Clear Sky"
-                            1, 2, 3 -> "Partly Cloudy"
-                            45, 48 -> "Foggy"
-                            51, 53, 55 -> "Drizzle"
-                            61, 63, 65 -> "Rain"
-                            71, 73, 75 -> "Snow"
-                            95, 96, 99 -> "Thunderstorm"
-                            else -> "Clear"
-                        }
-
-                        _uiState.value = _uiState.value.copy(
-                            weatherTemperature = "${temp.toInt()}°C",
-                            weatherCondition = conditionText,
-                            isLoadingWeather = false
-                        )
-                    } else {
-                        _uiState.value = _uiState.value.copy(isLoadingWeather = false)
+                    val conditionText = when (weatherCode) {
+                        0 -> "Clear Sky"
+                        1, 2, 3 -> "Partly Cloudy"
+                        45, 48 -> "Foggy"
+                        51, 53, 55 -> "Drizzle"
+                        61, 63, 65 -> "Rain"
+                        71, 73, 75 -> "Snow"
+                        95, 96, 99 -> "Thunderstorm"
+                        else -> "Clear"
                     }
+
+                    _uiState.value = _uiState.value.copy(
+                        weatherTemperature = "${temp.toInt()}°C",
+                        weatherCondition = conditionText,
+                        isLoadingWeather = false
+                    )
+                } else {
+                    _uiState.value = _uiState.value.copy(isLoadingWeather = false)
                 }
             } catch (e: Exception) {
                 Logger.e("WeatherNewsViewModel", "Failed to fetch weather", e)

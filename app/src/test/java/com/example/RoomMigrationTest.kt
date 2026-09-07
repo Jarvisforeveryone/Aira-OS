@@ -36,11 +36,11 @@ class RoomMigrationTest {
 
     @Test
     fun testAllMigrationsArrayPresent() {
-        assertEquals(9, DatabaseSchema.ALL_MIGRATIONS.size)
+        assertEquals(10, DatabaseSchema.ALL_MIGRATIONS.size)
         assertEquals(1, DatabaseSchema.ALL_MIGRATIONS[0].startVersion)
         assertEquals(2, DatabaseSchema.ALL_MIGRATIONS[0].endVersion)
-        assertEquals(9, DatabaseSchema.ALL_MIGRATIONS.last().startVersion)
-        assertEquals(10, DatabaseSchema.ALL_MIGRATIONS.last().endVersion)
+        assertEquals(10, DatabaseSchema.ALL_MIGRATIONS.last().startVersion)
+        assertEquals(11, DatabaseSchema.ALL_MIGRATIONS.last().endVersion)
     }
 
     @Test

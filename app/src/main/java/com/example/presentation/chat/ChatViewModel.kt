@@ -31,7 +31,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loadChatHistory() {
-        viewModelScope.launch {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             _uiState.value = _uiState.value.copy(isLoading = true)
             getChatHistoryUseCase().collect { history ->
                 _uiState.value = _uiState.value.copy(
@@ -45,7 +45,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     fun sendMessage(text: String, isUser: Boolean = true) {
         if (text.isBlank()) return
-        viewModelScope.launch {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             val msg = ChatMessage(
                 sender = if (isUser) "user" else "aira",
                 message = text.trim()
@@ -58,7 +58,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun clearHistory() {
-        viewModelScope.launch {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             val result = chatRepository.clearHistory()
             if (result is Result.Error) {
                 _uiState.value = _uiState.value.copy(errorMessage = result.message)

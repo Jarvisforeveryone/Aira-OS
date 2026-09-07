@@ -98,10 +98,10 @@ fun OfflineStatusDashboardScreen(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
                     // Row 1: AI Brain
-                    val brainValue = if (!isDeviceMemoryCapable) "Cloud Mode" else if (isOfflineBrain) "Offline Mode" else "Cloud Mode"
-                    val brainDesc = if (!isDeviceMemoryCapable) "Using internet for best performance." else if (isOfflineBrain) "Thinking directly on your device." else "Where AIRA thinks. Cloud is fastest."
+                    val brainValue = if (!isDeviceMemoryCapable) "Cloud Mode" else if (isOfflineBrain) "Offline Rules" else "Cloud Mode"
+                    val brainDesc = if (!isDeviceMemoryCapable) "Using internet for best performance." else if (isOfflineBrain) "Running basic rules and device controls locally." else "Where AIRA thinks. Cloud is fastest."
                     SimpleStatusRow(
-                        label = "AI Brain",
+                        label = "Brain Engine",
                         value = brainValue,
                         description = brainDesc,
                         status = BadgeStatus.PRIMARY

@@ -79,7 +79,7 @@ class LlamaCppBrain(private val context: Context) {
             isBlockedInAssistantProcess -> "Disabled in assistant process (OOM Guard)"
             isNativeLibraryLoaded && nativeContext != 0L -> "Native llama.cpp engine: ACTIVE (Model Loaded)"
             isNativeLibraryLoaded -> "Native llama.cpp engine: LOADED (Ready to load model)"
-            else -> "Offline Fallback Engine: ACTIVE (Simulated Llama 3.2 1B/3B)"
+            else -> "Offline Command Engine: ACTIVE (Basic Command Mode)"
         }
     }
 
@@ -193,37 +193,37 @@ class LlamaCppBrain(private val context: Context) {
 
         return when {
             query.contains("call") || query.contains("phone") || query.contains("dial") -> {
-                "Llama-Local (3.2): Standard telephony subsystem initialized offline. Toggling telephony client."
+                "Offline Rules: Telephony subsystem initialized offline. Toggling telephony client."
             }
             query.contains("flashlight") || query.contains("torch") || query.contains("light") -> {
-                "Llama-Local (3.2): Core device camera controller accessed. Flashlight command executed."
+                "Offline Rules: Core device camera controller accessed. Flashlight command executed."
             }
             query.contains("brightness") || query.contains("screen light") -> {
-                "Llama-Local (3.2): System brightness parameters retrieved. Modifying panel power state."
+                "Offline Rules: System brightness parameters retrieved. Modifying panel power state."
             }
             query.contains("alarm") || query.contains("timer") || query.contains("wake") -> {
-                "Llama-Local (3.2): System alarm clock intent compiled. Dispatching timer registration."
+                "Offline Rules: System alarm clock intent compiled. Dispatching timer registration."
             }
             query.contains("weather") || query.contains("temperature") -> {
-                "Llama-Local (3.2): Live environmental telemetry requires online connection. Cached telemetry indicates 24°C, Clear Sky."
+                "Offline Rules: Live environmental telemetry requires online connection. Cached telemetry indicates 24°C, Clear Sky."
             }
             query.contains("news") || query.contains("headlines") -> {
-                "Llama-Local (3.2): Online live sync required. Locally stored system headline: Aira AI version 1.0 is running stably."
+                "Offline Rules: Online live sync required. Locally stored system headline: AIRA is running in offline command mode."
             }
             query.contains("hello") || query.contains("hey") || query.contains("hi") || query.contains("greetings") -> {
-                "Llama-Local (3.2): Greetings. I am running completely offline on your device's local neural core to deliver instant vocal feedback."
+                "Offline Rules: Greetings. Running in offline basic command mode for immediate on-device actions."
             }
             query.contains("who are you") || query.contains("your name") || query.contains("identify") -> {
-                "Llama-Local (3.2): I am JARVIS, compiled as an offline-first Llama 3.2 1B/3B neural model to optimize response times."
+                "Offline Rules: I am AIRA, running in offline basic command mode."
             }
             query.contains("calculate") || query.contains("+") || query.contains("-") || query.contains("*") || query.contains("/") || query.contains("math") -> {
-                "Llama-Local (3.2): Analytical module loaded. Math operation calculated locally."
+                "Offline Rules: Analytical module loaded. Math operation calculated locally."
             }
             query.contains("system status") || query.contains("diagnostic") || query.contains("memory") -> {
-                "Llama-Local (3.2): Memory buffers are clear. Model parameters mapped: Llama 3.2 Instruct (Q4_K_M). JNI channels: Ready."
+                "Offline Rules: Memory buffers are clear. Offline command engine and device controls: Ready."
             }
             else -> {
-                "Llama-Local (3.2): Command acknowledged. Core actions processed locally on-device with zero server latency."
+                "Offline Rules: Command acknowledged and processed via local basic command rules."
             }
         }
     }

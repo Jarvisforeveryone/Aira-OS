@@ -303,7 +303,7 @@ class AiraAutomationEngine(private val context: Context) {
     fun volumeUp(): Boolean {
         Log.d(tag, "[41] volumeUp")
         return try {
-            audioManager.adjustVolume(AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI)
+            audioManager.adjustVolume(AudioManager.ADJUST_RAISE, 0)
             true
         } catch (e: Exception) {
             ShizukuManager.isShizukuAvailable() && ShizukuManager.executeCommand("input keyevent 24")
@@ -313,7 +313,7 @@ class AiraAutomationEngine(private val context: Context) {
     fun volumeDown(): Boolean {
         Log.d(tag, "[42] volumeDown")
         return try {
-            audioManager.adjustVolume(AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI)
+            audioManager.adjustVolume(AudioManager.ADJUST_LOWER, 0)
             true
         } catch (e: Exception) {
             ShizukuManager.isShizukuAvailable() && ShizukuManager.executeCommand("input keyevent 25")
@@ -323,7 +323,7 @@ class AiraAutomationEngine(private val context: Context) {
     fun muteVolume(): Boolean {
         Log.d(tag, "[43] muteVolume")
         return try {
-            audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_MUTE, AudioManager.FLAG_SHOW_UI)
+            audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_MUTE, 0)
             true
         } catch (e: Exception) {
             ShizukuManager.isShizukuAvailable() && ShizukuManager.executeCommand("cmd media_session volume --set 0")
@@ -333,7 +333,7 @@ class AiraAutomationEngine(private val context: Context) {
     fun unmuteVolume(): Boolean {
         Log.d(tag, "[44] unmuteVolume")
         return try {
-            audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_UNMUTE, AudioManager.FLAG_SHOW_UI)
+            audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_UNMUTE, 0)
             true
         } catch (e: Exception) {
             setMediaVolume(50)
@@ -347,7 +347,7 @@ class AiraAutomationEngine(private val context: Context) {
         return try {
             val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
             val target = ((level.coerceIn(0, 100) / 100f) * max).toInt()
-            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, target, AudioManager.FLAG_SHOW_UI)
+            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, target, 0)
             true
         } catch (e: Exception) {
             ShizukuManager.isShizukuAvailable() && ShizukuManager.executeCommand("cmd media_session volume --set $level")
@@ -359,7 +359,7 @@ class AiraAutomationEngine(private val context: Context) {
         return try {
             val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL)
             val target = ((level.coerceIn(0, 100) / 100f) * max).toInt()
-            audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, target, AudioManager.FLAG_SHOW_UI)
+            audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, target, 0)
             true
         } catch (e: Exception) { false }
     }
@@ -369,7 +369,7 @@ class AiraAutomationEngine(private val context: Context) {
         return try {
             val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
             val target = ((level.coerceIn(0, 100) / 100f) * max).toInt()
-            audioManager.setStreamVolume(AudioManager.STREAM_ALARM, target, AudioManager.FLAG_SHOW_UI)
+            audioManager.setStreamVolume(AudioManager.STREAM_ALARM, target, 0)
             true
         } catch (e: Exception) { false }
     }
@@ -379,7 +379,7 @@ class AiraAutomationEngine(private val context: Context) {
         return try {
             val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_NOTIFICATION)
             val target = ((level.coerceIn(0, 100) / 100f) * max).toInt()
-            audioManager.setStreamVolume(AudioManager.STREAM_NOTIFICATION, target, AudioManager.FLAG_SHOW_UI)
+            audioManager.setStreamVolume(AudioManager.STREAM_NOTIFICATION, target, 0)
             true
         } catch (e: Exception) { false }
     }
@@ -389,7 +389,7 @@ class AiraAutomationEngine(private val context: Context) {
         return try {
             val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_SYSTEM)
             val target = ((level.coerceIn(0, 100) / 100f) * max).toInt()
-            audioManager.setStreamVolume(AudioManager.STREAM_SYSTEM, target, AudioManager.FLAG_SHOW_UI)
+            audioManager.setStreamVolume(AudioManager.STREAM_SYSTEM, target, 0)
             true
         } catch (e: Exception) { false }
     }

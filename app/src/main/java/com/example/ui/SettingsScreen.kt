@@ -299,7 +299,7 @@ fun SettingsHomeScreen(navController: NavController, viewModel: AiraViewModel) {
                         )
                         SettingsCategoryItem(
                             title = "AI Engine Controls",
-                            subtitle = "Keys, Local AI, Reasoning",
+                            subtitle = "Keys, Offline Rules, Reasoning",
                             icon = Icons.Default.Memory,
                             testTag = "settings_tab_system",
                             onClick = { navController.navigate("settings_system") }
@@ -484,18 +484,18 @@ fun GeneralSettingsScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(scrollState)
-                .padding(24.dp), // Outer Screen Padding: 24dp
-            verticalArrangement = Arrangement.spacedBy(28.dp) // Between Sections: 28dp
+                .padding(Dimens.PaddingScreenOuter), // Outer Screen Padding: 24dp
+            verticalArrangement = Arrangement.spacedBy(Dimens.SpaceExtraLarge) // Between Sections: 28dp
         ) {
             // CARD 2: Theme Picker
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(22.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                shape = RoundedCornerShape(Dimens.CardCornerRadius),
+                border = BorderStroke(Dimens.BorderThin, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = Dimens.CardElevation)
             ) {
-                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(modifier = Modifier.padding(Dimens.PaddingCardInner), verticalArrangement = Arrangement.spacedBy(Dimens.SpaceDefault)) {
                     Text(
                         text = "Visual Scheme",
                         fontSize = 18.sp, // Card Title: 18sp Medium
@@ -515,7 +515,7 @@ fun GeneralSettingsScreen(
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSmall)
                     ) {
                         val presets = listOf(
                             Triple(0, "Premium", com.example.ui.theme.PrimaryBlue)
@@ -525,13 +525,13 @@ fun GeneralSettingsScreen(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(44.dp)
-                                    .clip(RoundedCornerShape(12.dp))
+                                    .height(Dimens.ButtonHeightSmall)
+                                    .clip(RoundedCornerShape(Dimens.RadiusDefault))
                                     .background(color.copy(alpha = 0.06f))
                                     .border(
-                                        width = if (themeIndex == index) 1.5.dp else 1.dp,
+                                        width = if (themeIndex == index) Dimens.BorderMedium else Dimens.BorderThin,
                                         color = if (themeIndex == index) color else color.copy(alpha = 0.15f),
-                                        shape = RoundedCornerShape(12.dp)
+                                        shape = RoundedCornerShape(Dimens.RadiusDefault)
                                     )
                                     .clickable {
                                         viewModel.updateThemeIndex(index)
@@ -557,18 +557,18 @@ fun GeneralSettingsScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(22.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                shape = RoundedCornerShape(Dimens.CardCornerRadius),
+                border = BorderStroke(Dimens.BorderThin, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = Dimens.CardElevation)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(20.dp),
+                        .padding(Dimens.PaddingCardInner),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Dimens.SpaceExtraSmall)) {
                         Text(
                             text = "30 FPS Battery Saver",
                             fontSize = 18.sp, // Card Title: 18sp
@@ -602,11 +602,11 @@ fun GeneralSettingsScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(22.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                shape = RoundedCornerShape(Dimens.CardCornerRadius),
+                border = BorderStroke(Dimens.BorderThin, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = Dimens.CardElevation)
             ) {
-                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(modifier = Modifier.padding(Dimens.PaddingCardInner), verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMedium)) {
                     Text(
                         text = "Accessibility Integration",
                         fontSize = 18.sp, // Card Title: 18sp
@@ -704,7 +704,7 @@ fun VoiceSettingsScreen(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
                             tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(Dimens.IconStandard)
                         )
                     }
                 },
@@ -721,18 +721,18 @@ fun VoiceSettingsScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(scrollState)
-                .padding(24.dp), // Outer Screen Padding: 24dp
-            verticalArrangement = Arrangement.spacedBy(28.dp) // Between Sections: 28dp
+                .padding(Dimens.PaddingScreenOuter), // Outer Screen Padding: 24dp
+            verticalArrangement = Arrangement.spacedBy(Dimens.SpaceExtraLarge) // Between Sections: 28dp
         ) {
             // CARD 1: Wake Word Configuration
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(22.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                shape = RoundedCornerShape(Dimens.CardCornerRadius),
+                border = BorderStroke(Dimens.BorderThin, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = Dimens.CardElevation)
             ) {
-                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(modifier = Modifier.padding(Dimens.PaddingCardInner), verticalArrangement = Arrangement.spacedBy(Dimens.SpaceDefault)) {
                     Text(
                         text = "Voice Recognition Trigger",
                         fontSize = 18.sp, // Card Title: 18sp Medium
@@ -766,7 +766,7 @@ fun VoiceSettingsScreen(
                             unfocusedIndicatorColor = Color.Transparent,
                             cursorColor = MaterialTheme.colorScheme.primary
                         ),
-                        shape = RoundedCornerShape(16.dp), // Inputs: 16dp
+                        shape = RoundedCornerShape(Dimens.RadiusLarge), // Inputs: 16dp
                         placeholder = { Text("Trigger Keyword", fontSize = 16.sp, fontFamily = FontFamily.SansSerif, color = MaterialTheme.colorScheme.outline) }
                     )
 
@@ -779,13 +779,13 @@ fun VoiceSettingsScreen(
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), RoundedCornerShape(16.dp)),
+                                .border(Dimens.BorderThin, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), RoundedCornerShape(Dimens.RadiusLarge)),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                            shape = RoundedCornerShape(16.dp)
+                            shape = RoundedCornerShape(Dimens.RadiusLarge)
                         ) {
                             Column(
-                                modifier = Modifier.padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                                modifier = Modifier.padding(Dimens.SpaceDefault),
+                                verticalArrangement = Arrangement.spacedBy(Dimens.SpaceDefault)
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -815,7 +815,7 @@ fun VoiceSettingsScreen(
                                 // Visual Step Badges
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMedium),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     for (i in 1..3) {
@@ -841,10 +841,10 @@ fun VoiceSettingsScreen(
                                         Box(
                                             modifier = Modifier
                                                 .weight(1f)
-                                                .clip(RoundedCornerShape(10.dp))
+                                                .clip(RoundedCornerShape(Dimens.RadiusSmall))
                                                 .background(badgeBg)
-                                                .border(1.dp, badgeBorderColor, RoundedCornerShape(10.dp))
-                                                .padding(horizontal = 4.dp, vertical = 8.dp),
+                                                .border(Dimens.BorderThin, badgeBorderColor, RoundedCornerShape(Dimens.RadiusSmall))
+                                                .padding(horizontal = Dimens.SpaceExtraSmall, vertical = Dimens.SpaceSmall),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text(
@@ -865,9 +865,9 @@ fun VoiceSettingsScreen(
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(80.dp)
-                                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
-                                            .padding(8.dp),
+                                            .height(Dimens.CardHeightLarge)
+                                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(Dimens.RadiusDefault))
+                                            .padding(Dimens.SpaceSmall),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
@@ -902,9 +902,9 @@ fun VoiceSettingsScreen(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clip(RoundedCornerShape(8.dp))
+                                        .clip(RoundedCornerShape(Dimens.RadiusSmall))
                                         .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.04f))
-                                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                                        .padding(horizontal = Dimens.SpaceMedium, vertical = Dimens.SpaceSmall)
                                 ) {
                                     Text(
                                         text = trainingQualityScore,
@@ -918,7 +918,7 @@ fun VoiceSettingsScreen(
                                 // Step Buttons
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMedium)
                                 ) {
                                     if (isRecordingAttempt) {
                                         Button(
@@ -926,8 +926,8 @@ fun VoiceSettingsScreen(
                                             modifier = Modifier.weight(1f),
                                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                                         ) {
-                                            Icon(Icons.Filled.Mic, contentDescription = "Stop", modifier = Modifier.size(16.dp))
-                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Icon(Icons.Filled.Mic, contentDescription = "Stop", modifier = Modifier.size(Dimens.IconSmall - Dimens.SpaceExtraSmall))
+                                            Spacer(modifier = Modifier.width(Dimens.SpaceSmall))
                                             Text("Stop", fontSize = 13.sp)
                                         }
                                     } else if (trainingAttempts.size < 3) {
@@ -936,8 +936,8 @@ fun VoiceSettingsScreen(
                                             modifier = Modifier.weight(1f),
                                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                                         ) {
-                                            Icon(Icons.Filled.Mic, contentDescription = "Record", modifier = Modifier.size(16.dp))
-                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Icon(Icons.Filled.Mic, contentDescription = "Record", modifier = Modifier.size(Dimens.IconSmall - Dimens.SpaceExtraSmall))
+                                            Spacer(modifier = Modifier.width(Dimens.SpaceSmall))
                                             Text("Record $trainingCurrentStep", fontSize = 13.sp)
                                         }
                                     }
@@ -957,7 +957,7 @@ fun VoiceSettingsScreen(
                                         onClick = { viewModel.stopWakeWordTraining() },
                                         modifier = Modifier.weight(1f),
                                         colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
-                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f))
+                                        border = BorderStroke(Dimens.BorderThin, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f))
                                     ) {
                                         Text("Cancel", fontSize = 13.sp)
                                     }
@@ -967,7 +967,7 @@ fun VoiceSettingsScreen(
                     }
 
                     if (!isTrainingWakeWord) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSmall)) {
                             Button(
                                 onClick = onOpenTrainer,
                                 modifier = Modifier
@@ -976,10 +976,10 @@ fun VoiceSettingsScreen(
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.primary
                                 ),
-                                shape = RoundedCornerShape(12.dp)
+                                shape = RoundedCornerShape(Dimens.RadiusDefault)
                             ) {
-                                Icon(Icons.Filled.Mic, contentDescription = "Open Trainer Studio", modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Icon(Icons.Filled.Mic, contentDescription = "Open Trainer Studio", modifier = Modifier.size(Dimens.IconSmall))
+                                Spacer(modifier = Modifier.width(Dimens.SpaceSmall))
                                 Text("Launch Wake Word Trainer Studio", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                             }
 
@@ -988,26 +988,26 @@ fun VoiceSettingsScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .testTag("train_voice_trigger_btn"),
-                                shape = RoundedCornerShape(12.dp)
+                                shape = RoundedCornerShape(Dimens.RadiusDefault)
                             ) {
-                                Icon(Icons.Filled.Mic, contentDescription = "Quick train voice trigger", modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Icon(Icons.Filled.Mic, contentDescription = "Quick train voice trigger", modifier = Modifier.size(Dimens.IconSmall))
+                                Spacer(modifier = Modifier.width(Dimens.SpaceSmall))
                                 Text("Quick Inline Calibration", fontSize = 13.sp)
                             }
                         }
                     }
 
                     // SECTION B: TESTING PAD MODE
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(Dimens.SpaceExtraSmall))
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.01f)),
-                        shape = RoundedCornerShape(16.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.04f))
+                        shape = RoundedCornerShape(Dimens.RadiusLarge),
+                        border = BorderStroke(Dimens.BorderThin, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.04f))
                     ) {
                         Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                            modifier = Modifier.padding(Dimens.SpaceDefault),
+                            verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMedium)
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -1015,14 +1015,14 @@ fun VoiceSettingsScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Row(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSmall),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
                                         imageVector = Icons.Filled.Mic,
                                         contentDescription = "Test mode",
                                         tint = if (isTestingWakeWord) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(18.dp)
+                                        modifier = Modifier.size(Dimens.IconSmall)
                                     )
                                     Text(
                                         text = "Voice Trigger Testing Pad",
@@ -1045,28 +1045,28 @@ fun VoiceSettingsScreen(
                             AnimatedVisibility(visible = isTestingWakeWord) {
                                 Column(
                                     modifier = Modifier.fillMaxWidth(),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                    verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMedium)
                                 ) {
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .clip(RoundedCornerShape(12.dp))
+                                            .clip(RoundedCornerShape(Dimens.RadiusDefault))
                                             .background(
                                                 if (isTestWakeWordTriggered) MaterialTheme.colorScheme.success.copy(alpha = 0.15f)
                                                 else MaterialTheme.colorScheme.surfaceVariant
                                             )
                                             .border(
-                                                1.dp,
+                                                Dimens.BorderThin,
                                                 if (isTestWakeWordTriggered) MaterialTheme.colorScheme.success
                                                 else MaterialTheme.colorScheme.outlineVariant,
-                                                RoundedCornerShape(12.dp)
+                                                RoundedCornerShape(Dimens.RadiusDefault)
                                             )
-                                            .padding(14.dp),
+                                            .padding(Dimens.SpaceMedium),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Column(
                                             horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                            verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSmall)
                                          ) {
                                             if (isTestWakeWordTriggered) {
                                                 Text(
@@ -1094,7 +1094,7 @@ fun VoiceSettingsScreen(
                     if (trainedWakeWords.isNotEmpty()) {
                         Column(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                            verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSmall)
                         ) {
                             Text(
                                 text = "Trained voice Profiles",
@@ -1113,22 +1113,22 @@ fun VoiceSettingsScreen(
                                         containerColor = if (isCurrentActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
                                         else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.01f)
                                     ),
-                                    shape = RoundedCornerShape(14.dp),
+                                    shape = RoundedCornerShape(Dimens.RadiusMedium),
                                     border = BorderStroke(
-                                        1.dp,
+                                        Dimens.BorderThin,
                                         if (isCurrentActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
                                         else MaterialTheme.colorScheme.outlineVariant
                                     )
                                 ) {
                                     Row(
-                                        modifier = Modifier.padding(12.dp),
+                                        modifier = Modifier.padding(Dimens.SpaceMedium),
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                            Row(
+                                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Dimens.SpaceExtraSmall)) {
+                                             Row(
                                                 verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSmall)
                                             ) {
                                                 Text(
                                                     text = item.word,
@@ -1139,9 +1139,9 @@ fun VoiceSettingsScreen(
                                                 if (isCurrentActive) {
                                                     Box(
                                                         modifier = Modifier
-                                                            .clip(RoundedCornerShape(6.dp))
+                                                            .clip(RoundedCornerShape(Dimens.RadiusSmall))
                                                             .background(MaterialTheme.colorScheme.success.copy(alpha = 0.12f))
-                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                            .padding(horizontal = Dimens.SpaceSmall, vertical = Dimens.GapMicro)
                                                     ) {
                                                         Text(
                                                             text = "ACTIVE",
@@ -1161,13 +1161,13 @@ fun VoiceSettingsScreen(
 
                                         IconButton(
                                             onClick = { viewModel.deleteTrainedWakeWord(item.id, item.word) },
-                                            modifier = Modifier.size(36.dp)
+                                            modifier = Modifier.size(Dimens.IconLarge)
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Filled.Delete,
                                                 contentDescription = "Delete profile",
                                                 tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
-                                                modifier = Modifier.size(18.dp)
+                                                modifier = Modifier.size(Dimens.IconSmall)
                                             )
                                         }
                                     }
@@ -1176,7 +1176,7 @@ fun VoiceSettingsScreen(
                         }
                     }
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
+                    HorizontalDivider(modifier = Modifier.padding(vertical = Dimens.SpaceExtraSmall), color = MaterialTheme.colorScheme.outlineVariant, thickness = Dimens.BorderThin)
 
                     val usePersistentList by viewModel.usePersistentListening.collectAsState()
                     Row(
@@ -1218,10 +1218,10 @@ fun VoiceSettingsScreen(
             Card(
                 modifier = Modifier.fillMaxWidth().testTag("voice_engine_card"),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(22.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                shape = RoundedCornerShape(Dimens.CardCornerRadius),
+                elevation = CardDefaults.cardElevation(defaultElevation = Dimens.CardElevation)
             ) {
-                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(modifier = Modifier.padding(Dimens.PaddingCardInner), verticalArrangement = Arrangement.spacedBy(Dimens.SpaceDefault)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1240,16 +1240,16 @@ fun VoiceSettingsScreen(
                                 containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
                                 contentColor = MaterialTheme.colorScheme.primary
                             ),
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                            shape = RoundedCornerShape(Dimens.RadiusDefault),
+                            contentPadding = PaddingValues(horizontal = Dimens.SpaceMedium, vertical = Dimens.SpaceExtraSmall),
                             modifier = Modifier.testTag("test_voice_button")
                         ) {
                             Icon(
                                 imageVector = Icons.Default.PlayArrow,
                                 contentDescription = "Test Voice Icon",
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(Dimens.IconSmall - Dimens.SpaceExtraSmall)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(Dimens.SpaceSmall))
                             Text(
                                 text = "Test Voice",
                                 fontSize = 13.sp,
@@ -1258,16 +1258,16 @@ fun VoiceSettingsScreen(
                         }
                     }
 
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSmall)) {
                         // Option 1: Auto
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(RoundedCornerShape(Dimens.RadiusDefault))
                                 .clickable { viewModel.setSelectedTtsEngine(AiraViewModel.TtsEngine.AUTO) }
-                                .padding(vertical = 12.dp, horizontal = 8.dp),
+                                .padding(vertical = Dimens.SpaceMedium, horizontal = Dimens.SpaceSmall),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceDefault)
                         ) {
                             RadioButton(
                                 selected = selectedTtsEngine == AiraViewModel.TtsEngine.AUTO,
@@ -1302,11 +1302,11 @@ fun VoiceSettingsScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(RoundedCornerShape(Dimens.RadiusDefault))
                                 .clickable { viewModel.setSelectedTtsEngine(AiraViewModel.TtsEngine.GOOGLE_TTS) }
-                                .padding(vertical = 12.dp, horizontal = 8.dp),
+                                .padding(vertical = Dimens.SpaceMedium, horizontal = Dimens.SpaceSmall),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceDefault)
                         ) {
                             RadioButton(
                                 selected = selectedTtsEngine == AiraViewModel.TtsEngine.GOOGLE_TTS,
@@ -1342,11 +1342,11 @@ fun VoiceSettingsScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(RoundedCornerShape(Dimens.RadiusDefault))
                                 .clickable(enabled = isAmyDownloaded) { viewModel.setSelectedTtsEngine(AiraViewModel.TtsEngine.PIPER_OFFLINE) }
-                                .padding(vertical = 12.dp, horizontal = 8.dp),
+                                .padding(vertical = Dimens.SpaceMedium, horizontal = Dimens.SpaceSmall),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceDefault)
                         ) {
                             RadioButton(
                                 selected = selectedTtsEngine == AiraViewModel.TtsEngine.PIPER_OFFLINE,
@@ -1503,11 +1503,11 @@ fun VoiceSettingsScreen(
                 colors = CardDefaults.cardColors(
                     containerColor = if (isLocalMode) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surface
                 ),
-                shape = RoundedCornerShape(22.dp),
-                border = if (isLocalMode) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                shape = RoundedCornerShape(Dimens.CardCornerRadius),
+                border = if (isLocalMode) BorderStroke(Dimens.BorderMedium, MaterialTheme.colorScheme.primary) else null,
+                elevation = CardDefaults.cardElevation(defaultElevation = Dimens.CardElevation)
             ) {
-                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(modifier = Modifier.padding(Dimens.PaddingCardInner), verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMedium)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1515,12 +1515,12 @@ fun VoiceSettingsScreen(
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMedium),
                             modifier = Modifier.weight(1f)
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(40.dp)
+                                    .size(Dimens.IconLarge)
                                     .background(
                                         if (isLocalMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                                         CircleShape
@@ -1531,7 +1531,7 @@ fun VoiceSettingsScreen(
                                     imageVector = Icons.Default.Mic,
                                     contentDescription = null,
                                     tint = if (isLocalMode) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(22.dp)
+                                    modifier = Modifier.size(Dimens.IconSmall)
                                 )
                             }
                             Column {
@@ -1563,10 +1563,10 @@ fun VoiceSettingsScreen(
             Card(
                 modifier = Modifier.fillMaxWidth().testTag("speech_recognition_engine_card"),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(22.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                shape = RoundedCornerShape(Dimens.CardCornerRadius),
+                elevation = CardDefaults.cardElevation(defaultElevation = Dimens.CardElevation)
             ) {
-                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(modifier = Modifier.padding(Dimens.PaddingCardInner), verticalArrangement = Arrangement.spacedBy(Dimens.SpaceDefault)) {
                     Text(
                         text = "Voice Input Engine",
                         fontSize = 18.sp,
@@ -1583,16 +1583,16 @@ fun VoiceSettingsScreen(
                         lineHeight = 18.sp
                     )
 
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSmall)) {
                         // Option 1: Auto-routing
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(RoundedCornerShape(Dimens.RadiusDefault))
                                 .clickable { viewModel.setSelectedSttEngine(AiraViewModel.SttEngine.AUTO) }
-                                .padding(vertical = 12.dp, horizontal = 8.dp),
+                                .padding(vertical = Dimens.SpaceMedium, horizontal = Dimens.SpaceSmall),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceDefault)
                         ) {
                             RadioButton(
                                 selected = selectedSttEngine == AiraViewModel.SttEngine.AUTO,

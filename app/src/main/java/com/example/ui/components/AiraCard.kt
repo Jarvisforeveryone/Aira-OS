@@ -8,9 +8,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -66,6 +68,8 @@ fun AiraCard(
     showHoloSweep: Boolean = false,
     enableFloating: Boolean = false,
     highlightGlow: Boolean = false,
+    leadingStripe: Boolean = false,
+    stripeColor: Color? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val adaptive = ScreenUtils.adaptiveValues()
@@ -92,22 +96,34 @@ fun AiraCard(
         border = BorderStroke(if (highlightGlow) 1.5.dp else 1.dp, if (highlightGlow) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f) else borderColor),
         elevation = CardDefaults.cardElevation(defaultElevation = effectiveElevation)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(effectivePadding),
-            verticalArrangement = Arrangement.spacedBy(verticalSpacing)
+        Row(
+            modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)
         ) {
-            if (title != null || icon != null || headerTrailing != null) {
-                AiraCardHeader(
-                    title = title,
-                    subtitle = subtitle,
-                    icon = icon,
-                    iconTint = iconTint,
-                    headerTrailing = headerTrailing
+            if (leadingStripe || stripeColor != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .width(4.dp)
+                        .background(stripeColor ?: MaterialTheme.colorScheme.primary)
                 )
             }
-            content()
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(effectivePadding),
+                verticalArrangement = Arrangement.spacedBy(verticalSpacing)
+            ) {
+                if (title != null || icon != null || headerTrailing != null) {
+                    AiraCardHeader(
+                        title = title,
+                        subtitle = subtitle,
+                        icon = icon,
+                        iconTint = iconTint,
+                        headerTrailing = headerTrailing
+                    )
+                }
+                content()
+            }
         }
     }
 }
@@ -132,7 +148,7 @@ fun AiraCardHeader(
             if (icon != null) {
                 Box(
                     modifier = Modifier
-                        .size(38.dp)
+                        .size(Dimens.IconLarge)
                         .clip(CircleShape)
                         .background(iconTint.copy(alpha = 0.12f)),
                     contentAlignment = Alignment.Center
@@ -141,10 +157,10 @@ fun AiraCardHeader(
                         imageVector = icon,
                         contentDescription = title,
                         tint = iconTint,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(Dimens.IconSmall)
                     )
                 }
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(Dimens.SpaceMedium))
             }
             Column {
                 if (title != null) {
@@ -167,10 +183,10 @@ fun AiraCardHeader(
             }
         }
         if (headerTrailing != null) {
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(Dimens.SpaceSmall))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSmall)
             ) {
                 headerTrailing()
             }
@@ -189,15 +205,15 @@ fun AiraBadge(
 ) {
     Surface(
         color = badgeColor,
-        shape = RoundedCornerShape(8.dp),
-        modifier = Modifier.padding(vertical = 2.dp)
+        shape = RoundedCornerShape(Dimens.RadiusSmall),
+        modifier = Modifier.padding(vertical = Dimens.GapMicro)
     ) {
         Text(
             text = text,
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
             color = textColor,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+            modifier = Modifier.padding(horizontal = Dimens.SpaceSmall, vertical = Dimens.GapMicro)
         )
     }
 }

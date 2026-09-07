@@ -33,7 +33,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loadCommands() {
-        viewModelScope.launch {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             voiceRepository.getVoiceCommands().collect { cmdList ->
                 _uiState.value = _uiState.value.copy(commands = cmdList)
             }
@@ -42,7 +42,7 @@ class VoiceViewModel(application: Application) : AndroidViewModel(application) {
 
     fun processVoiceInput(input: String) {
         if (input.isBlank()) return
-        viewModelScope.launch {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             _uiState.value = _uiState.value.copy(isLoading = true)
             when (val result = processVoiceCommandUseCase(input)) {
                 is Result.Success -> {

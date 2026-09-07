@@ -38,10 +38,13 @@ import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.filled.ThumbDown
+import com.example.utils.ShizukuManager
 import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Feedback
+import androidx.compose.material.icons.outlined.Inbox
+import androidx.compose.material.icons.outlined.QuestionAnswer
 import androidx.compose.material.icons.outlined.RateReview
 import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.material.icons.outlined.Refresh
@@ -251,6 +254,9 @@ fun HomeScreen(
 
             if (isOfflineBrain) {
                 Spacer(modifier = Modifier.height(Dimens.GapMedium))
+                val isShizukuOrLadb = ShizukuManager.isShizukuAvailable() || ShizukuManager.isLadbInstalled(context)
+                val bannerTitle = if (isShizukuOrLadb) "Device Control Active" else "Offline Mode (Limited)"
+                val bannerSubtext = if (isShizukuOrLadb) "Offline Rules • Device Control Ready" else "Offline Rules • Basic Command Mode"
                 Surface(
                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
@@ -273,7 +279,7 @@ fun HomeScreen(
                                     .background(colorResource(id = R.color.aira_success_light), CircleShape)
                             )
                             Text(
-                                text = "Offline Mode Active",
+                                text = bannerTitle,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface,
@@ -288,7 +294,7 @@ fun HomeScreen(
                             shape = RoundedCornerShape(Dimens.CornerRadiusSmall)
                         ) {
                             Text(
-                                text = "Private On-Device AI • Voice Ready",
+                                text = bannerSubtext,
                                 fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.primary,
                                 fontFamily = FontFamily.SansSerif,
@@ -357,7 +363,7 @@ fun HomeScreen(
                     shape = RoundedCornerShape(Dimens.CornerRadiusSmall)
                 ) {
                     Text(
-                        text = if (isOfflineBrain) "AI: Offline Mode" else "AI: Online Mode",
+                        text = if (isOfflineBrain) "Engine: Offline Rules" else "AI: Online Cloud",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -534,7 +540,7 @@ fun HomeScreen(
                         .fillMaxWidth()
                         .padding(vertical = Dimens.GapSmall)
                         .testTag("smart_replies_row"),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSmall)
                 ) {
                     items(smartReplies) { replyOption ->
                         SuggestionChip(
@@ -552,11 +558,11 @@ fun HomeScreen(
                                 Icon(
                                     imageVector = Icons.Outlined.AutoAwesome,
                                     contentDescription = null,
-                                    modifier = Modifier.size(14.dp),
+                                    modifier = Modifier.size(Dimens.IconSmall - Dimens.SpaceExtraSmall),
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                             },
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(Dimens.RadiusLarge),
                             colors = SuggestionChipDefaults.suggestionChipColors(
                                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
                                 labelColor = MaterialTheme.colorScheme.onSurface
@@ -577,7 +583,7 @@ fun HomeScreen(
                     .fillMaxWidth()
                     .padding(vertical = Dimens.GapSmall),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSmall)
             ) {
                 OutlinedTextField(
                     value = textCommandInput,
@@ -586,7 +592,7 @@ fun HomeScreen(
                     modifier = Modifier
                         .weight(1f)
                         .testTag("home_text_command_input"),
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(Dimens.SpaceLarge),
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
@@ -605,7 +611,7 @@ fun HomeScreen(
                         }
                     },
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(Dimens.MinTouchTarget)
                         .background(MaterialTheme.colorScheme.primary, CircleShape)
                         .testTag("home_send_text_command_btn"),
                     enabled = textCommandInput.isNotBlank()
@@ -614,7 +620,7 @@ fun HomeScreen(
                         imageVector = Icons.AutoMirrored.Filled.Send,
                         contentDescription = "Send Text Command",
                         tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(Dimens.IconSmall)
                     )
                 }
             }
@@ -628,6 +634,8 @@ fun HomeScreen(
                     .padding(top = Dimens.GapLarge)
                     .testTag("morning_briefing_card"),
                 title = "Iron Man Morning Briefing",
+                leadingStripe = true,
+                stripeColor = MaterialTheme.colorScheme.primary,
                 headerTrailing = {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(Dimens.GapSmall),
@@ -671,7 +679,7 @@ fun HomeScreen(
                         fontFamily = FontFamily.SansSerif,
                         lineHeight = 18.sp,
                         color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(vertical = 8.dp)
+                        modifier = Modifier.padding(vertical = Dimens.SpaceSmall)
                     )
                 }
             }
@@ -682,6 +690,8 @@ fun HomeScreen(
                     .staggeredEntry(index = 1)
                     .padding(top = Dimens.GapExtraLarge),
                 title = "Recent Chats",
+                leadingStripe = true,
+                stripeColor = MaterialTheme.colorScheme.secondary,
                 headerTrailing = {
                     Row(
                         modifier = Modifier
@@ -745,13 +755,31 @@ fun HomeScreen(
                     }
 
                     if (displayItems.isEmpty()) {
-                        Text(
-                            text = "No recent conversations. Tap the voice orb to begin.",
-                            fontSize = 14.sp,
-                            fontFamily = FontFamily.SansSerif,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(vertical = Dimens.GapMedium)
-                        )
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = Dimens.SpaceLarge),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(Dimens.SpaceExtraSmall)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Inbox,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                                modifier = Modifier.size(Dimens.CardHeightLarge)
+                            )
+                            Text(
+                                text = "Nothing here yet",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Tap the voice orb to begin conversations",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     } else {
                         displayItems.forEachIndexed { index, item ->
                             RecentConversationRow(
@@ -770,9 +798,9 @@ fun HomeScreen(
                             )
                             if (index < displayItems.lastIndex) {
                                 HorizontalDivider(
-                                    color = MaterialTheme.colorScheme.outlineVariant,
-                                    thickness = 1.dp,
-                                    modifier = Modifier.padding(vertical = Dimens.GapTiny)
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                                    thickness = Dimens.BorderThin,
+                                    modifier = Modifier.padding(start = Dimens.SpaceLarge, top = Dimens.GapMicro, bottom = Dimens.GapMicro)
                                 )
                             }
                         }
@@ -906,15 +934,15 @@ fun HomeScreen(
                                 ) {
                                     OutlinedButton(
                                         onClick = { viewModel.piperTtsManager.startDownload() },
-                                        shape = RoundedCornerShape(10.dp),
-                                        modifier = Modifier.weight(1f).height(36.dp)
+                                        shape = RoundedCornerShape(Dimens.RadiusSmall),
+                                        modifier = Modifier.weight(1f).height(Dimens.IconLarge)
                                     ) {
                                         Text("Retry Setup", fontSize = 12.sp, fontFamily = FontFamily.SansSerif)
                                     }
                                     Button(
                                         onClick = { isDismissed = true },
-                                        shape = RoundedCornerShape(10.dp),
-                                        modifier = Modifier.weight(1f).height(36.dp)
+                                        shape = RoundedCornerShape(Dimens.RadiusSmall),
+                                        modifier = Modifier.weight(1f).height(Dimens.IconLarge)
                                     ) {
                                         Text("Use System Voice", fontSize = 12.sp, fontFamily = FontFamily.SansSerif)
                                     }
@@ -1011,9 +1039,9 @@ fun ResponseFeedbackButtons(
     val isNegative = existingFeedback?.feedbackType == "NEGATIVE"
 
     Row(
-        modifier = modifier.padding(top = 4.dp),
+        modifier = modifier.padding(top = Dimens.SpaceExtraSmall),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceExtraSmall)
     ) {
         IconButton(
             onClick = {
@@ -1025,14 +1053,14 @@ fun ResponseFeedbackButtons(
                 )
             },
             modifier = Modifier
-                .size(32.dp)
+                .size(Dimens.IconLarge - Dimens.SpaceExtraSmall)
                 .testTag("thumbs_up_button_${msg.id}")
         ) {
             Icon(
                 imageVector = if (isPositive) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
                 contentDescription = "Thumbs up positive feedback",
                 tint = if (isPositive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(Dimens.IconSmall - Dimens.SpaceExtraSmall)
             )
         }
 
@@ -1041,14 +1069,14 @@ fun ResponseFeedbackButtons(
                 onPromptNegativeFeedback(msg, queryText)
             },
             modifier = Modifier
-                .size(32.dp)
+                .size(Dimens.IconLarge - Dimens.SpaceExtraSmall)
                 .testTag("thumbs_down_button_${msg.id}")
         ) {
             Icon(
                 imageVector = if (isNegative) Icons.Filled.ThumbDown else Icons.Outlined.ThumbDown,
                 contentDescription = "Thumbs down negative feedback",
                 tint = if (isNegative) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(Dimens.IconSmall - Dimens.SpaceExtraSmall)
             )
         }
 
@@ -1056,7 +1084,7 @@ fun ResponseFeedbackButtons(
             Surface(
                 color = if (isPositive) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
                 else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(Dimens.RadiusDefault)
             ) {
                 Text(
                     text = if (isPositive) "Got it, thanks!" 
@@ -1066,7 +1094,7 @@ fun ResponseFeedbackButtons(
                     fontWeight = FontWeight.Medium,
                     color = if (isPositive) MaterialTheme.colorScheme.onPrimaryContainer 
                             else MaterialTheme.colorScheme.onErrorContainer,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                    modifier = Modifier.padding(horizontal = Dimens.SpaceSmall, vertical = Dimens.GapMicro),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1145,7 +1173,7 @@ fun NegativeFeedbackDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("negative_feedback_comment_input"),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(Dimens.RadiusDefault),
                     maxLines = 3
                 )
             }
@@ -1215,15 +1243,28 @@ fun FeedbackLogsDialog(
         },
         text = {
             if (feedbackList.isEmpty()) {
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(150.dp),
-                    contentAlignment = Alignment.Center
+                        .padding(vertical = Dimens.SpaceLarge),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(Dimens.SpaceExtraSmall)
                 ) {
+                    Icon(
+                        imageVector = Icons.Outlined.RateReview,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                        modifier = Modifier.size(Dimens.CardHeightLarge)
+                    )
                     Text(
-                        text = "No stored feedback logs yet.\nUse 👍 or 👎 on AI responses to provide feedback.",
-                        fontSize = 13.sp,
+                        text = "No feedback yet",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Use 👍 or 👎 on responses to log feedback",
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
@@ -1255,13 +1296,13 @@ fun FeedbackLogsDialog(
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSmall)
                                     ) {
                                         Icon(
                                             imageVector = if (isPos) Icons.Filled.ThumbUp else Icons.Filled.ThumbDown,
                                             contentDescription = null,
                                             tint = if (isPos) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                                            modifier = Modifier.size(16.dp)
+                                            modifier = Modifier.size(Dimens.IconSmall - Dimens.SpaceExtraSmall)
                                         )
                                         Text(
                                             text = if (isPos) "Positive" else "Negative",
@@ -1276,7 +1317,7 @@ fun FeedbackLogsDialog(
                                         color = MaterialTheme.colorScheme.outline
                                     )
                                 }
-                                Spacer(modifier = Modifier.height(4.dp))
+                                Spacer(modifier = Modifier.height(Dimens.SpaceExtraSmall))
                                 Text(
                                     text = "Q: ${item.query}",
                                     fontSize = 12.sp,
@@ -1291,7 +1332,7 @@ fun FeedbackLogsDialog(
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 if (!item.comment.isNullOrBlank()) {
-                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Spacer(modifier = Modifier.height(Dimens.SpaceExtraSmall))
                                     Text(
                                         text = "Comment: \"${item.comment}\"",
                                         fontSize = 11.sp,
@@ -1344,24 +1385,37 @@ fun FullConversationHistoryDialog(
                     Icon(
                         imageVector = Icons.Outlined.Feedback,
                         contentDescription = "Feedback Logs",
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(Dimens.IconSmall - Dimens.SpaceExtraSmall)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(Dimens.SpaceExtraSmall))
                     Text("Logs", fontSize = 12.sp)
                 }
             }
         },
         text = {
             if (chatHistory.isEmpty()) {
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(150.dp),
-                    contentAlignment = Alignment.Center
+                        .padding(vertical = Dimens.SpaceLarge),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(Dimens.SpaceExtraSmall)
                 ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Inbox,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                        modifier = Modifier.size(Dimens.CardHeightLarge)
+                    )
                     Text(
-                        text = "No conversation history yet.",
-                        fontSize = 14.sp,
+                        text = "Nothing here yet",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Your conversation logs will appear here",
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -1371,7 +1425,7 @@ fun FullConversationHistoryDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(max = 400.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSmall)
                 ) {
                     items(chatHistory, key = { it.id }) { msg ->
                         val queryText = getQueryForMessage(msg, chatHistory)
@@ -1405,7 +1459,7 @@ fun ChatLogBubble(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(vertical = Dimens.SpaceExtraSmall),
         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
     ) {
         Column(
@@ -1419,7 +1473,7 @@ fun ChatLogBubble(
                 fontWeight = FontWeight.Medium,
                 fontFamily = FontFamily.SansSerif,
                 color = if (isUser) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(bottom = 2.dp)
+                modifier = Modifier.padding(bottom = Dimens.GapMicro)
             )
 
             // Chat body Bubble
@@ -1427,17 +1481,17 @@ fun ChatLogBubble(
                 modifier = Modifier
                     .clip(
                         RoundedCornerShape(
-                            topStart = 12.dp,
-                            topEnd = 12.dp,
-                            bottomStart = if (isUser) 12.dp else 2.dp,
-                            bottomEnd = if (isUser) 2.dp else 12.dp
+                            topStart = Dimens.RadiusDefault,
+                            topEnd = Dimens.RadiusDefault,
+                            bottomStart = if (isUser) Dimens.RadiusDefault else Dimens.GapMicro,
+                            bottomEnd = if (isUser) Dimens.GapMicro else Dimens.RadiusDefault
                         )
                     )
                     .background(
                         if (isUser) MaterialTheme.colorScheme.secondaryContainer
                         else MaterialTheme.colorScheme.primaryContainer
                     )
-                    .padding(horizontal = 12.dp, vertical = 10.dp)
+                    .padding(horizontal = Dimens.SpaceMedium, vertical = Dimens.SpaceSmall)
             ) {
                 Text(
                     text = msg.message,
@@ -1487,15 +1541,15 @@ fun RecentConversationRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .defaultMinSize(minHeight = 56.dp)
-                .padding(vertical = 4.dp),
+                .defaultMinSize(minHeight = Dimens.CardHeightSmall)
+                .padding(vertical = Dimens.SpaceExtraSmall),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceDefault)
         ) {
             // Avatar
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(Dimens.MinTouchTarget - Dimens.SpaceSmall)
                     .background(avatarBg.copy(alpha = 0.12f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
@@ -1521,7 +1575,7 @@ fun RecentConversationRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(Dimens.GapMicro))
                 Text(
                     text = message,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1549,7 +1603,7 @@ fun RecentConversationRow(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 56.dp, bottom = 4.dp),
+                    .padding(start = Dimens.CardHeightSmall, bottom = Dimens.SpaceExtraSmall),
                 horizontalArrangement = Arrangement.Start,
                 verticalAlignment = Alignment.CenterVertically
             ) {

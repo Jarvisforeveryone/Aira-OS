@@ -84,9 +84,16 @@ fun SystemControlScreen(
         composable("automation_home") {
             AutomationHomeScreen(
                 viewModel = viewModel,
+                onNavigateToSmartAutomations = { navController.navigate("smart_automations_screen") },
                 onNavigateToSmartAuto = { navController.navigate("smart_auto_screen") },
                 onNavigateToMyActions = { navController.navigate("my_actions_screen") },
                 onNavigateToVoiceCommands = { navController.navigate("voice_command_screen") }
+            )
+        }
+        composable("smart_automations_screen") {
+            com.example.ui.automation.AutomationsScreen(
+                airaViewModel = viewModel,
+                onBack = { navController.popBackStack() }
             )
         }
         composable("smart_auto_screen") {
@@ -114,6 +121,7 @@ fun SystemControlScreen(
 @Composable
 fun AutomationHomeScreen(
     viewModel: AiraViewModel,
+    onNavigateToSmartAutomations: () -> Unit,
     onNavigateToSmartAuto: () -> Unit,
     onNavigateToMyActions: () -> Unit,
     onNavigateToVoiceCommands: () -> Unit
@@ -165,32 +173,32 @@ fun AutomationHomeScreen(
             JarvisCoreProtocolsCard(viewModel = viewModel)
 
             // ================== SYSTEM UTILS ==================
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceDefault)) {
                 Text(
                     text = "System Utilities",
                     fontWeight = FontWeight.Medium,
                     fontSize = 13.sp, // Labels: 13sp Medium
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
                     fontFamily = FontFamily.SansSerif,
-                    modifier = Modifier.padding(start = 8.dp)
+                    modifier = Modifier.padding(start = Dimens.SpaceSmall)
                 )
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(18.dp) // Between Cards: 18dp
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceDefault) // Between Cards
                 ) {
                     // Flashlight card
                     Card(
                         modifier = Modifier.weight(1f),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        shape = RoundedCornerShape(22.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        shape = RoundedCornerShape(Dimens.CardCornerRadius),
+                        border = BorderStroke(Dimens.BorderThin, MaterialTheme.colorScheme.outlineVariant),
+                        elevation = CardDefaults.cardElevation(defaultElevation = Dimens.CardElevation)
                     ) {
                         Column(
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier.padding(Dimens.SpaceDefault),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                            verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMedium)
                         ) {
                             Text(
                                 text = "Flashlight",
@@ -201,14 +209,14 @@ fun AutomationHomeScreen(
                             )
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSmall)
                             ) {
                                 Button(
                                     onClick = { viewModel.toggleFlashlight(true) },
                                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(40.dp)
+                                        .height(Dimens.CardHeightExtraSmall)
                                         .testTag("flash_on_btn"),
                                     contentPadding = PaddingValues(horizontal = Dimens.GapSmall),
                                     shape = RoundedCornerShape(Dimens.CornerRadiusMedium)
@@ -227,7 +235,7 @@ fun AutomationHomeScreen(
                                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.outlineVariant),
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(40.dp)
+                                        .height(Dimens.CardHeightExtraSmall)
                                         .testTag("flash_off_btn"),
                                     contentPadding = PaddingValues(horizontal = Dimens.GapSmall),
                                     shape = RoundedCornerShape(Dimens.CornerRadiusMedium)
@@ -249,14 +257,14 @@ fun AutomationHomeScreen(
                     Card(
                         modifier = Modifier.weight(1f),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        shape = RoundedCornerShape(22.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        shape = RoundedCornerShape(Dimens.CardCornerRadius),
+                        border = BorderStroke(Dimens.BorderThin, MaterialTheme.colorScheme.outlineVariant),
+                        elevation = CardDefaults.cardElevation(defaultElevation = Dimens.CardElevation)
                     ) {
                         Column(
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier.padding(Dimens.SpaceDefault),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSmall)
                         ) {
                             Text(
                                 text = "Profile",
@@ -272,35 +280,35 @@ fun AutomationHomeScreen(
                             ) {
                                 IconButton(
                                     onClick = { viewModel.setSoundMode(AudioManager.RINGER_MODE_NORMAL) },
-                                    modifier = Modifier.size(36.dp)
+                                    modifier = Modifier.size(Dimens.IconLarge)
                                 ) {
                                     Icon(
                                         imageVector = Icons.AutoMirrored.Filled.VolumeUp,
                                         contentDescription = "Normal",
                                         tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(20.dp)
+                                        modifier = Modifier.size(Dimens.IconSmall)
                                     )
                                 }
                                 IconButton(
                                     onClick = { viewModel.setSoundMode(AudioManager.RINGER_MODE_VIBRATE) },
-                                    modifier = Modifier.size(36.dp)
+                                    modifier = Modifier.size(Dimens.IconLarge)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Notifications,
                                         contentDescription = "Vibrate",
                                         tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(20.dp)
+                                        modifier = Modifier.size(Dimens.IconSmall)
                                     )
                                 }
                                 IconButton(
                                     onClick = { viewModel.setSoundMode(AudioManager.RINGER_MODE_SILENT) },
-                                    modifier = Modifier.size(36.dp)
+                                    modifier = Modifier.size(Dimens.IconLarge)
                                 ) {
                                     Icon(
                                         imageVector = Icons.AutoMirrored.Filled.VolumeMute,
                                         contentDescription = "Silent",
                                         tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(20.dp)
+                                        modifier = Modifier.size(Dimens.IconSmall)
                                     )
                                 }
                             }
@@ -310,26 +318,26 @@ fun AutomationHomeScreen(
             }
 
             // ALARM SYSTEM SCHEDULER
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceDefault)) {
                 Text(
                     text = "Alarm Clock",
                     fontWeight = FontWeight.Medium,
                     fontSize = 13.sp, // Labels
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
                     fontFamily = FontFamily.SansSerif,
-                    modifier = Modifier.padding(start = 8.dp)
+                    modifier = Modifier.padding(start = Dimens.SpaceSmall)
                 )
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    shape = RoundedCornerShape(22.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    shape = RoundedCornerShape(Dimens.CardCornerRadius),
+                    border = BorderStroke(Dimens.BorderThin, MaterialTheme.colorScheme.outlineVariant),
+                    elevation = CardDefaults.cardElevation(defaultElevation = Dimens.CardElevation)
                 ) {
                     Column(
-                        modifier = Modifier.padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        modifier = Modifier.padding(Dimens.PaddingCardInner),
+                        verticalArrangement = Arrangement.spacedBy(Dimens.SpaceDefault)
                     ) {
                         Text(
                             text = "Set Alarm",
@@ -341,7 +349,7 @@ fun AutomationHomeScreen(
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMedium),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             TextField(
@@ -575,10 +583,10 @@ fun AutomationHomeScreen(
                 }
             }
 
-            // ================== REDESIGNED SECTION: 3 NAVIGATION OPTIONS ==================
+            // ================== REDESIGNED SECTION: SMART AUTOMATIONS & ROUTINES ==================
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(
-                    text = "AI Routines & Automation",
+                    text = "Smart Automations & Routines",
                     fontWeight = FontWeight.Medium,
                     fontSize = 13.sp, // Labels
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
@@ -586,25 +594,115 @@ fun AutomationHomeScreen(
                     modifier = Modifier.padding(start = 8.dp)
                 )
 
-                // Option 1: Smart Auto
+                // Option 0 (Hero): Smart Automations Hub
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onNavigateToSmartAuto() }
-                        .testTag("smart_auto_nav_card"),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    shape = RoundedCornerShape(22.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        .clip(RoundedCornerShape(Dimens.CardCornerRadius))
+                        .clickable { onNavigateToSmartAutomations() }
+                        .testTag("smart_automations_hub_card"),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)),
+                    shape = RoundedCornerShape(Dimens.CardCornerRadius),
+                    border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .defaultMinSize(minHeight = 64.dp)
-                            .padding(20.dp),
+                            .defaultMinSize(minHeight = Dimens.CardHeightLarge)
+                            .padding(Dimens.PaddingCardInner),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMedium)
                     ) {
-                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .size(52.dp)
+                                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(Dimens.RadiusMedium)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Dimens.SpaceExtraSmall)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = "Smart Automations",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.SansSerif,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                ) {
+                                    Text(
+                                        text = "NEW",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                                    )
+                                }
+                            }
+                            Text(
+                                text = "Automate anything with your voice. No complicated flowcharts — just tell AIRA what to do.",
+                                fontSize = 13.sp,
+                                fontFamily = FontFamily.SansSerif,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                lineHeight = 17.sp
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = "Navigate",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(Dimens.IconSmall)
+                        )
+                    }
+                }
+
+                // Option 1: Smart Auto
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(Dimens.CardCornerRadius))
+                        .clickable { onNavigateToSmartAuto() }
+                        .testTag("smart_auto_nav_card"),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    shape = RoundedCornerShape(Dimens.CardCornerRadius),
+                    border = BorderStroke(Dimens.BorderThin, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = Dimens.CardElevation)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .defaultMinSize(minHeight = Dimens.CardHeightMedium)
+                            .padding(Dimens.PaddingCardInner),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMedium)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(Dimens.MinTouchTarget)
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), RoundedCornerShape(Dimens.RadiusMedium)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.AutoAwesome,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(Dimens.IconMedium)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Dimens.SpaceExtraSmall)) {
                             Text(
                                 text = "Smart Suggestions",
                                 fontSize = 18.sp, // Card Title
@@ -623,7 +721,7 @@ fun AutomationHomeScreen(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = "Navigate",
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(Dimens.IconSmall)
                         )
                     }
                 }
@@ -632,21 +730,36 @@ fun AutomationHomeScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .clip(RoundedCornerShape(Dimens.CardCornerRadius))
                         .clickable { onNavigateToMyActions() }
                         .testTag("my_actions_nav_card"),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    shape = RoundedCornerShape(22.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    shape = RoundedCornerShape(Dimens.CardCornerRadius),
+                    border = BorderStroke(Dimens.BorderThin, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = Dimens.CardElevation)
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .defaultMinSize(minHeight = 64.dp)
-                            .padding(20.dp),
+                            .defaultMinSize(minHeight = Dimens.CardHeightMedium)
+                            .padding(Dimens.PaddingCardInner),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMedium)
                     ) {
-                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .size(Dimens.MinTouchTarget)
+                                .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f), RoundedCornerShape(Dimens.RadiusMedium)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Tune,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.size(Dimens.IconMedium)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Dimens.SpaceExtraSmall)) {
                             Text(
                                 text = "My Actions",
                                 fontSize = 18.sp, // Card Title
@@ -664,8 +777,8 @@ fun AutomationHomeScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = "Navigate",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
+                            tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(Dimens.IconSmall)
                         )
                     }
                 }
@@ -674,21 +787,36 @@ fun AutomationHomeScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .clip(RoundedCornerShape(Dimens.CardCornerRadius))
                         .clickable { onNavigateToVoiceCommands() }
                         .testTag("voice_commands_nav_card"),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    shape = RoundedCornerShape(22.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    shape = RoundedCornerShape(Dimens.CardCornerRadius),
+                    border = BorderStroke(Dimens.BorderThin, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = Dimens.CardElevation)
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .defaultMinSize(minHeight = 64.dp)
-                            .padding(20.dp),
+                            .defaultMinSize(minHeight = Dimens.CardHeightMedium)
+                            .padding(Dimens.PaddingCardInner),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMedium)
                     ) {
-                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .size(Dimens.MinTouchTarget)
+                                .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.12f), RoundedCornerShape(Dimens.RadiusMedium)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Mic,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.tertiary,
+                                modifier = Modifier.size(Dimens.IconMedium)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Dimens.SpaceExtraSmall)) {
                             Text(
                                 text = "Voice Commands",
                                 fontSize = 18.sp, // Card Title
@@ -706,8 +834,8 @@ fun AutomationHomeScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = "Navigate",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
+                            tint = MaterialTheme.colorScheme.tertiary,
+                            modifier = Modifier.size(Dimens.IconSmall)
                         )
                     }
                 }
@@ -2425,13 +2553,13 @@ fun AssistantGoogleControlCard(
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(22.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(Dimens.CardCornerRadius),
+        border = BorderStroke(Dimens.BorderThin, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = Dimens.CardElevation)
     ) {
         Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier = Modifier.padding(Dimens.PaddingCardInner),
+            verticalArrangement = Arrangement.spacedBy(Dimens.SpaceDefault)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -2621,13 +2749,13 @@ fun JarvisCoreProtocolsCard(viewModel: AiraViewModel) {
             .fillMaxWidth()
             .testTag("jarvis_protocols_card"),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(22.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+        shape = RoundedCornerShape(Dimens.CardCornerRadius),
+        border = BorderStroke(Dimens.BorderThin, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = Dimens.CardElevation)
     ) {
         Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            modifier = Modifier.padding(Dimens.PaddingCardInner),
+            verticalArrangement = Arrangement.spacedBy(Dimens.SpaceDefault)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,

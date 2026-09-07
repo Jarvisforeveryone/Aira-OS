@@ -24,11 +24,11 @@ import com.example.R
 import com.example.data.ThemeRepository
 
 val AiraShapes = Shapes(
-    extraSmall = RoundedCornerShape(4.dp),
-    small = RoundedCornerShape(8.dp),
-    medium = RoundedCornerShape(12.dp),
-    large = RoundedCornerShape(16.dp),
-    extraLarge = RoundedCornerShape(28.dp)
+    extraSmall = RoundedCornerShape(Dimens.CornerRadiusExtraSmall),
+    small = RoundedCornerShape(Dimens.RadiusSmall),
+    medium = RoundedCornerShape(Dimens.RadiusDefault),
+    large = RoundedCornerShape(Dimens.RadiusLarge),
+    extraLarge = RoundedCornerShape(Dimens.CornerRadiusExtraLarge)
 )
 
 val AiraTypography = Typography(

@@ -33,6 +33,7 @@ class MultiKeyManager private constructor(private val context: Context) {
     private val statusMap = ConcurrentHashMap<String, KeyStatusInfo>()
     private val providerPointers = ConcurrentHashMap<String, Int>()
 
+    @Synchronized
     fun getKeys(provider: String): List<String> {
         val provKey = provider.uppercase().trim()
         val jsonStr = sharedPreferences.getString("keys_$provKey", null) ?: "[]"
@@ -51,6 +52,7 @@ class MultiKeyManager private constructor(private val context: Context) {
         return list
     }
 
+    @Synchronized
     fun addKey(provider: String, key: String): Boolean {
         val provKey = provider.uppercase().trim()
         val trimmedKey = key.trim()
@@ -68,6 +70,7 @@ class MultiKeyManager private constructor(private val context: Context) {
         return false
     }
 
+    @Synchronized
     fun removeKey(provider: String, index: Int): Boolean {
         val provKey = provider.uppercase().trim()
         val currentList = getKeys(provKey).toMutableList()
@@ -82,6 +85,7 @@ class MultiKeyManager private constructor(private val context: Context) {
         return false
     }
 
+    @Synchronized
     fun removeKeyByValue(provider: String, key: String): Boolean {
         val provKey = provider.uppercase().trim()
         val currentList = getKeys(provKey).toMutableList()
@@ -94,6 +98,7 @@ class MultiKeyManager private constructor(private val context: Context) {
         return false
     }
 
+    @Synchronized
     fun getNextKey(provider: String): String? {
         val provKey = provider.uppercase().trim()
         val keys = getKeys(provKey)

@@ -36,6 +36,7 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -112,12 +113,12 @@ class MainActivity : ComponentActivity() {
                 } else {
                     var selectedTab by remember { mutableIntStateOf(0) }
                     val snackbarHostState = remember { SnackbarHostState() }
-                    val globalError by AiraViewModel.globalError.collectAsState()
+                    val globalError by com.example.presentation.common.GlobalErrorHandler.globalError.collectAsState()
 
                     LaunchedEffect(globalError) {
                         globalError?.let { message ->
                             snackbarHostState.showSnackbar(message)
-                            AiraViewModel.clearGlobalError()
+                            com.example.presentation.common.GlobalErrorHandler.clearGlobalError()
                         }
                     }
 
@@ -188,11 +189,22 @@ class MainActivity : ComponentActivity() {
                                         onClick = { selectedTab = NavRoutes.TAB_ASSISTANT },
                                         alwaysShowLabel = true,
                                         icon = { 
-                                            Icon(
-                                                imageVector = if (selectedTab == NavRoutes.TAB_ASSISTANT) Icons.Filled.Home else Icons.Outlined.Home, 
-                                                contentDescription = "Assistant Hub", 
-                                                modifier = Modifier.size(Dimensions.IconSizeLarge)
-                                            ) 
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(50))
+                                                    .background(
+                                                        if (selectedTab == NavRoutes.TAB_ASSISTANT) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                                        else Color.Transparent
+                                                    )
+                                                    .padding(horizontal = Dimens.SpaceMedium, vertical = Dimens.GapMicro),
+                                                contentAlignment = androidx.compose.ui.Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (selectedTab == NavRoutes.TAB_ASSISTANT) Icons.Filled.Home else Icons.Outlined.Home, 
+                                                    contentDescription = "Assistant Hub", 
+                                                    modifier = Modifier.size(Dimensions.IconSizeLarge)
+                                                )
+                                            }
                                         },
                                         label = {
                                             Text(
@@ -209,7 +221,7 @@ class MainActivity : ComponentActivity() {
                                             selectedTextColor = IconColors.TabActive,
                                             unselectedIconColor = IconColors.TabInactive,
                                             unselectedTextColor = IconColors.TabInactive,
-                                            indicatorColor = IconColors.TabActive.copy(alpha = Opacities.ActivePillBg)
+                                            indicatorColor = Color.Transparent
                                         ),
                                         modifier = Modifier.testTag("nav_assistant_tab")
                                     )
@@ -218,11 +230,22 @@ class MainActivity : ComponentActivity() {
                                         onClick = { selectedTab = NavRoutes.TAB_COMMANDS },
                                         alwaysShowLabel = true,
                                         icon = { 
-                                            Icon(
-                                                imageVector = if (selectedTab == NavRoutes.TAB_COMMANDS) Icons.Filled.AutoAwesome else Icons.Outlined.AutoAwesome, 
-                                                contentDescription = "Command Deck", 
-                                                modifier = Modifier.size(Dimensions.IconSizeLarge)
-                                            ) 
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(50))
+                                                    .background(
+                                                        if (selectedTab == NavRoutes.TAB_COMMANDS) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                                        else Color.Transparent
+                                                    )
+                                                    .padding(horizontal = Dimens.SpaceMedium, vertical = Dimens.GapMicro),
+                                                contentAlignment = androidx.compose.ui.Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (selectedTab == NavRoutes.TAB_COMMANDS) Icons.Filled.AutoAwesome else Icons.Outlined.AutoAwesome, 
+                                                    contentDescription = "Command Deck", 
+                                                    modifier = Modifier.size(Dimensions.IconSizeLarge)
+                                                )
+                                            }
                                         },
                                         label = {
                                             Text(
@@ -239,7 +262,7 @@ class MainActivity : ComponentActivity() {
                                             selectedTextColor = IconColors.TabActive,
                                             unselectedIconColor = IconColors.TabInactive,
                                             unselectedTextColor = IconColors.TabInactive,
-                                            indicatorColor = IconColors.TabActive.copy(alpha = Opacities.ActivePillBg)
+                                            indicatorColor = Color.Transparent
                                         ),
                                         modifier = Modifier.testTag("nav_commands_tab")
                                     )
@@ -248,11 +271,22 @@ class MainActivity : ComponentActivity() {
                                         onClick = { selectedTab = NavRoutes.TAB_FEEDS },
                                         alwaysShowLabel = true,
                                         icon = { 
-                                            Icon(
-                                                imageVector = if (selectedTab == NavRoutes.TAB_FEEDS) Icons.AutoMirrored.Filled.Article else Icons.AutoMirrored.Outlined.Article, 
-                                                contentDescription = "Climate News Feed", 
-                                                modifier = Modifier.size(Dimensions.IconSizeLarge)
-                                            ) 
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(50))
+                                                    .background(
+                                                        if (selectedTab == NavRoutes.TAB_FEEDS) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                                        else Color.Transparent
+                                                    )
+                                                    .padding(horizontal = Dimens.SpaceMedium, vertical = Dimens.GapMicro),
+                                                contentAlignment = androidx.compose.ui.Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (selectedTab == NavRoutes.TAB_FEEDS) Icons.AutoMirrored.Filled.Article else Icons.AutoMirrored.Outlined.Article, 
+                                                    contentDescription = "Climate News Feed", 
+                                                    modifier = Modifier.size(Dimensions.IconSizeLarge)
+                                                )
+                                            }
                                         },
                                         label = {
                                             Text(
@@ -269,7 +303,7 @@ class MainActivity : ComponentActivity() {
                                             selectedTextColor = IconColors.TabActive,
                                             unselectedIconColor = IconColors.TabInactive,
                                             unselectedTextColor = IconColors.TabInactive,
-                                            indicatorColor = IconColors.TabActive.copy(alpha = Opacities.ActivePillBg)
+                                            indicatorColor = Color.Transparent
                                         ),
                                         modifier = Modifier.testTag("nav_feeds_tab")
                                     )
@@ -278,11 +312,22 @@ class MainActivity : ComponentActivity() {
                                         onClick = { selectedTab = NavRoutes.TAB_CONFIG },
                                         alwaysShowLabel = true,
                                         icon = { 
-                                            Icon(
-                                                imageVector = if (selectedTab == NavRoutes.TAB_CONFIG) Icons.Filled.Settings else Icons.Outlined.Settings, 
-                                                contentDescription = "Module Configurations", 
-                                                modifier = Modifier.size(Dimensions.IconSizeLarge)
-                                            ) 
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(50))
+                                                    .background(
+                                                        if (selectedTab == NavRoutes.TAB_CONFIG) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                                        else Color.Transparent
+                                                    )
+                                                    .padding(horizontal = Dimens.SpaceMedium, vertical = Dimens.GapMicro),
+                                                contentAlignment = androidx.compose.ui.Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (selectedTab == NavRoutes.TAB_CONFIG) Icons.Filled.Settings else Icons.Outlined.Settings, 
+                                                    contentDescription = "Module Configurations", 
+                                                    modifier = Modifier.size(Dimensions.IconSizeLarge)
+                                                )
+                                            }
                                         },
                                         label = {
                                             Text(
@@ -299,7 +344,7 @@ class MainActivity : ComponentActivity() {
                                             selectedTextColor = IconColors.TabActive,
                                             unselectedIconColor = IconColors.TabInactive,
                                             unselectedTextColor = IconColors.TabInactive,
-                                            indicatorColor = IconColors.TabActive.copy(alpha = Opacities.ActivePillBg)
+                                            indicatorColor = Color.Transparent
                                         ),
                                         modifier = Modifier.testTag("nav_config_tab")
                                     )

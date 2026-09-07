@@ -60,9 +60,9 @@ val commonConnectionPool: ConnectionPool by lazy {
 val commonOkHttpClient: OkHttpClient by lazy {
     OkHttpClient.Builder()
         .connectionPool(commonConnectionPool)
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
-        .writeTimeout(60, TimeUnit.SECONDS)
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(20, TimeUnit.SECONDS)
+        .writeTimeout(15, TimeUnit.SECONDS)
         .retryOnConnectionFailure(true)
         .build()
 }

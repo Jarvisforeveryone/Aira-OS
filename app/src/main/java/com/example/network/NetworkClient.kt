@@ -10,9 +10,9 @@ import java.util.concurrent.TimeUnit
  */
 object NetworkClient {
 
-    private const val CONNECT_TIMEOUT_SECONDS = 10L
-    private const val READ_TIMEOUT_SECONDS = 30L
-    private const val WRITE_TIMEOUT_SECONDS = 15L
+    private const val CONNECT_TIMEOUT_SECONDS = 8L
+    private const val READ_TIMEOUT_SECONDS = 18L
+    private const val WRITE_TIMEOUT_SECONDS = 12L
 
     private val loggingInterceptor: HttpLoggingInterceptor by lazy {
         HttpLoggingInterceptor().apply {
@@ -25,7 +25,7 @@ object NetworkClient {
             .connectTimeout(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .writeTimeout(WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .addInterceptor(RetryInterceptor(maxRetries = 2))
+            .addInterceptor(RetryInterceptor(maxRetries = 1))
             .addInterceptor(loggingInterceptor)
             .retryOnConnectionFailure(true)
             .build()

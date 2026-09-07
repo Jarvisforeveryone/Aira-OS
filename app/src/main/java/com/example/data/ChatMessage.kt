@@ -3,7 +3,10 @@ package com.example.data
 import androidx.room.*
 import kotlinx.coroutines.flow.Flow
 
-@Entity(tableName = "chat_messages")
+@Entity(
+    tableName = "chat_messages",
+    indices = [Index(value = ["timestamp"])]
+)
 data class ChatMessage(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     @ColumnInfo(name = "sender") val sender: String, // "user" or "aira"

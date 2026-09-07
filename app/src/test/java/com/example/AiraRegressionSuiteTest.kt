@@ -56,9 +56,9 @@ class AiraRegressionSuiteTest {
     // AIRA-DB-001 & AIRA-DB-002: Upgrade migrations preserve user data without destructive upgrades
     @Test
     fun regression_AIRA_DB_001_and_002_MigrationsPreserveData() {
-        assertEquals(10, DatabaseSchema.DATABASE_VERSION)
+        assertEquals(11, DatabaseSchema.DATABASE_VERSION)
         assertTrue(DatabaseSchema.ALL_MIGRATIONS.isNotEmpty())
-        assertEquals(9, DatabaseSchema.ALL_MIGRATIONS.size)
+        assertEquals(10, DatabaseSchema.ALL_MIGRATIONS.size)
     }
 
     // AIRA-PRIV-001 & AIRA-PRIV-002: Password fields and protected screen text are masked

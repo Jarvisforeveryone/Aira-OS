@@ -1,7 +1,7 @@
 package com.example.data
 
 import android.util.Log
-import com.example.ui.AiraViewModel
+import com.example.presentation.common.GlobalErrorHandler
 import kotlinx.coroutines.delay
 
 object NetworkErrorHandler {
@@ -28,13 +28,13 @@ object NetworkErrorHandler {
             } catch (e: java.net.UnknownHostException) {
                 Log.w("NetworkErrorHandler", "$serviceName: No internet connection (Attempt ${attempt + 1}/${maxRetries + 1})")
                 if (attempt == maxRetries) {
-                    AiraViewModel.showGlobalError("No connection detected. Please check your internet.")
+                    GlobalErrorHandler.showGlobalError("No connection detected. Please check your internet.")
                     return null
                 }
             } catch (e: java.net.SocketTimeoutException) {
                 Log.w("NetworkErrorHandler", "$serviceName: Timeout (Attempt ${attempt + 1}/${maxRetries + 1})")
                 if (attempt == maxRetries) {
-                    AiraViewModel.showGlobalError("The $serviceName timed out. Please try again.")
+                    GlobalErrorHandler.showGlobalError("The $serviceName timed out. Please try again.")
                     return null
                 }
             } catch (e: Exception) {
@@ -42,7 +42,7 @@ object NetworkErrorHandler {
                 val isTransientOrRateLimit = msg.contains("429") || msg.contains("500") || msg.contains("502") || msg.contains("503") || msg.contains("504") || e is java.io.IOException
                 Log.w("NetworkErrorHandler", "$serviceName: Failure - ${e.javaClass.simpleName}: $msg (Attempt ${attempt + 1}/${maxRetries + 1})")
                 if (attempt == maxRetries || !isTransientOrRateLimit) {
-                    AiraViewModel.showGlobalError("$serviceName failed: ${e.localizedMessage ?: "Unknown error"}")
+                    GlobalErrorHandler.showGlobalError("$serviceName failed: ${e.localizedMessage ?: "Unknown error"}")
                     return null
                 }
             }
@@ -60,7 +60,7 @@ object NetworkErrorHandler {
             block()
         } catch (e: Exception) {
             Log.e("NetworkErrorHandler", "$engineName: Exception", e)
-            AiraViewModel.showGlobalError("$engineName failure: ${e.localizedMessage ?: "Unknown error"}")
+            GlobalErrorHandler.showGlobalError("$engineName failure: ${e.localizedMessage ?: "Unknown error"}")
         }
     }
 }

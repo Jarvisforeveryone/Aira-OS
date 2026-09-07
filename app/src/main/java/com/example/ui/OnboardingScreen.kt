@@ -586,7 +586,7 @@ private fun OnboardingBrainModeStep(
     Spacer(modifier = Modifier.height(6.dp))
 
     Text(
-        text = "Switch dynamically between Cloud AI for deep reasoning and 100% Private Local AI for internet-free speed.",
+        text = "Switch dynamically between Cloud AI for deep reasoning and Offline Rules for internet-free device control.",
         fontSize = 14.sp,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center,
@@ -608,10 +608,10 @@ private fun OnboardingBrainModeStep(
 
     Spacer(modifier = Modifier.height(12.dp))
 
-    // Selectable Option 2: Offline Local LLaMA
+    // Selectable Option 2: Offline Rules Mode
     SelectableBrainCard(
-        title = if (isDeviceMemoryCapable) "100% Private Offline AI Mode" else "100% Private Offline AI (Disabled)",
-        subtitle = if (isDeviceMemoryCapable) "Runs AI directly on your phone with zero internet required for total privacy."
+        title = if (isDeviceMemoryCapable) "Offline Basic Command Mode" else "Offline Command Mode (Disabled)",
+        subtitle = if (isDeviceMemoryCapable) "Executes device commands and basic rules directly on your phone with zero internet required."
                   else "Not recommended for your device (< 3GB RAM). Disabled to prevent memory crashes.",
         icon = Icons.Default.PhonelinkRing,
         accentColor = if (isDeviceMemoryCapable) colorResource(R.color.aira_success_light) else MaterialTheme.colorScheme.onSurfaceVariant,

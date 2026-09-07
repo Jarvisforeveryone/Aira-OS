@@ -75,7 +75,7 @@ fun AiraListItem(
                 if (icon != null) {
                     Box(
                         modifier = Modifier
-                            .size(Dimens.MinTouchTarget - 8.dp)
+                            .size(Dimens.MinTouchTarget - Dimens.SpaceSmall)
                             .clip(CircleShape)
                             .background(iconTint.copy(alpha = 0.12f)),
                         contentAlignment = Alignment.Center

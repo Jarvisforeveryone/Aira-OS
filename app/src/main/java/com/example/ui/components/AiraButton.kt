@@ -82,7 +82,7 @@ fun AiraButton(
         .holographicLightSweep(enabled = variant == AiraButtonVariant.PRIMARY && enabled)
         .highTechGlowPulse(active = showTechGlow, glowColor = containerColor)
 
-    val contentPadding = PaddingValues(horizontal = adaptive.padding, vertical = 8.dp)
+    val contentPadding = PaddingValues(horizontal = adaptive.padding, vertical = Dimens.SpaceSmall)
 
     when (variant) {
         AiraButtonVariant.PRIMARY -> {

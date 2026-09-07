@@ -486,7 +486,7 @@ class PiperTtsManager(private val context: Context) {
             }
         } catch (e: Exception) {
             Log.e("PiperTtsManager", "Download process encountered an error: ${e.message}", e)
-            com.example.ui.AiraViewModel.showGlobalError("Voice model download failed: ${e.localizedMessage ?: "Network error"}")
+            com.example.presentation.common.GlobalErrorHandler.showGlobalError("Voice model download failed: ${e.localizedMessage ?: "Network error"}")
             if (file.exists()) {
                 Log.d("PiperTtsManager", "Cleaning up incomplete target file...")
                 file.delete()

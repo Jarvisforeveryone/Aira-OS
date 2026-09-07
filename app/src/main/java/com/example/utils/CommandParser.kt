@@ -930,23 +930,23 @@ object CommandParser {
             when {
                 percent != null -> {
                     val targetVol = (maxVol * (percent.coerceIn(0, 100) / 100f)).toInt()
-                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, AudioManager.FLAG_SHOW_UI)
+                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, 0)
                     "Media volume set to $percent%."
                 }
                 action.contains("increase") || action.contains("up") -> {
-                    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI)
+                    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE, 0)
                     "Volume raised."
                 }
                 action.contains("decrease") || action.contains("down") -> {
-                    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI)
+                    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_LOWER, 0)
                     "Volume lowered."
                 }
                 action.contains("mute") -> {
-                    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_MUTE, AudioManager.FLAG_SHOW_UI)
+                    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_MUTE, 0)
                     "Volume muted."
                 }
                 action.contains("unmute") -> {
-                    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_UNMUTE, AudioManager.FLAG_SHOW_UI)
+                    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_UNMUTE, 0)
                     "Volume unmuted."
                 }
                 else -> {

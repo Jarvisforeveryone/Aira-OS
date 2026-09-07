@@ -862,18 +862,19 @@ class VoiceCommandManager(private val context: Context) {
             }
         }
 
-        // LAYER 3: LLM Intent Detection
-        val detectedAction = detectIntentWithLLM(userInput)
-        if (detectedAction != null && commandAliases.containsKey(detectedAction)) {
-            Log.i("VoiceCommandManager", "Layer 3 LLM Intent Match: '$userInput' -> $detectedAction")
-            val msg = executeAction(detectedAction, viewModel)
+        // LAYER 3: Local Command Engine & Automation Dispatcher (Instant 0ms execution)
+        val parsedCmd = com.example.utils.CommandParser.parse(userInput)
+        if (parsedCmd != null && parsedCmd.type != com.example.utils.CommandType.UNKNOWN) {
+            Log.i("VoiceCommandManager", "Layer 3 CommandParser Match: '$userInput' -> ${parsedCmd.type}")
+            val msg = com.example.utils.CommandParser.execute(context, parsedCmd, viewModel)
             viewModel.speakText(msg)
             return true
         }
 
-        // Fallback: Check Automation Engine
+        // Fallback: Check Automation Engine (Direct 220+ Actions Dispatcher)
         val autoResult = automationEngine.executeIntent(userInput)
         if (autoResult != null) {
+            Log.i("VoiceCommandManager", "Layer 3 AutomationEngine Match: '$userInput' -> $autoResult")
             viewModel.speakText(autoResult)
             return true
         }
@@ -1606,15 +1607,19 @@ class VoiceCommandManager(private val context: Context) {
     }
 
     suspend fun getDidYouMeanCommand(userInput: String): Command? {
-        val commands = voiceDao.getAllCommands()
         val lowerInput = userInput.lowercase().trim()
+        // Do not suggest "Did you mean" for multi-commands or inputs with conjunctions
+        if (lowerInput.contains(" and ") || lowerInput.contains(" then ") || lowerInput.contains(",") || lowerInput.contains("&")) {
+            return null
+        }
+        val commands = voiceDao.getAllCommands()
         var bestCommand: Command? = null
         var highestSim = 0f
 
         for (cmd in commands) {
             if (cmd.triggerPhrase.contains("{number}") || cmd.triggerPhrase.contains("{text}")) continue
             val sim = getSimilarity(lowerInput, cmd.triggerPhrase)
-            if (sim in 0.5f..0.79f && sim > highestSim) {
+            if (sim in 0.72f..0.85f && sim > highestSim) {
                 highestSim = sim
                 bestCommand = cmd
             }

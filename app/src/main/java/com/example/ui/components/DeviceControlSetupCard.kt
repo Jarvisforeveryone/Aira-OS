@@ -75,7 +75,7 @@ fun DeviceControlSetupCard(
                 MaterialTheme.colorScheme.surface
             }
         ),
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(Dimens.RadiusLarge),
         border = BorderStroke(
             1.dp,
             if (isShizukuRunning && isShizukuGranted) {
@@ -84,11 +84,11 @@ fun DeviceControlSetupCard(
                 MaterialTheme.colorScheme.outlineVariant
             }
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = Dimens.ElevationLow)
     ) {
         Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            modifier = Modifier.padding(Dimens.SpaceDefault),
+            verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMedium)
         ) {
             // Header Row
             Row(
@@ -98,11 +98,11 @@ fun DeviceControlSetupCard(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSmall)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(12.dp)
+                            .size(Dimens.SpaceMedium)
                             .background(
                                 color = if (isShizukuRunning && isShizukuGranted) {
                                     colorResource(id = R.color.aira_success_light)
@@ -127,7 +127,7 @@ fun DeviceControlSetupCard(
                 IconButton(
                     onClick = { refreshAllStatus() },
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(Dimens.IconLarge)
                         .testTag("device_control_refresh_btn")
                 ) {
                     Icon(
@@ -145,22 +145,22 @@ fun DeviceControlSetupCard(
                 // ==========================================
                 Surface(
                     color = colorResource(id = R.color.aira_success_light).copy(alpha = 0.15f),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(Dimens.RadiusDefault),
                     border = BorderStroke(1.dp, colorResource(id = R.color.aira_success_light).copy(alpha = 0.4f)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("device_control_active_container")
                 ) {
                     Row(
-                        modifier = Modifier.padding(14.dp),
+                        modifier = Modifier.padding(Dimens.SpaceMedium),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMedium)
                     ) {
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = "Active",
                             tint = colorResource(id = R.color.aira_success_light),
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(Dimens.IconStandard)
                         )
                         Column {
                             Text(
@@ -185,14 +185,14 @@ fun DeviceControlSetupCard(
                 // ==========================================
                 Surface(
                     color = colorResource(id = R.color.aira_warning_light).copy(alpha = 0.15f),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(Dimens.RadiusDefault),
                     border = BorderStroke(1.dp, colorResource(id = R.color.aira_warning_light).copy(alpha = 0.4f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(modifier = Modifier.padding(Dimens.SpaceMedium), verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSmall)) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSmall)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.VpnKey,
@@ -214,13 +214,13 @@ fun DeviceControlSetupCard(
                         Button(
                             onClick = { viewModel.requestShizukuPermission() },
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(Dimens.RadiusSmall),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag("grant_shizuku_perm_btn")
                         ) {
-                            Icon(Icons.Default.Security, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(8.dp))
+                            Icon(Icons.Default.Security, contentDescription = null, modifier = Modifier.size(Dimens.IconSmall))
+                            Spacer(Modifier.width(Dimens.SpaceSmall))
                             Text("Grant Shizuku Permission")
                         }
                     }
@@ -234,18 +234,18 @@ fun DeviceControlSetupCard(
                     // CASE 1: ANDROID 11+ (API >= 30) - WIRELESS DEBUGGING FLOW
                     // -------------------------------------------------------------
                     Column(
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMedium),
                         modifier = Modifier.testTag("android_11_setup_container")
                     ) {
                         Surface(
                             color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(Dimens.RadiusDefault),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
-                                modifier = Modifier.padding(12.dp),
+                                modifier = Modifier.padding(Dimens.SpaceMedium),
                                 verticalAlignment = Alignment.Top,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSmall)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Info,

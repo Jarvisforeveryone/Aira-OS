@@ -34,7 +34,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun refreshShizukuStatus() {
-        viewModelScope.launch {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             val isRunning = ShizukuManager.isShizukuRunning()
             val isGranted = ShizukuManager.isPermissionGranted()
             _uiState.value = _uiState.value.copy(

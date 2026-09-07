@@ -1279,7 +1279,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     }
 
     private fun saveToDataStore(mode: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             getApplication<Application>().dataStore.edit { settings ->
                 settings[stringPreferencesKey("english_voice_mode")] = mode
             }
@@ -2502,7 +2502,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                 if (command.isEmpty()) {
                     val responses = listOf("Standing by.", "At your service.", "I'm listening.", "Aira activated.")
                     val ack = responses.random()
-                    viewModelScope.launch {
+                    viewModelScope.launch(Dispatchers.IO) {
                         chatDao.insertMessage(ChatMessage(sender = "aira", message = ack))
                         speakText(ack)
                     }
@@ -2608,7 +2608,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
 
     // --- AI Brain Process ---
     private fun processAssistantSession(userInput: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 Log.d("AiraViewModel", "Processing input: $userInput")
                 updateSttState(SttState.PROCESSING)
@@ -2647,6 +2647,18 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                 }
 
                 val lowercaseInput = userInput.lowercase().trim()
+
+                // 0. Instant Multi-Command & Hardware Dispatcher (0-50ms local execution, zero network, zero hallucination)
+                val instantResult = com.example.utils.InstantMultiCommandDispatcher.dispatch(getApplication(), userInput, this@AiraViewModel)
+                if (instantResult != null && instantResult.isHandled) {
+                    val reply = instantResult.finalResponseText
+                    chatDao.insertMessage(ChatMessage(sender = "aira", message = reply))
+                    addVoiceCommandLog(userInput, if (instantResult.executedCount > 1) "MULTI_COMMAND" else "INSTANT_COMMAND", "SUCCESS", reply)
+                    processAIResponse(reply)
+                    updateSttState(SttState.IDLE)
+                    _currentStatus.value = "Done."
+                    return@launch
+                }
 
                 // 1. Core Voice Commands Analyzer (Intelligent matching 80%+ / variables)
                 val voiceCommandMgr = VoiceCommandManager.getInstance(getApplication())
@@ -3189,7 +3201,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                 predefinedMatch.textResponse
             }
 
-            viewModelScope.launch {
+            viewModelScope.launch(Dispatchers.IO) {
                 chatDao.insertMessage(ChatMessage(sender = "aira", message = finalMsg))
                 speakText(predefinedMatch.spokenResponse)
                 _smartReplies.value = com.example.models.JarvisSpecializedToolkit.generateSmartReplies(finalMsg, input)
@@ -3200,7 +3212,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         // 0.2 Specialized J.A.R.V.I.S. Toolkit: Calculator & Math Evaluation
         val mathResult = com.example.models.JarvisSpecializedToolkit.tryEvaluateMath(input)
         if (mathResult != null) {
-            viewModelScope.launch {
+            viewModelScope.launch(Dispatchers.IO) {
                 chatDao.insertMessage(ChatMessage(sender = "aira", message = mathResult))
                 speakText(mathResult)
                 _smartReplies.value = com.example.models.JarvisSpecializedToolkit.generateSmartReplies(mathResult, input)
@@ -3211,7 +3223,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         // 0.3 Specialized J.A.R.V.I.S. Toolkit: Unit & Currency Conversions
         val convResult = com.example.models.JarvisSpecializedToolkit.tryEvaluateConversion(input)
         if (convResult != null) {
-            viewModelScope.launch {
+            viewModelScope.launch(Dispatchers.IO) {
                 chatDao.insertMessage(ChatMessage(sender = "aira", message = convResult))
                 speakText(convResult)
                 _smartReplies.value = com.example.models.JarvisSpecializedToolkit.generateSmartReplies(convResult, input)
@@ -3222,7 +3234,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         // 0.4 Specialized J.A.R.V.I.S. Toolkit: Web Searches (Google, YouTube, Wikipedia)
         val searchResult = com.example.models.JarvisSpecializedToolkit.handleWebSearch(getApplication(), input)
         if (searchResult != null) {
-            viewModelScope.launch {
+            viewModelScope.launch(Dispatchers.IO) {
                 chatDao.insertMessage(ChatMessage(sender = "aira", message = searchResult))
                 speakText(searchResult)
                 _smartReplies.value = com.example.models.JarvisSpecializedToolkit.generateSmartReplies(searchResult, input)
@@ -3234,7 +3246,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         val lower = input.lowercase(java.util.Locale.ROOT).trim()
         if (lower.contains("read clipboard") || lower.contains("what's on my clipboard") || lower.contains("what is on my clipboard") || lower.contains("speak clipboard") || lower == "clipboard") {
             val clipText = com.example.models.JarvisSpecializedToolkit.readClipboard(getApplication())
-            viewModelScope.launch {
+            viewModelScope.launch(Dispatchers.IO) {
                 chatDao.insertMessage(ChatMessage(sender = "aira", message = clipText))
                 speakText(clipText)
                 _smartReplies.value = com.example.models.JarvisSpecializedToolkit.generateSmartReplies(clipText, input)
@@ -3244,7 +3256,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         if (lower.startsWith("copy ") && lower.contains("to clipboard")) {
             val toCopy = lower.removePrefix("copy ").substringBefore("to clipboard").trim()
             val copyMsg = com.example.models.JarvisSpecializedToolkit.copyToClipboard(getApplication(), toCopy)
-            viewModelScope.launch {
+            viewModelScope.launch(Dispatchers.IO) {
                 chatDao.insertMessage(ChatMessage(sender = "aira", message = copyMsg))
                 speakText(copyMsg)
                 _smartReplies.value = com.example.models.JarvisSpecializedToolkit.generateSmartReplies(copyMsg, input)
@@ -3255,7 +3267,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         // 0.6 Specialized J.A.R.V.I.S. Toolkit: Screen OCR & Text Reading
         if (lower.contains("screen ocr") || lower.contains("extract text from screen") || lower.contains("ocr") || lower == "read screen") {
             val ocrText = com.example.models.JarvisSpecializedToolkit.extractScreenText(getApplication())
-            viewModelScope.launch {
+            viewModelScope.launch(Dispatchers.IO) {
                 chatDao.insertMessage(ChatMessage(sender = "aira", message = ocrText))
                 speakText(ocrText)
                 _smartReplies.value = com.example.models.JarvisSpecializedToolkit.generateSmartReplies(ocrText, input)
@@ -3266,7 +3278,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         // 0.7 Specialized J.A.R.V.I.S. Toolkit: Notification Reader
         if (lower.contains("read notification") || lower.contains("read my notifications") || lower.contains("check notification")) {
             val notifText = com.example.models.JarvisSpecializedToolkit.readNotifications(getApplication())
-            viewModelScope.launch {
+            viewModelScope.launch(Dispatchers.IO) {
                 chatDao.insertMessage(ChatMessage(sender = "aira", message = notifText))
                 speakText(notifText)
                 _smartReplies.value = com.example.models.JarvisSpecializedToolkit.generateSmartReplies(notifText, input)
@@ -3277,7 +3289,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         // 0.8 Specialized J.A.R.V.I.S. Toolkit: QR & Barcode Scanner
         if (lower.contains("scan qr") || lower.contains("scan barcode") || lower.contains("qr scanner") || lower.contains("open scanner")) {
             val qrMsg = com.example.models.JarvisSpecializedToolkit.launchQrScanner(getApplication())
-            viewModelScope.launch {
+            viewModelScope.launch(Dispatchers.IO) {
                 chatDao.insertMessage(ChatMessage(sender = "aira", message = qrMsg))
                 speakText(qrMsg)
                 _smartReplies.value = com.example.models.JarvisSpecializedToolkit.generateSmartReplies(qrMsg, input)
@@ -3290,7 +3302,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             val enable = !lower.contains("off") && !lower.contains("disable") && !lower.contains("stop")
             setPrivacyMode(enable)
             val msg = if (enable) "Privacy Mode engaged, sir. All queries are now strictly locked to on-device processing." else "Privacy Mode disabled, sir. Online neural capabilities restored."
-            viewModelScope.launch {
+            viewModelScope.launch(Dispatchers.IO) {
                 chatDao.insertMessage(ChatMessage(sender = "aira", message = msg))
                 _smartReplies.value = listOf("Run diagnostics", "System status", "Check battery")
             }
@@ -3302,7 +3314,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             val enable = !lower.contains("off") && !lower.contains("disable") && !lower.contains("stop")
             setDoNotDisturb(enable)
             val msg = if (enable) "Do Not Disturb activated, sir. All incoming audible alerts silenced." else "Do Not Disturb deactivated, sir. Notifications and sound alerts active."
-            viewModelScope.launch {
+            viewModelScope.launch(Dispatchers.IO) {
                 chatDao.insertMessage(ChatMessage(sender = "aira", message = msg))
                 _smartReplies.value = listOf("Run diagnostics", "System status", "Check battery")
             }
@@ -3313,7 +3325,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         if (lower.contains("mute mode") || lower.contains("mute audio") || lower.contains("silent assistant") || lower == "mute") {
             toggleSpeakReplies(false)
             val msg = "Mute Mode engaged, sir. Responses will appear on screen without speech."
-            viewModelScope.launch {
+            viewModelScope.launch(Dispatchers.IO) {
                 chatDao.insertMessage(ChatMessage(sender = "aira", message = msg))
                 _smartReplies.value = listOf("Unmute assistant", "System status", "Run diagnostics")
             }
@@ -3322,7 +3334,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         if (lower.contains("unmute") || lower.contains("unmute audio") || lower.contains("voice on")) {
             toggleSpeakReplies(true)
             val msg = "Speech audio restored, sir. I am speaking aloud once again."
-            viewModelScope.launch {
+            viewModelScope.launch(Dispatchers.IO) {
                 chatDao.insertMessage(ChatMessage(sender = "aira", message = msg))
                 speakText(msg)
                 _smartReplies.value = listOf("Run diagnostics", "System status", "Mute assistant")
@@ -3345,7 +3357,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             }
             if (stepResults.isNotEmpty()) {
                 val combined = stepResults.joinToString(" ")
-                viewModelScope.launch {
+                viewModelScope.launch(Dispatchers.IO) {
                     chatDao.insertMessage(ChatMessage(sender = "aira", message = combined))
                     speakText(combined)
                 }
@@ -3361,7 +3373,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             } else {
                 com.example.utils.CommandParser.execute(getApplication(), parsedCommand, this)
             }
-            viewModelScope.launch {
+            viewModelScope.launch(Dispatchers.IO) {
                 chatDao.insertMessage(ChatMessage(sender = "aira", message = responseMsg))
                 speakText(responseMsg)
             }
@@ -3370,7 +3382,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
 
         val automationResult = automationEngine.executeIntent(input)
         if (automationResult != null) {
-            viewModelScope.launch {
+            viewModelScope.launch(Dispatchers.IO) {
                 chatDao.insertMessage(ChatMessage(sender = "aira", message = automationResult))
                 speakText(automationResult)
             }
@@ -3382,14 +3394,14 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                 val state = !input.contains("off") && !input.contains("stop")
                 val responseMsg = toggleFlashlight(state)
                 val statusText = if (state) "Lights command invoked. Room/device lights are now configured to ON." else "Lights command invoked. Room/device lights are now configured to OFF. All sub-system LEDs deactivated."
-                viewModelScope.launch {
+                viewModelScope.launch(Dispatchers.IO) {
                     chatDao.insertMessage(ChatMessage(sender = "aira", message = statusText))
                     speakText(statusText)
                 }
                 true
             }
             input.contains("weather") || input.contains("temperature") -> {
-                viewModelScope.launch {
+                viewModelScope.launch(Dispatchers.IO) {
                     val currentRes = performFetchWeather()
                     val responseMsg = "Weather command invoked. Here is the current environmental telemetry: $currentRes"
                     chatDao.insertMessage(ChatMessage(sender = "aira", message = responseMsg))
@@ -3398,8 +3410,8 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                 true
             }
             input.contains("status report") || input.contains("status") -> {
-                val report = "Initializing system status report. Neural engine: Piper TTS active. Wake word detection: Active. Offline brain state: configured. System performance: 60 FPS unlocked. All parameters normalized."
-                viewModelScope.launch {
+                val report = "Initializing system status report. Offline Command Engine: Ready. Voice detection: Active. System performance: Unlocked."
+                viewModelScope.launch(Dispatchers.IO) {
                     chatDao.insertMessage(ChatMessage(sender = "aira", message = report))
                     speakText(report)
                 }
@@ -3408,7 +3420,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             input.contains("flashlight") || input.contains("torch") -> {
                 val state = !input.contains("off") && !input.contains("stop")
                 val responseMsg = toggleFlashlight(state)
-                viewModelScope.launch {
+                viewModelScope.launch(Dispatchers.IO) {
                     chatDao.insertMessage(ChatMessage(sender = "aira", message = responseMsg))
                     speakText(responseMsg)
                 }
@@ -3422,7 +3434,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                 } else {
                     "Accessibility service is offline. Please enable Aira Command Core in system accessibility settings to automate Wi-Fi controls."
                 }
-                viewModelScope.launch {
+                viewModelScope.launch(Dispatchers.IO) {
                     chatDao.insertMessage(ChatMessage(sender = "aira", message = responseMsg))
                     speakText(responseMsg)
                 }
@@ -3436,7 +3448,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                 } else {
                     "Accessibility service is offline. Please enable Aira Command Core in system accessibility settings to automate Bluetooth controls."
                 }
-                viewModelScope.launch {
+                viewModelScope.launch(Dispatchers.IO) {
                     chatDao.insertMessage(ChatMessage(sender = "aira", message = responseMsg))
                     speakText(responseMsg)
                 }
@@ -3448,7 +3460,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                 val number = if (digits.isNotEmpty()) digits else "911" // fallback or generic
                 val responseMsg = "Dialing phone number: $number"
                 initiatePhoneCall(number)
-                viewModelScope.launch {
+                viewModelScope.launch(Dispatchers.IO) {
                     chatDao.insertMessage(ChatMessage(sender = "aira", message = responseMsg))
                     speakText(responseMsg)
                 }
@@ -3461,7 +3473,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                 val minute = if (timeDigits.length >= 4) timeDigits.substring(2, 4).toIntOrNull() ?: 0 else 0
                 setSystemAlarm(hour, minute, "Aira Wake UP Call")
                 val responseMsg = "Scheduling system alarm for $hour:$minute"
-                viewModelScope.launch {
+                viewModelScope.launch(Dispatchers.IO) {
                     chatDao.insertMessage(ChatMessage(sender = "aira", message = responseMsg))
                     speakText(responseMsg)
                 }
@@ -3469,7 +3481,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             }
             input.contains("settings") || input.contains("configure") -> {
                 val responseMsg = "Opening Settings directory. Tap settings above."
-                viewModelScope.launch {
+                viewModelScope.launch(Dispatchers.IO) {
                     chatDao.insertMessage(ChatMessage(sender = "aira", message = responseMsg))
                     speakText(responseMsg)
                 }
@@ -3478,7 +3490,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             input.contains("silent") || input.contains("mute") -> {
                 setSoundMode(AudioManager.RINGER_MODE_SILENT)
                 val responseMsg = "System ring audio configured to Silent Mode."
-                viewModelScope.launch {
+                viewModelScope.launch(Dispatchers.IO) {
                     chatDao.insertMessage(ChatMessage(sender = "aira", message = responseMsg))
                     speakText(responseMsg)
                 }
@@ -3487,7 +3499,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             input.contains("vibrate") -> {
                 setSoundMode(AudioManager.RINGER_MODE_VIBRATE)
                 val responseMsg = "System ring audio configured to Vibrate Mode."
-                viewModelScope.launch {
+                viewModelScope.launch(Dispatchers.IO) {
                     chatDao.insertMessage(ChatMessage(sender = "aira", message = responseMsg))
                     speakText(responseMsg)
                 }
@@ -3496,7 +3508,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             input.contains("sound") || input.contains("normal mode") -> {
                 setSoundMode(AudioManager.RINGER_MODE_NORMAL)
                 val responseMsg = "System ring audio configured to Normal Volume."
-                viewModelScope.launch {
+                viewModelScope.launch(Dispatchers.IO) {
                     chatDao.insertMessage(ChatMessage(sender = "aira", message = responseMsg))
                     speakText(responseMsg)
                 }
@@ -3505,7 +3517,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             input.contains("camera") || input.contains("photo") -> {
                 val responseMsg = "Launching device camera."
                 launchSystemCamera()
-                viewModelScope.launch {
+                viewModelScope.launch(Dispatchers.IO) {
                     chatDao.insertMessage(ChatMessage(sender = "aira", message = responseMsg))
                     speakText(responseMsg)
                 }
@@ -3521,7 +3533,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                 }
                 toggleHud(newState)
                 val responseMsg = if (newState) "Circular holographic HUD enabled." else "Holographic HUD hidden."
-                viewModelScope.launch {
+                viewModelScope.launch(Dispatchers.IO) {
                     chatDao.insertMessage(ChatMessage(sender = "aira", message = responseMsg))
                     speakText(responseMsg)
                 }
@@ -3530,7 +3542,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
             input.contains("clear chat") || input.contains("clear history") || input.contains("delete conversation") || input.contains("clear archives") || input.contains("delete chat") -> {
                 clearChatHistory()
                 val responseMsg = "Vocal archives cleared."
-                viewModelScope.launch {
+                viewModelScope.launch(Dispatchers.IO) {
                     chatDao.insertMessage(ChatMessage(sender = "aira", message = responseMsg))
                     speakText(responseMsg)
                 }
@@ -3636,7 +3648,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     val isBriefingLoading: StateFlow<Boolean> = _isBriefingLoading.asStateFlow()
 
     fun triggerMorningBriefing() {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 generateMorningBriefing()
             } catch (e: Throwable) {
@@ -3646,7 +3658,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     }
 
     fun refreshWeather() {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 performFetchWeather()
                 generateMorningBriefing()
@@ -3765,7 +3777,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     }
 
     fun playMorningBriefing() {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             val briefing = _morningBriefing.value ?: generateMorningBriefing()
             speakText(briefing)
         }
@@ -4025,7 +4037,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
     }
 
     fun fetchNews(category: String = _selectedNewsCategory.value) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _selectedNewsCategory.value = category
             _isNewsLoading.value = true
             _newsError.value = null
@@ -4353,11 +4365,11 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
         _isOfflineBrain.value = isOffline
         sharedPrefs.edit().putBoolean("offline_brain", isOffline).apply()
         if (isOffline && !com.example.utils.DownloadManager.isLlamaModelDownloaded(getApplication())) {
-            viewModelScope.launch {
+            viewModelScope.launch(Dispatchers.IO) {
                 com.example.utils.DownloadManager.downloadLlamaModel(getApplication())
             }
         }
-        val suffix = if (isOffline) "Active (Llama 3.2 local engine active)" else "Inactive (Online Brain active)"
+        val suffix = if (isOffline) "Active (Offline Rules Engine active)" else "Inactive (Online Brain active)"
         speakText("Aira offline brain mode configured to $suffix")
     }
 
@@ -4632,7 +4644,7 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
                     if (command.isEmpty()) {
                         val responses = listOf("Standing by.", "At your service.", "I'm listening.", "Aira activated.")
                         val ack = responses.random()
-                        viewModelScope.launch {
+                        viewModelScope.launch(Dispatchers.IO) {
                             chatDao.insertMessage(ChatMessage(sender = "aira", message = ack))
                             speakText(ack)
                         }
