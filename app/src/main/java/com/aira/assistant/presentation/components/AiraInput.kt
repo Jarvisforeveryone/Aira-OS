@@ -1,0 +1,160 @@
+package com.aira.assistant.presentation.components
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.aira.assistant.presentation.theme.IconColors
+import com.aira.assistant.presentation.theme.bounceClick
+import com.aira.assistant.presentation.theme.highTechGlowPulse
+import com.aira.assistant.utils.ScreenUtils
+
+/**
+ * AIRA UNIFIED INPUT COMPONENT
+ * Single source of truth for text fields, query inputs, and settings controls across AIRA.
+ * Integrates global typography, color scheme, error handling, clear buttons, and icons.
+ * Automatically scales height and corner radius via ScreenUtils adaptive values.
+ * Features fluid high-tech focus glow motion and animated action triggers.
+ */
+@Composable
+fun AiraInput(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    label: String? = null,
+    placeholder: String? = null,
+    helperText: String? = null,
+    errorMessage: String? = null,
+    leadingIcon: ImageVector? = null,
+    trailingIcon: ImageVector? = null,
+    onTrailingIconClick: (() -> Unit)? = null,
+    showClearButton: Boolean = false,
+    enabled: Boolean = true,
+    isReadOnly: Boolean = false,
+    singleLine: Boolean = true,
+    maxLines: Int = if (singleLine) 1 else 4,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
+    containerColor: Color = MaterialTheme.colorScheme.surface
+) {
+    val adaptive = ScreenUtils.adaptiveValues()
+    val isError = !errorMessage.isNullOrBlank()
+    var isFocused by remember { mutableStateOf(false) }
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { isFocused = it.isFocused }
+                .highTechGlowPulse(active = isFocused && !isError, glowColor = MaterialTheme.colorScheme.primary, maxAlpha = 0.4f),
+            enabled = enabled,
+            readOnly = isReadOnly,
+            singleLine = singleLine,
+            maxLines = maxLines,
+            label = if (label != null) { { Text(label, fontSize = adaptive.fontSize) } } else null,
+            placeholder = if (placeholder != null) { { Text(placeholder, fontSize = adaptive.fontSize) } } else null,
+            leadingIcon = if (leadingIcon != null) {
+                {
+                    Icon(
+                        imageVector = leadingIcon,
+                        contentDescription = null,
+                        tint = if (isFocused) MaterialTheme.colorScheme.primary else IconColors.OnSurfaceVariant
+                    )
+                }
+            } else null,
+            trailingIcon = {
+                if (showClearButton && value.isNotEmpty()) {
+                    AnimatedVisibility(
+                        visible = value.isNotEmpty(),
+                        enter = fadeIn() + scaleIn(initialScale = 0.8f),
+                        exit = fadeOut() + scaleOut(targetScale = 0.8f)
+                    ) {
+                        IconButton(
+                            onClick = { onValueChange("") },
+                            modifier = Modifier.bounceClick(onClick = { onValueChange("") }, scaleDownFactor = 0.9f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Clear,
+                                contentDescription = "Clear text",
+                                tint = IconColors.OnSurfaceVariant
+                            )
+                        }
+                    }
+                } else if (trailingIcon != null) {
+                    IconButton(
+                        onClick = { onTrailingIconClick?.invoke() },
+                        enabled = onTrailingIconClick != null,
+                        modifier = if (onTrailingIconClick != null) Modifier.bounceClick(onClick = { onTrailingIconClick.invoke() }) else Modifier
+                    ) {
+                        Icon(
+                            imageVector = trailingIcon,
+                            contentDescription = null,
+                            tint = IconColors.OnSurfaceVariant
+                        )
+                    }
+                }
+            },
+            isError = isError,
+            visualTransformation = visualTransformation,
+            keyboardOptions = keyboardOptions,
+            keyboardActions = keyboardActions,
+            shape = RoundedCornerShape(adaptive.cornerRadius),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = containerColor,
+                unfocusedContainerColor = containerColor,
+                disabledContainerColor = containerColor,
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                errorBorderColor = MaterialTheme.colorScheme.error
+            )
+        )
+
+        if (isError) {
+            Text(
+                text = errorMessage.orEmpty(),
+                color = MaterialTheme.colorScheme.error,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(start = 8.dp, top = 4.dp)
+            )
+        } else if (!helperText.isNullOrBlank()) {
+            Text(
+                text = helperText,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                fontSize = 12.sp,
+                modifier = Modifier.padding(start = 8.dp, top = 4.dp)
+            )
+        }
+    }
+}

@@ -9,12 +9,14 @@
 ## 1. PROJECT IDENTITY & METADATA
 
 - **Project Name:** Aira (Also customized and branded as J.A.R.V.I.S. / Iron Man Stark OS Assistant).
-- **Application Namespace:** `com.example` (Root package structure).
+- **Application Namespace:** `com.aira.assistant` (Root package structure).
 - **Application ID:** `com.aistudio.voiceassistant.wkjzla` (Defined in `app/build.gradle.kts`).
 - **Project Type:** Native Android Application (Single-module `app`).
-- **Platform & Target:** Android OS (API 26 Oreo minimum, API 35 Android 15 target/compile).
+- **Platform & Target:** Android OS (API 26 Oreo minimum, API 36 Android 16 compileSdk, API 35 targetSdk).
 - **Primary Language:** Kotlin 2.0.21 (100% Kotlin DSL Gradle scripts).
-- **Primary Frameworks:** Jetpack Compose (BOM 2024.10.01), Material 3 (1.3.1), AndroidX Room (2.6.1), OkHttp / Retrofit (2.11.0), AndroidX Security Crypto (1.1.0-alpha06).
+- **Primary Frameworks:** Jetpack Compose, Material 3, AndroidX Room (2.7.0), OkHttp / Retrofit, AndroidX Security Crypto (1.1.0).
+- **Architecture & DI:** Modular ViewModels (`ChatViewModel`, `VoiceViewModel`, `AutomationViewModel`, `SettingsViewModel`), `AutomationDispatcher` facade with modular domain handlers, and centralized DI modules (`DatabaseModule`, `NetworkModule`, `SecurityModule`, `AudioModule`, `VoiceModule`, `ShizukuModule`, `AutomationModule`, `MemoryModule`).
+- **Database Schema:** Room Schema Version 13 with non-destructive migrations (`MIGRATION_12_13` for `groq_cache`).
 - **System Integration:** Registered Android Default Voice Interaction Service (`android.service.voice.VoiceInteractionService`), Accessibility Service (`AccessibilityService`), and Device Administrator (`DeviceAdminReceiver`).
 
 ---

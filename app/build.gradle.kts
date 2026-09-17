@@ -14,18 +14,18 @@ plugins {
 }
 
 android {
-  namespace = "com.example"
+  namespace = "com.aira.assistant"
   compileSdk = 36
 
   defaultConfig {
-    applicationId = "com.aistudio.aira.axrtpw"
+    applicationId = "com.aira.assistant"
     minSdk = 26
     targetSdk = 35
     versionCode = 1
     versionName = "1.0"
 
     ndk {
-      abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a"))
+      abiFilters.addAll(listOf("arm64-v8a"))
     }
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -114,12 +114,10 @@ dependencies {
   implementation(libs.androidx.room.ktx)
   implementation(libs.androidx.room.runtime)
   implementation(libs.coil.compose)
-  implementation(libs.converter.moshi)
   // implementation(libs.firebase.ai)
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
   implementation(libs.logging.interceptor)
-  implementation(libs.moshi.kotlin)
   implementation(libs.okhttp)
   implementation("com.squareup.retrofit2:converter-simplexml:2.9.0") {
     exclude(group = "xpp3", module = "xpp3")
@@ -149,11 +147,9 @@ dependencies {
   implementation(libs.androidx.work.runtime.ktx)
   implementation("androidx.profileinstaller:profileinstaller:1.3.1")
   "ksp"(libs.androidx.room.compiler)
-  "ksp"(libs.moshi.kotlin.codegen)
   
   implementation("com.alphacephei:vosk-android:0.3.75@aar")
   implementation("net.java.dev.jna:jna:5.18.1@aar")
-  implementation("com.google.code.gson:gson:2.11.0")
   
   // Shizuku system API integration
   val shizukuVersion = "13.1.5"

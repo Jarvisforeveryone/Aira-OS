@@ -2,7 +2,8 @@
 Lcom/example/MainActivity;
 Lcom/example/MainActivityKt;
 Lcom/example/ui/HomeScreenKt;
-Lcom/example/ui/AiraViewModel;
+Lcom/example/ui/viewmodels/SettingsViewModel;
+Lcom/example/ui/viewmodels/VoiceViewModel;
 Lcom/example/ui/components/AiraVoiceOrbKt;
 Lcom/example/data/AppDatabase;
 Lcom/example/utils/SecurePrefs;

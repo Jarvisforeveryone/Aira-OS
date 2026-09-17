@@ -1,0 +1,71 @@
+package com.aira.assistant.data
+
+import android.content.Context
+import androidx.room.Database
+import androidx.room.Room
+import androidx.room.RoomDatabase
+
+import com.aira.assistant.data.Action
+import com.aira.assistant.data.Command
+import com.aira.assistant.data.VoiceCommandDao
+import com.aira.assistant.data.TrainedWakeWord
+import com.aira.assistant.data.TrainedWakeWordDao
+
+@Database(
+    entities = [
+        ChatMessage::class,
+        Reminder::class,
+        GroqCache::class,
+        Action::class,
+        Command::class,
+        Memory::class,
+        TrainedWakeWord::class,
+        ResponseFeedback::class,
+        VoiceCommandLogEntity::class,
+        MacroEntity::class,
+        WeatherCache::class,
+        QueryCache::class
+    ],
+    version = 13,
+    exportSchema = false
+)
+abstract class AppDatabase : RoomDatabase() {
+    abstract fun chatMessageDao(): ChatMessageDao
+    abstract fun reminderDao(): ReminderDao
+    abstract fun groqCacheDao(): GroqCacheDao
+    abstract fun voiceCommandDao(): VoiceCommandDao
+    abstract fun memoryDao(): MemoryDao
+    abstract fun trainedWakeWordDao(): TrainedWakeWordDao
+    abstract fun responseFeedbackDao(): ResponseFeedbackDao
+    abstract fun voiceCommandLogDao(): VoiceCommandLogDao
+    abstract fun macroDao(): MacroDao
+    abstract fun weatherCacheDao(): WeatherCacheDao
+    abstract fun queryCacheDao(): QueryCacheDao
+
+    companion object {
+        @Volatile
+        private var INSTANCE: AppDatabase? = null
+
+        fun getDatabase(context: Context): AppDatabase {
+            return INSTANCE ?: synchronized(this) {
+                val instance = Room.databaseBuilder(
+                    context.applicationContext,
+                    AppDatabase::class.java,
+                    DatabaseSchema.DATABASE_NAME
+                )
+                .addMigrations(*DatabaseSchema.ALL_MIGRATIONS)
+                .enableMultiInstanceInvalidation()
+                .build()
+                INSTANCE = instance
+                instance
+            }
+        }
+
+        fun getInstance(context: Context): AppDatabase = getDatabase(context)
+
+        fun clearInstance() {
+            INSTANCE?.close()
+            INSTANCE = null
+        }
+    }
+}

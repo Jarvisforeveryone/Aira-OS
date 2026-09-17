@@ -136,9 +136,9 @@
 
         <service
             android:name=".service.ShizukuVoiceExecutionService"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
-                <action android:name="com.example.ACTION_EXECUTE_SHIZUKU_VOICE_COMMAND" />
+                <action android:name="com.aira.assistant.ACTION_EXECUTE_SHIZUKU_VOICE_COMMAND" />
             </intent-filter>
         </service>
 
@@ -171,7 +171,7 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
-                <action android:name="com.example.ACTION_TRIGGER_REMINDER" />
+                <action android:name="com.aira.assistant.ACTION_TRIGGER_REMINDER" />
             </intent-filter>
         </receiver>
 

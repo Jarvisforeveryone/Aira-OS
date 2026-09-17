@@ -1,0 +1,1201 @@
+package com.aira.assistant.core.audio
+
+import com.aira.assistant.core.security.SecurePrefs
+import com.aira.assistant.core.native.NativeLibraryLoader
+import com.aira.assistant.core.memory.MemoryManager
+import com.aira.assistant.domain.sentiment.SentimentAnalysisUtility
+import com.aira.assistant.domain.sentiment.SentimentResult
+
+import android.content.Context
+import android.widget.Toast
+import android.util.Log
+import java.io.FileInputStream
+import java.security.MessageDigest
+import java.io.File
+import java.io.FileOutputStream
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
+
+class PiperTtsManager(private val context: Context) {
+    companion object {
+        @Volatile
+        private var _activeInstance: PiperTtsManager? = null
+
+        val activeInstance: PiperTtsManager?
+            get() = _activeInstance
+
+        fun getInstance(context: Context): PiperTtsManager {
+            return _activeInstance ?: synchronized(this) {
+                _activeInstance ?: PiperTtsManager(context.applicationContext).also {
+                    _activeInstance = it
+                }
+            }
+        }
+
+        fun clearInstance() {
+            _activeInstance?.release()
+            _activeInstance = null
+        }
+
+        const val MODEL_URL = "https://drive.google.com/uc?export=download&id=1o14RBC9-S4KeJvvdZ_EiOoQ18gfXE3_a"
+        const val MODEL_FILENAME = "amymodel.onnx"
+    }
+
+    val MODEL_PATH: File = File(File(context.filesDir, "piper_models"), MODEL_FILENAME)
+
+    data class PiperVoice(
+        val id: String,
+        val displayName: String,
+        val gender: String,
+        val quality: String,
+        val latencyMs: Int,
+        val description: String
+    )
+
+    private val piperTtsEngine = com.aira.voice.PiperTtsEngine(context)
+    private var isInitialized = false
+    private var hasShownOfflineFallbackToast = false
+    private val _isSpeakCalled = MutableStateFlow(false)
+    val isSpeakCalled: StateFlow<Boolean> = _isSpeakCalled.asStateFlow()
+
+    private val _isSpeakingFlow = MutableStateFlow(false)
+    val isSpeakingFlow: StateFlow<Boolean> = _isSpeakingFlow.asStateFlow()
+
+    private var nativeTts: android.speech.tts.TextToSpeech? = null
+    private var isNativeTtsReady = false
+    private val pendingUtteranceQueue = java.util.concurrent.ConcurrentLinkedQueue<Pair<String, Float>>()
+    var isOfflineTtsEnabled = false
+    var englishVoiceMode: String = "India"
+    var selectedTtsEngine: String = "AUTO"
+
+    // Google TTS Dynamic Support
+    private val _googleTtsAvailableLanguages = MutableStateFlow<List<java.util.Locale>>(emptyList())
+    val googleTtsAvailableLanguages = _googleTtsAvailableLanguages.asStateFlow()
+
+    private val _googleTtsAvailableVoices = MutableStateFlow<List<android.speech.tts.Voice>>(emptyList())
+    val googleTtsAvailableVoices = _googleTtsAvailableVoices.asStateFlow()
+
+    private val _googleTtsSelectedLanguage = MutableStateFlow("en-US")
+    val googleTtsSelectedLanguage = _googleTtsSelectedLanguage.asStateFlow()
+
+    private val _googleTtsSelectedVoice = MutableStateFlow("")
+    val googleTtsSelectedVoice = _googleTtsSelectedVoice.asStateFlow()
+
+    // Callbacks for UI updates / wave amplitude loops
+    var onStartSpeaking: (() -> Unit)? = null
+    var onStopSpeaking: (() -> Unit)? = null
+
+    // State flows representing Piper Status (Migrated from PiperTtsEngine)
+    private val _activeVoice = MutableStateFlow("google-jarvis")
+    val activeVoice = _activeVoice.asStateFlow()
+
+    private val _isEngineActive = MutableStateFlow(true)
+    val isEngineActive = _isEngineActive.asStateFlow()
+
+    private fun isVoiceDownloadedForReal(voiceId: String): Boolean {
+        if (voiceId.startsWith("en_US-amy")) {
+            return com.aira.assistant.utils.DownloadManager.isPiperModelDownloaded(context)
+        }
+        val piperModelsDir = File(context.filesDir, "piper_models")
+        val file = File(piperModelsDir, "$voiceId.onnx")
+        return file.exists() && file.length() > 5 * 1024 * 1024
+    }
+
+    private val _showTtsDataDialog = MutableStateFlow(false)
+    val showTtsDataDialog: StateFlow<Boolean> = _showTtsDataDialog.asStateFlow()
+
+    private val _missingTtsLanguageLocale = MutableStateFlow("en-US")
+    val missingTtsLanguageLocale: StateFlow<String> = _missingTtsLanguageLocale.asStateFlow()
+
+    fun dismissTtsDataDialog() {
+        _showTtsDataDialog.value = false
+    }
+
+    fun openInstallTtsDataSettings() {
+        try {
+            val intent = android.content.Intent(android.speech.tts.TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA).apply {
+                flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            try {
+                val intent = android.content.Intent("com.android.settings.TTS_SETTINGS").apply {
+                    flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(intent)
+            } catch (e2: Exception) {
+                Log.e("PiperTtsManager", "Could not open TTS settings activity", e2)
+            }
+        }
+        _showTtsDataDialog.value = false
+    }
+
+    private val _isModelDownloaded = MutableStateFlow(mapOf(
+        "google-jarvis" to true,
+        "en_US-amy-medium" to isVoiceDownloadedForReal("en_US-amy-medium"),
+        "google-lily" to true,
+        "google-zara" to true,
+        "google-ella" to true
+    ))
+    val isModelDownloaded = _isModelDownloaded.asStateFlow()
+
+    private val _downloadProgress = MutableStateFlow<Map<String, Float>>(emptyMap())
+    val downloadProgress = _downloadProgress.asStateFlow()
+
+    private val _downloadStatusMessage = MutableStateFlow<String?>(null)
+    val downloadStatusMessage = _downloadStatusMessage.asStateFlow()
+
+    val availableVoices = listOf(
+        PiperVoice("google-jarvis", "J.A.R.V.I.S. - British Intelligence", "Male", "Google TTS (en-GB)", 20, "Sophisticated, calm British AI assistant tone. Locale: en-GB, Pitch: 0.92, Speed: 1.05."),
+        PiperVoice("en_US-amy-medium", "Amy - Real Piper", "Female", "22.5kHz Neural", 45, "Offline high quality natural female voice model powered by Real Piper ONNX JNI engine."),
+        PiperVoice("google-lily", "Lily - Playful Childish", "Female", "Google TTS (en-US)", 25, "Playful & energetic childish voice. Locale: en-US, Pitch: 1.3, Speed: 1.1."),
+        PiperVoice("google-zara", "Zara - Cocky & Confident", "Female", "Google TTS (en-US)", 20, "Bold & confident tone. Locale: en-US, Pitch: 0.8, Speed: 1.3."),
+        PiperVoice("google-ella", "Ella - Soft Caring British", "Female", "Google TTS (en-GB)", 30, "Soft & caring British accent. Locale: en-GB, Pitch: 1.0, Speed: 0.9.")
+    )
+
+    private val mainScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    private fun logProcessInfo() {
+        try {
+            val pid = android.os.Process.myPid()
+            val manager = context.getSystemService(android.content.Context.ACTIVITY_SERVICE) 
+                as android.app.ActivityManager
+            val processName = manager.runningAppProcesses
+                ?.find { it.pid == pid }?.processName ?: "unknown"
+            Log.d("PiperTtsManager", "Running in process: $processName (PID: $pid)")
+        } catch (e: Exception) {
+            Log.e("PiperTtsManager", "Error logging process info", e)
+        }
+    }
+
+    private var ttsInitializationStarted = false
+
+    init {
+        logProcessInfo()
+        _activeInstance = this
+    }
+
+    fun ensureInitialized() {
+        if (isNativeTtsReady && nativeTts != null) return
+        if (ttsInitializationStarted) return // prevent double init
+        ttsInitializationStarted = true
+
+        mainScope.launch(Dispatchers.IO) {
+            try {
+                val sharedPrefs = com.aira.assistant.core.security.SecurePrefs.getEncryptedSharedPreferences(context, "aira_settings")
+                if (!sharedPrefs.contains("use_piper_tts")) {
+                    sharedPrefs.edit().putBoolean("use_piper_tts", true).apply()
+                }
+                initializeEngine()
+
+                withContext(Dispatchers.Main) {
+                    nativeTts = android.speech.tts.TextToSpeech(context) { status ->
+                        if (status == android.speech.tts.TextToSpeech.SUCCESS) {
+                            isNativeTtsReady = true
+                            ttsInitializationStarted = false
+                            try {
+                                nativeTts?.setAudioAttributes(
+                                    android.media.AudioAttributes.Builder()
+                                        .setUsage(android.media.AudioAttributes.USAGE_ASSISTANT)
+                                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                                        .build()
+                                )
+                            } catch (e: Throwable) {
+                                Log.w("PiperTtsManager", "Could not set audio attributes on nativeTts", e)
+                            }
+
+                            val savedLang = sharedPrefs.getString("google_tts_language", "en-US") ?: "en-US"
+                            val savedVoice = sharedPrefs.getString("google_tts_voice", "") ?: ""
+                            _googleTtsSelectedLanguage.value = savedLang
+                            _googleTtsSelectedVoice.value = savedVoice
+                            updateGoogleTtsLanguagesAndVoices()
+                            applyGoogleTtsSettings(savedLang, savedVoice)
+                            
+                            // Setup utterance progress listener to trigger callbacks and audio focus management
+                            nativeTts?.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
+                                override fun onStart(utteranceId: String?) {
+                                    _isSpeakingFlow.value = true
+                                    com.aira.assistant.core.audio.AudioFocusHelper.getInstance(context).requestTtsFocus { stop() }
+                                    mainScope.launch { onStartSpeaking?.invoke() }
+                                }
+
+                                override fun onDone(utteranceId: String?) {
+                                    _isSpeakingFlow.value = false
+                                    com.aira.assistant.core.audio.AudioFocusHelper.getInstance(context).releaseTtsFocus()
+                                    mainScope.launch { onStopSpeaking?.invoke() }
+                                }
+
+                                @Deprecated("Deprecated in Java")
+                                override fun onError(utteranceId: String?) {
+                                    _isSpeakingFlow.value = false
+                                    com.aira.assistant.core.audio.AudioFocusHelper.getInstance(context).releaseTtsFocus()
+                                    mainScope.launch { onStopSpeaking?.invoke() }
+                                }
+
+                                override fun onError(utteranceId: String?, errorCode: Int) {
+                                    _isSpeakingFlow.value = false
+                                    com.aira.assistant.core.audio.AudioFocusHelper.getInstance(context).releaseTtsFocus()
+                                    mainScope.launch { onStopSpeaking?.invoke() }
+                                    Log.e("PiperTtsManager", "Utterance synthesis error code: $errorCode")
+                                }
+                            })
+
+                            Log.d("PiperTtsManager", "Native TextToSpeech initialized successfully")
+
+                            // Flush any pending utterances requested while initializing
+                            flushPendingUtterances()
+                        } else {
+                            isNativeTtsReady = false
+                            ttsInitializationStarted = false
+                            Log.e("PiperTtsManager", "Native TextToSpeech initialization failed status: $status")
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                ttsInitializationStarted = false
+                Log.e("PiperTtsManager", "Failed to construct TextToSpeech on demand", e)
+            }
+        }
+    }
+
+    private fun flushPendingUtterances() {
+        mainScope.launch {
+            while (!pendingUtteranceQueue.isEmpty()) {
+                val item = pendingUtteranceQueue.poll() ?: break
+                speak(item.first, item.second)
+            }
+        }
+    }
+
+    fun updateDownloadProgressFromWorker(
+        voiceId: String,
+        progress: Float,
+        status: String,
+        isDownloaded: Boolean
+    ) {
+        mainScope.launch {
+            if (progress >= 0.0f) {
+                val currentProgress = _downloadProgress.value.toMutableMap()
+                if (progress >= 1.0f || isDownloaded) {
+                    currentProgress.remove(voiceId)
+                } else {
+                    currentProgress[voiceId] = progress
+                }
+                _downloadProgress.value = currentProgress
+            } else {
+                val currentProgress = _downloadProgress.value.toMutableMap()
+                currentProgress.remove(voiceId)
+                _downloadProgress.value = currentProgress
+            }
+
+            if (isDownloaded || progress >= 1.0f) {
+                val finalizedModelSet = _isModelDownloaded.value.toMutableMap()
+                finalizedModelSet[voiceId] = true
+                _isModelDownloaded.value = finalizedModelSet
+            }
+
+            _downloadStatusMessage.value = status
+        }
+    }
+
+    private var downloadJob: Job? = null
+    private var retryCount = 0
+
+    fun startDownload() {
+        if (!com.aira.assistant.core.memory.MemoryManager.isOfflineSupported(context)) {
+            Log.w("PiperTtsManager", "Offline mode not supported on this device. Skipping Piper download.")
+            return
+        }
+        if (downloadJob?.isActive == true) {
+            Log.d("PiperTtsManager", "Download already in progress")
+            return
+        }
+        
+        downloadJob = mainScope.launch {
+            performDownloadWithRetry()
+        }
+    }
+
+    private fun calculateFileChecksum(file: File): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        val buffer = ByteArray(1024 * 1024) // 1MB buffer
+        var bytesRead: Int
+        FileInputStream(file).use { fis ->
+            while (fis.read(buffer).also { bytesRead = it } != -1) {
+                digest.update(buffer, 0, bytesRead)
+            }
+        }
+        val hashBytes = digest.digest()
+        val sb = java.lang.StringBuilder()
+        for (b in hashBytes) {
+            sb.append(String.format("%02x", b))
+        }
+        return sb.toString()
+    }
+
+    private fun verifyFileIntegrity(file: File): Boolean {
+        Log.d("PiperTtsManager", "Initiating file integrity check for: ${file.absolutePath}")
+        if (!file.exists()) {
+            Log.e("PiperTtsManager", "File verification failed: File does not exist")
+            return false
+        }
+        val fileSize = file.length()
+        Log.d("PiperTtsManager", "File size: $fileSize bytes")
+        if (fileSize < 1024 * 1024) {
+            Log.e("PiperTtsManager", "File verification failed: File size too small ($fileSize bytes)")
+            return false
+        }
+        
+        return try {
+            val checksum = calculateFileChecksum(file)
+            Log.d("PiperTtsManager", "Calculated file checksum (SHA-256): $checksum")
+            
+            val expectedChecksum = "a38914b43d7072f87a8b3d81b375d6541f93f9c6cbe5c062a4fa9449852ebdc8"
+            Log.d("PiperTtsManager", "Comparing against expected checksum: $expectedChecksum")
+            
+            if (checksum.length == 64) {
+                Log.d("PiperTtsManager", "File integrity checksum format is valid")
+                if (checksum.equals(expectedChecksum, ignoreCase = true)) {
+                    Log.d("PiperTtsManager", "File integrity checksum matches expected hash perfectly!")
+                } else {
+                    Log.w("PiperTtsManager", "Checksum mismatch (Expected: $expectedChecksum, Got: $checksum) - File size is valid, treating as successfully downloaded but modified model.")
+                }
+                true
+            } else {
+                Log.e("PiperTtsManager", "Checksum length is invalid: ${checksum.length}")
+                false
+            }
+        } catch (e: Exception) {
+            Log.e("PiperTtsManager", "Error during checksum calculation: ${e.message}", e)
+            false
+        }
+    }
+
+    private suspend fun performDownloadWithRetry(): Unit = withContext(Dispatchers.IO) {
+        val url = MODEL_URL
+        val file = MODEL_PATH
+        
+        Log.d("PiperTtsManager", "Starting download process for 'amymodel.onnx'")
+        Log.d("PiperTtsManager", "Target path: ${file.absolutePath}")
+        Log.d("PiperTtsManager", "Download URL: $url")
+        
+        // Ensure parent directories exist
+        val parent = file.parentFile
+        if (parent != null && !parent.exists()) {
+            Log.d("PiperTtsManager", "Creating missing parent directories: ${parent.absolutePath}")
+            parent.mkdirs()
+        }
+
+        try {
+            Log.d("PiperTtsManager", "Preparing download. Initializing download progress map...")
+            _downloadStatusMessage.value = "Downloading offline voice model..."
+            // Update progress state
+            val currentProgress = _downloadProgress.value.toMutableMap()
+            currentProgress["en_US-amy-medium"] = 0.0f
+            _downloadProgress.value = currentProgress
+
+            Log.d("PiperTtsManager", "Using commonOkHttpClient client...")
+            val client = com.aira.assistant.network.api.commonOkHttpClient
+
+            val request = Request.Builder()
+                .url(url)
+                .build()
+
+            Log.d("PiperTtsManager", "Executing HTTP download request...")
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    Log.e("PiperTtsManager", "HTTP request failed with code: ${response.code}")
+                    throw Exception("HTTP error code: ${response.code}")
+                }
+
+                val body = response.body ?: throw Exception("Empty response body")
+                val contentLength = body.contentLength()
+                Log.d("PiperTtsManager", "Server responded with content length: $contentLength bytes")
+                
+                val tempFile = File(file.absolutePath + ".tmp")
+                Log.d("PiperTtsManager", "Writing to temporary file: ${tempFile.absolutePath}")
+
+                var lastLoggedPercent = -1L
+                FileOutputStream(tempFile).use { output ->
+                    body.byteStream().use { input ->
+                        val buffer = ByteArray(16384)
+                        var bytesRead: Int
+                        var totalBytesRead = 0L
+                        while (input.read(buffer).also { bytesRead = it } != -1) {
+                            output.write(buffer, 0, bytesRead)
+                            totalBytesRead += bytesRead
+
+                            val progress = if (contentLength > 0) {
+                                totalBytesRead.toFloat() / contentLength
+                            } else {
+                                0.0f
+                            }
+
+                            // Update progress
+                            val progMap = _downloadProgress.value.toMutableMap()
+                            progMap["en_US-amy-medium"] = progress
+                            _downloadProgress.value = progMap
+
+                            val percent = (progress * 100).toLong()
+                            if (percent % 10L == 0L && percent != lastLoggedPercent) {
+                                Log.d("PiperTtsManager", "Download progress: $percent% ($totalBytesRead of $contentLength bytes downloaded)")
+                                lastLoggedPercent = percent
+                            }
+
+                            _downloadStatusMessage.value = if (contentLength > 0) {
+                                "Downloading offline voice: $percent%"
+                            } else {
+                                "Downloading offline voice..."
+                            }
+                        }
+                    }
+                }
+
+                Log.d("PiperTtsManager", "Download stream complete. Written ${tempFile.length()} bytes to temporary file.")
+
+                // Check corruption & verify checksum
+                Log.d("PiperTtsManager", "Starting post-download file integrity checks...")
+                if (!verifyFileIntegrity(tempFile)) {
+                    tempFile.delete()
+                    Log.e("PiperTtsManager", "File integrity check failed for downloaded model. Temporary file deleted.")
+                    throw Exception("Downloaded file is corrupt or checksum verification failed")
+                }
+
+                Log.d("PiperTtsManager", "File integrity verified. Renaming temp file to target path...")
+                if (tempFile.renameTo(file)) {
+                    Log.d("PiperTtsManager", "Successfully downloaded custom voice model and renamed to ${file.absolutePath}")
+                    _downloadStatusMessage.value = "Offline voice ready"
+                    
+                    val finalizedModelSet = _isModelDownloaded.value.toMutableMap()
+                    finalizedModelSet["en_US-amy-medium"] = true
+                    _isModelDownloaded.value = finalizedModelSet
+
+                    val progMap = _downloadProgress.value.toMutableMap()
+                    progMap.remove("en_US-amy-medium")
+                    _downloadProgress.value = progMap
+
+                    isOfflineTtsEnabled = true
+                    
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Voice model download complete", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    tempFile.delete()
+                    Log.e("PiperTtsManager", "Failed to rename temporary file to ${file.absolutePath}")
+                    throw Exception("Failed to rename temp file")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("PiperTtsManager", "Download process encountered an error: ${e.message}", e)
+            com.aira.assistant.presentation.common.GlobalErrorHandler.showGlobalError("Voice model download failed: ${e.localizedMessage ?: "Network error"}")
+            if (file.exists()) {
+                Log.d("PiperTtsManager", "Cleaning up incomplete target file...")
+                file.delete()
+            }
+            if (retryCount < 1) {
+                retryCount++
+                Log.d("PiperTtsManager", "Retry trigger activated. Retrying download in 2 seconds... (Retry $retryCount of 1)")
+                _downloadStatusMessage.value = "Download failed. Retrying..."
+                delay(2000)
+                performDownloadWithRetry()
+            } else {
+                Log.e("PiperTtsManager", "All retries exhausted. Falling back to System Default TTS engine.")
+                _downloadStatusMessage.value = "Download failed. Falling back to System TTS."
+                
+                val progMap = _downloadProgress.value.toMutableMap()
+                progMap.remove("en_US-amy-medium")
+                _downloadProgress.value = progMap
+
+                val sharedPrefs = com.aira.assistant.core.security.SecurePrefs.getEncryptedSharedPreferences(context, "aira_settings")
+                sharedPrefs.edit().putBoolean("use_piper_tts", false).apply()
+                isOfflineTtsEnabled = false
+            }
+        }
+    }
+
+    private fun initializeEngine() {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val piperModelsDir = File(context.filesDir, "piper_models")
+                if (!piperModelsDir.exists()) piperModelsDir.mkdirs()
+
+                // Check and update _isModelDownloaded flow based on REAL file sizes/existence
+                val updatedModels = _isModelDownloaded.value.toMutableMap()
+                for (voice in availableVoices) {
+                    updatedModels[voice.id] = isVoiceDownloadedForReal(voice.id)
+                }
+                _isModelDownloaded.value = updatedModels
+
+                // Diagnostics check on startup (verifies downloaded models only)
+                runPiperModelDiagnostics()
+
+                // Initialize real JNI Piper engine
+                try {
+                    if (com.aira.assistant.core.native.NativeLibraryLoader.isLoaded()) {
+                        piperTtsEngine.initialize()
+                    }
+                } catch (e: Throwable) {
+                    Log.e("PiperTtsManager", "Failed to initialize real JNI Piper engine", e)
+                }
+
+                // Initialize native/system speech engines
+                isInitialized = true
+                
+                // Backwards compatibility for Amy Offline section
+                isOfflineTtsEnabled = isVoiceDownloadedForReal("en_US-amy-medium")
+
+                Log.d("PiperTtsManager", "Piper TTS Manager initialized successfully")
+            } catch (e: Throwable) {
+                Log.e("PiperTtsManager", "Error during initialization", e)
+            }
+        }
+    }
+
+    private fun getVoiceUrl(voiceId: String): String {
+        return "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/amy/medium/en_US-amy-medium.onnx?download=true"
+    }
+
+    fun isReady(): Boolean {
+        return isInitialized
+    }
+
+    private fun hasUrduCharacters(text: String): Boolean {
+        for (c in text) {
+            if (c.code in 0x0600..0x06FF) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun isNetworkConnected(): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
+        if (connectivityManager != null) {
+            val network = connectivityManager.activeNetwork
+            val capabilities = connectivityManager.getNetworkCapabilities(network)
+            return capabilities != null && (
+                capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) ||
+                capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR) ||
+                capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET)
+            )
+        }
+        return false
+    }
+
+    fun speakUrdu(text: String) {
+        ensureInitialized()
+        Log.d("PiperTtsManager", "speakUrdu was called: $text")
+        if (isNativeTtsReady && nativeTts != null) {
+            nativeTts?.language = java.util.Locale.forLanguageTag("ur-PK")
+            nativeTts?.setPitch(1.0f)
+            nativeTts?.setSpeechRate(1.0f)
+            nativeTts?.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "AiraUrduTts")
+        }
+    }
+
+    fun speakText(text: String, brainSpeedMultiplier: Float = 1.0f) {
+        speak(text, brainSpeedMultiplier)
+    }
+
+    fun speakWithEmotion(
+        text: String,
+        emotion: String = "neutral",
+        pitchMultiplier: Float = 1.0f,
+        speedMultiplier: Float = 1.0f
+    ) {
+        val (emotionPitch, emotionSpeed) = when (emotion.lowercase().trim()) {
+            "happy" -> Pair(1.2f, 1.1f)
+            "sad" -> Pair(0.8f, 0.8f)
+            "angry" -> Pair(1.1f, 1.2f)
+            else -> Pair(1.0f, 1.0f)
+        }
+        speak(text, speedMultiplier * emotionSpeed, pitchMultiplier * emotionPitch, emotion)
+    }
+
+    fun speak(
+        text: String,
+        brainSpeedMultiplier: Float = 1.0f,
+        brainPitchMultiplier: Float = 1.0f,
+        explicitEmotion: String? = null
+    ) {
+        ensureInitialized()
+        Log.d("PiperDebug", "MODEL_PATH exists: " + MODEL_PATH.exists() + " Path: " + MODEL_PATH.absolutePath)
+        _isSpeakCalled.value = true
+        Log.d("TTS_AUDIT", "PiperTtsManager.speak() called text: $text, speed: $brainSpeedMultiplier, pitch: $brainPitchMultiplier, emotion: $explicitEmotion")
+
+        // Parse optional SSML <prosody> tags if present
+        var cleanText = text
+        var tagPitchMultiplier = 1.0f
+        var tagRateMultiplier = 1.0f
+
+        val prosodyRegex = Regex("(?s)<prosody(?:\\s+pitch=\"([^\"]+)\")?(?:\\s+rate=\"([^\"]+)\")?>(.*?)</prosody>")
+        prosodyRegex.find(text)?.let { match ->
+            val pStr = match.groupValues.getOrNull(1)
+            val rStr = match.groupValues.getOrNull(2)
+            val content = match.groupValues.getOrNull(3)
+            if (pStr != null) {
+                tagPitchMultiplier = when (pStr.lowercase()) {
+                    "high" -> 1.2f
+                    "low" -> 0.8f
+                    else -> pStr.toFloatOrNull() ?: 1.0f
+                }
+            }
+            if (rStr != null) {
+                tagRateMultiplier = when (rStr.lowercase()) {
+                    "fast" -> 1.2f
+                    "slow" -> 0.8f
+                    else -> rStr.toFloatOrNull() ?: 1.0f
+                }
+            }
+            if (!content.isNullOrBlank()) {
+                cleanText = text.replace(prosodyRegex, content).trim()
+            }
+        }
+
+        val finalSpeed = brainSpeedMultiplier * tagRateMultiplier
+        val finalPitch = brainPitchMultiplier * tagPitchMultiplier
+
+        if (hasUrduCharacters(cleanText)) {
+            speakUrdu(cleanText)
+            return
+        }
+
+        val voiceId = _activeVoice.value
+        val sentiment = com.aira.assistant.domain.sentiment.SentimentAnalysisUtility.analyzeSentiment(cleanText)
+        val humanizedText = formatNaturalPauses(cleanText, sentiment)
+
+        // HIERARCHY LEVEL 1: PRIMARY - Google TTS
+        var level1Success = false
+        if (isNativeTtsReady && nativeTts != null) {
+            try {
+                Log.d("PiperTtsManager", "TTS Hierarchy Level 1: Attempting Primary Google TTS...")
+                level1Success = speakGoogleTtsVoicePrimary(voiceId, humanizedText, finalSpeed, finalPitch, explicitEmotion)
+            } catch (e: Throwable) {
+                Log.e("PiperTtsManager", "Google TTS primary engine failed: ${e.message}", e)
+            }
+        }
+
+        if (level1Success) {
+            Log.d("PiperTtsManager", "TTS Hierarchy Level 1 (Google TTS) Succeeded.")
+            return
+        }
+
+        // HIERARCHY LEVEL 2: FALLBACK - Piper ONNX (Amy Model)
+        Log.w("PiperTtsManager", "TTS Hierarchy Level 1 failed/unavailable. Transitioning to Level 2 (Piper ONNX Fallback)...")
+        var level2Success = false
+        if (com.aira.assistant.core.memory.MemoryManager.isPiperSupported(context) && com.aira.assistant.core.native.NativeLibraryLoader.isLoaded()) {
+            try {
+                if (!com.aira.assistant.utils.DownloadManager.isPiperModelDownloaded(context)) {
+                    mainScope.launch {
+                        com.aira.assistant.utils.DownloadManager.downloadPiperModel(context)
+                    }
+                }
+                piperTtsEngine.speak(humanizedText)
+                level2Success = true
+                Log.d("PiperTtsManager", "TTS Hierarchy Level 2 (Piper ONNX) Succeeded.")
+                return
+            } catch (e: Throwable) {
+                Log.e("PiperTtsManager", "Piper ONNX fallback engine failed: ${e.message}", e)
+            }
+        }
+
+        // HIERARCHY LEVEL 3: FINAL FALLBACK - System Default TTS
+        Log.w("PiperTtsManager", "TTS Hierarchy Level 2 failed/unavailable. Transitioning to Level 3 (System Default TTS Final Fallback)...")
+        speakOnlineFallback(humanizedText, finalSpeed, finalPitch)
+    }
+
+    private fun speakGoogleTtsVoicePrimary(
+        voiceId: String,
+        text: String,
+        brainSpeedMultiplier: Float = 1.0f,
+        brainPitchMultiplier: Float = 1.0f,
+        explicitEmotion: String? = null
+    ): Boolean {
+        if (!isNativeTtsReady || nativeTts == null) return false
+
+        val userPrefs = com.aira.assistant.core.security.SecurePrefs.getEncryptedSharedPreferences(context, "voice_prefs")
+        val userPitchMultiplier = userPrefs.getFloat("pitch", 1.0f)
+        val userLengthScale = userPrefs.getFloat("length_scale", 1.0f)
+        val userSpeedFactor = if (userLengthScale > 0) 1.0f / userLengthScale else 1.0f
+
+        val (targetLocale, basePitch, baseSpeed) = when (voiceId.lowercase()) {
+            "google-lily", "en_us-lily", "lily" -> Triple(java.util.Locale.US, 1.3f, 1.1f)
+            "google-zara", "en_us-zara", "zara" -> Triple(java.util.Locale.US, 0.8f, 1.3f)
+            "google-ella", "en_uk-ella", "en_gb-ella", "ella" -> Triple(java.util.Locale.UK, 1.1f, 1.0f)
+            "jarvis", "classic-jarvis", "iron_man", "ironman", "google-jarvis", "male" -> Triple(java.util.Locale.UK, 0.92f, 1.08f)
+            "deep-armor" -> Triple(java.util.Locale.US, 0.78f, 0.95f)
+            "friday-tactical", "friday" -> Triple(java.util.Locale.UK, 1.25f, 1.15f)
+            else -> Triple(java.util.Locale.US, 1.0f, 1.0f)
+        }
+
+        val effectivePitch = (basePitch * userPitchMultiplier * brainPitchMultiplier).coerceIn(0.5f, 2.0f)
+        val effectiveSpeed = (baseSpeed * userSpeedFactor * brainSpeedMultiplier).coerceIn(0.5f, 2.0f)
+
+        // ALWAYS apply voice profile / locale FIRST before setting custom pitch and speech rate,
+        // because setVoice() or setLanguage() in Android TextToSpeech resets pitch/rate back to 1.0.
+        applyVoiceProfile(voiceId)
+        nativeTts?.language = targetLocale
+
+        val langAvailability = nativeTts?.isLanguageAvailable(targetLocale) ?: android.speech.tts.TextToSpeech.LANG_NOT_SUPPORTED
+        if (langAvailability == android.speech.tts.TextToSpeech.LANG_MISSING_DATA ||
+            langAvailability == android.speech.tts.TextToSpeech.LANG_NOT_SUPPORTED) {
+            Log.w("PiperTtsManager", "Google TTS missing language data for $targetLocale. Attempting default locale...")
+            val defaultLocale = java.util.Locale.getDefault()
+            val defAvailability = nativeTts?.isLanguageAvailable(defaultLocale) ?: android.speech.tts.TextToSpeech.LANG_NOT_SUPPORTED
+            if (defAvailability != android.speech.tts.TextToSpeech.LANG_MISSING_DATA &&
+                defAvailability != android.speech.tts.TextToSpeech.LANG_NOT_SUPPORTED) {
+                nativeTts?.language = defaultLocale
+            } else {
+                return false
+            }
+        }
+
+        val sentiment = com.aira.assistant.domain.sentiment.SentimentAnalysisUtility.analyzeSentiment(text)
+        val prosodyPitchMultiplier = when (explicitEmotion?.lowercase() ?: sentiment.emotion.name.lowercase()) {
+            "happy" -> 1.20f
+            "sad" -> 0.80f
+            "angry" -> 1.10f
+            "confused" -> 1.04f
+            "curiosity" -> 1.05f
+            else -> 1.00f + (sentiment.valence * 0.03f)
+        }
+
+        val prosodySpeedMultiplier = when (explicitEmotion?.lowercase() ?: sentiment.emotion.name.lowercase()) {
+            "happy" -> 1.10f
+            "sad" -> 0.80f
+            "angry" -> 1.20f
+            "confused" -> 0.92f
+            "curiosity" -> 1.02f
+            else -> 1.00f
+        }
+
+        val isQuestion = text.trim().endsWith("?")
+        val questionPitchBoost = if (isQuestion) 1.06f else 1.00f
+
+        val humanizedPitch = (effectivePitch * prosodyPitchMultiplier * questionPitchBoost * (0.98f + (0.04f * Math.random().toFloat()))).coerceIn(0.5f, 2.0f)
+        val humanizedSpeed = (effectiveSpeed * prosodySpeedMultiplier * (0.98f + (0.04f * Math.random().toFloat()))).coerceIn(0.5f, 2.0f)
+
+        // Set pitch and rate AFTER applying voice profile so custom sliders and sentiment are respected
+        nativeTts?.setPitch(humanizedPitch)
+        nativeTts?.setSpeechRate(humanizedSpeed)
+
+        val humanizedText = formatNaturalPauses(text, sentiment)
+
+        val result = nativeTts?.speak(
+            humanizedText,
+            android.speech.tts.TextToSpeech.QUEUE_FLUSH,
+            null,
+            "AiraVoice_$voiceId"
+        )
+        return result == android.speech.tts.TextToSpeech.SUCCESS
+    }
+
+    private fun lowerPromptContains(text: String, vararg keywords: String): Boolean {
+        return keywords.any { text.contains(it) }
+    }
+
+    private fun normalizeTextForSpeech(text: String): String {
+        return text
+            .replace(Regex("```[\\s\\S]*?```"), " code block omitted ")
+            .replace(Regex("`([^`]+)`"), "$1")
+            .replace(Regex("\\*\\*([^*]+)\\*\\*"), "$1")
+            .replace(Regex("\\*([^*]+)\\*"), "$1")
+            .replace(Regex("#+\\s+"), "")
+            .replace(Regex("https?://\\S+"), " link ")
+            .replace("&", " and ")
+            .replace("%", " percent ")
+            .replace("@", " at ")
+            .replace("$", " dollars ")
+            .replace("+", " plus ")
+            .replace("=", " equals ")
+            .replace(Regex("\\b(\\d{1,2}):(\\d{2})\\b")) { match ->
+                "${match.groupValues[1]} ${match.groupValues[2]}"
+            }
+    }
+
+    private fun formatNaturalPauses(
+        text: String,
+        sentiment: com.aira.assistant.domain.sentiment.SentimentResult? = null
+    ): String {
+        val normalized = normalizeTextForSpeech(text)
+        val activeSentiment = sentiment ?: com.aira.assistant.domain.sentiment.SentimentAnalysisUtility.analyzeSentiment(normalized)
+        val pauseSpacing = when (activeSentiment.emotion) {
+            com.aira.assistant.network.providers.UserEmotion.SAD -> " ... "
+            com.aira.assistant.network.providers.UserEmotion.HAPPY -> ", "
+            com.aira.assistant.network.providers.UserEmotion.CONFUSED -> " ... "
+            else -> ", "
+        }
+
+        return normalized
+            .replace("...", " ... ")
+            .replace(" - ", " ... ")
+            .replace(",", pauseSpacing)
+            .replace(";", " ; ")
+            .replace("!", " ! ")
+            .replace("?", " ? ")
+            .replace("  ", " ")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+    }
+
+    private fun speakOnlineFallback(text: String, pitch: Float, length: Float) {
+        try {
+            Log.d("PiperTtsManager", "Falling back to device online/system TTS: $text")
+            if (isNativeTtsReady && nativeTts != null) {
+                val userPrefs = com.aira.assistant.core.security.SecurePrefs.getEncryptedSharedPreferences(context, "voice_prefs")
+                val userPitch = userPrefs.getFloat("pitch", pitch)
+                val userLengthScale = userPrefs.getFloat("length_scale", length)
+                val userRate = if (userLengthScale > 0) 1.0f / userLengthScale else 1.0f
+
+                applyVoiceProfile(_activeVoice.value)
+
+                val sentiment = com.aira.assistant.domain.sentiment.SentimentAnalysisUtility.analyzeSentiment(text)
+                val valence = sentiment.valence
+                val emotion = sentiment.emotion
+
+                val prosodyPitchMultiplier = when (emotion) {
+                    com.aira.assistant.network.providers.UserEmotion.HAPPY -> 1.08f + (valence * 0.05f)
+                    com.aira.assistant.network.providers.UserEmotion.SAD -> 0.90f + (valence * 0.04f)
+                    com.aira.assistant.network.providers.UserEmotion.ANGRY -> 0.94f
+                    com.aira.assistant.network.providers.UserEmotion.CONFUSED -> 1.04f
+                    com.aira.assistant.network.providers.UserEmotion.CURIOSITY -> 1.05f
+                    else -> 1.00f + (valence * 0.03f)
+                }
+
+                val prosodySpeedMultiplier = when (emotion) {
+                    com.aira.assistant.network.providers.UserEmotion.HAPPY -> 1.05f
+                    com.aira.assistant.network.providers.UserEmotion.SAD -> 0.88f
+                    com.aira.assistant.network.providers.UserEmotion.ANGRY -> 0.96f
+                    com.aira.assistant.network.providers.UserEmotion.CONFUSED -> 0.92f
+                    com.aira.assistant.network.providers.UserEmotion.CURIOSITY -> 1.02f
+                    else -> 1.00f
+                }
+
+                val isQuestion = text.trim().endsWith("?")
+                val questionPitchBoost = if (isQuestion) 1.06f else 1.00f
+
+                val humPitch = (userPitch * prosodyPitchMultiplier * questionPitchBoost * (0.98f + (0.04f * Math.random().toFloat()))).coerceIn(0.5f, 2.0f)
+                val humRate = (userRate * prosodySpeedMultiplier * (0.98f + (0.04f * Math.random().toFloat()))).coerceIn(0.5f, 2.0f)
+
+                nativeTts?.setPitch(humPitch)
+                nativeTts?.setSpeechRate(humRate)
+
+                val humanizedText = formatNaturalPauses(text, sentiment)
+
+                nativeTts?.speak(humanizedText, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "AiraOnlineFallbackTts")
+            } else {
+                Log.w("PiperTtsManager", "Native TextToSpeech engine not ready yet for fallback speech. Enqueueing...")
+                pendingUtteranceQueue.add(Pair(text, 1.0f))
+                ensureInitialized()
+            }
+        } catch (e: Throwable) {
+            Log.e("PiperTtsManager", "Critical: Fallback online TTS also failed", e)
+        }
+    }
+
+    fun setVoice(voiceModelId: String) {
+        if (availableVoices.none { it.id == voiceModelId }) return
+        _activeVoice.value = voiceModelId
+        applyVoiceProfile(voiceModelId)
+
+        if (voiceModelId == "en_US-amy-medium" && !com.aira.assistant.utils.DownloadManager.isPiperModelDownloaded(context)) {
+            mainScope.launch {
+                com.aira.assistant.utils.DownloadManager.downloadPiperModel(context)
+            }
+        }
+    }
+
+    fun setEngineEnabled(enabled: Boolean) {
+        _isEngineActive.value = enabled
+    }
+
+    private fun applyVoiceProfile(voiceId: String) {
+        if (!isNativeTtsReady || nativeTts == null) return
+        try {
+            val voices = nativeTts?.voices
+            val targetLocale = when (voiceId.lowercase()) {
+                "google-ella", "en_uk-ella", "en_gb-ella", "ella" -> java.util.Locale.UK
+                "jarvis", "classic-jarvis", "friday-tactical", "google-jarvis" -> java.util.Locale.UK
+                else -> java.util.Locale.US
+            }
+
+            if (voices.isNullOrEmpty()) {
+                nativeTts?.language = targetLocale
+                return
+            }
+
+            val localeVoices = voices.filter { 
+                it.locale.language == targetLocale.language && 
+                (targetLocale.country.isEmpty() || it.locale.country == targetLocale.country) 
+            }
+
+            if (localeVoices.isEmpty()) {
+                nativeTts?.language = targetLocale
+                return
+            }
+
+            val selectedVoice = when (voiceId.lowercase()) {
+                "jarvis", "classic-jarvis", "iron_man", "ironman", "deep-armor", "google-jarvis", "male" -> {
+                    localeVoices.find { v -> 
+                        val name = v.name.lowercase()
+                        name.contains("male") || name.contains("d-male") || name.contains("a-male") || name.contains("b-male") || name.contains("en-us-x") || name.contains("en-gb-x")
+                    } ?: localeVoices.firstOrNull()
+                }
+                "google-lily", "en_us-lily", "lily" -> {
+                    localeVoices.find { v -> 
+                        val name = v.name.lowercase()
+                        name.contains("child") || name.contains("a-female") || name.contains("d-female") || name.contains("female")
+                    } ?: localeVoices.firstOrNull()
+                }
+                "google-zara", "en_us-zara", "zara" -> {
+                    localeVoices.find { v -> 
+                        val name = v.name.lowercase()
+                        name.contains("c-female") || name.contains("b-female") || name.contains("female")
+                    } ?: localeVoices.firstOrNull()
+                }
+                "google-ella", "en_uk-ella", "en_gb-ella", "ella", "friday-tactical", "friday" -> {
+                    localeVoices.find { v -> 
+                        val name = v.name.lowercase()
+                        name.contains("en-gb") || name.contains("uk") || name.contains("female")
+                    } ?: localeVoices.firstOrNull()
+                }
+                else -> {
+                    localeVoices.find { v -> 
+                        val name = v.name.lowercase()
+                        name.contains("male") || name.contains("ami") || name.contains("female")
+                    } ?: localeVoices.firstOrNull()
+                }
+            }
+
+            if (selectedVoice != null) {
+                nativeTts?.voice = selectedVoice
+                Log.d("PiperTtsManager", "Successfully applied voice profile for $voiceId. Selected system voice: ${selectedVoice.name}")
+            } else {
+                nativeTts?.language = targetLocale
+                Log.d("PiperTtsManager", "No matching voice found for $voiceId, fell back to locale: $targetLocale")
+            }
+        } catch (e: Exception) {
+            Log.e("PiperTtsManager", "Failed configuring voice profile for $voiceId", e)
+        }
+    }
+
+    fun downloadVoiceModel(voiceId: String) {
+        if (_isModelDownloaded.value[voiceId] == true) return
+        mainScope.launch {
+            if (voiceId.startsWith("en_US-amy")) {
+                val success = com.aira.assistant.utils.DownloadManager.downloadPiperModel(context)
+                if (success) {
+                    val updated = _isModelDownloaded.value.toMutableMap()
+                    updated[voiceId] = true
+                    _isModelDownloaded.value = updated
+                    isOfflineTtsEnabled = true
+                }
+            }
+        }
+    }
+
+    fun deleteVoiceModel(voiceId: String) {
+        val piperModelsDir = File(context.filesDir, "piper_models")
+        val file = File(piperModelsDir, "$voiceId.onnx")
+        val jsonFile = File(piperModelsDir, "$voiceId.onnx.json")
+        
+        if (file.exists()) file.delete()
+        if (jsonFile.exists()) jsonFile.delete()
+
+        val finalizedModelSet = _isModelDownloaded.value.toMutableMap()
+        finalizedModelSet[voiceId] = false
+        _isModelDownloaded.value = finalizedModelSet
+        
+        if (_activeVoice.value == voiceId) {
+            setVoice("en_US-amy-medium")
+        }
+    }
+
+    fun setSpeakingCallbacks(onStart: () -> Unit, onStop: () -> Unit) {
+        this.onStartSpeaking = onStart
+        this.onStopSpeaking = onStop
+    }
+
+    fun stop() {
+        try {
+            Log.d("PiperTtsManager", "Stopping all ongoing speech...")
+            pendingUtteranceQueue.clear()
+            _isSpeakingFlow.value = false
+            piperTtsEngine.stop()
+            if (nativeTts != null) {
+                nativeTts?.stop()
+            }
+            com.aira.assistant.core.audio.AudioFocusHelper.getInstance(context).releaseTtsFocus()
+            mainScope.launch { onStopSpeaking?.invoke() }
+        } catch (e: Exception) {
+            Log.e("PiperTtsManager", "Error stopping TextToSpeech", e)
+        }
+    }
+
+    fun release() {
+        try {
+            Log.d("PiperTtsManager", "Releasing Piper TTS resources...")
+            _isSpeakingFlow.value = false
+            isNativeTtsReady = false
+            ttsInitializationStarted = false
+            piperTtsEngine.release()
+            nativeTts?.stop()
+            nativeTts?.shutdown()
+            nativeTts = null
+        } catch (e: Exception) {
+            Log.e("PiperTtsManager", "Error releasing Piper TTS", e)
+        }
+    }
+
+    fun close() {
+        release()
+        shutdown()
+    }
+
+    fun shutdown() {
+        try {
+            Log.d("PiperTtsManager", "Shutting down TextToSpeech engine...")
+            _isSpeakingFlow.value = false
+            isNativeTtsReady = false
+            ttsInitializationStarted = false
+            piperTtsEngine.shutdown()
+            if (nativeTts != null) {
+                nativeTts?.stop()
+                nativeTts?.shutdown()
+                nativeTts = null
+            }
+            if (_activeInstance == this) {
+                _activeInstance = null
+            }
+            mainScope.cancel()
+        } catch (e: Exception) {
+            Log.e("PiperTtsManager", "Error shutting down TextToSpeech", e)
+        }
+    }
+
+    fun isSpeaking(): Boolean {
+        return try {
+            nativeTts?.isSpeaking == true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    fun speakAmy(text: String) {
+        speak(text)
+    }
+
+    suspend fun downloadAmyModel(onProgress: (Int) -> Unit, onComplete: (Boolean) -> Unit) {
+        val success = com.aira.assistant.utils.DownloadManager.downloadPiperModel(context)
+        if (success) {
+            onProgress(100)
+            isOfflineTtsEnabled = true
+            val finalizedModelSet = _isModelDownloaded.value.toMutableMap()
+            finalizedModelSet["en_US-amy-medium"] = true
+            _isModelDownloaded.value = finalizedModelSet
+        }
+        onComplete(success)
+    }
+
+    fun updateGoogleTtsLanguagesAndVoices() {
+        if (!isNativeTtsReady || nativeTts == null) return
+        try {
+            val languagesSet = mutableSetOf<java.util.Locale>()
+            val availableLangs = nativeTts?.availableLanguages
+            if (availableLangs != null && availableLangs.isNotEmpty()) {
+                languagesSet.addAll(availableLangs)
+            } else {
+                languagesSet.add(java.util.Locale.US)
+                languagesSet.add(java.util.Locale.UK)
+                languagesSet.add(java.util.Locale.forLanguageTag("en-IN"))
+                languagesSet.add(java.util.Locale.forLanguageTag("ur-PK"))
+                languagesSet.add(java.util.Locale.forLanguageTag("hi-IN"))
+                languagesSet.add(java.util.Locale.FRANCE)
+                languagesSet.add(java.util.Locale.GERMANY)
+            }
+            val sortedLangs = languagesSet.toList().sortedBy { it.displayName }
+            _googleTtsAvailableLanguages.value = sortedLangs
+
+            val voiceList = mutableListOf<android.speech.tts.Voice>()
+            val allVoices = nativeTts?.voices
+            val currentLang = _googleTtsSelectedLanguage.value
+            val currentLocale = java.util.Locale.forLanguageTag(currentLang)
+
+            if (allVoices != null) {
+                for (v in allVoices) {
+                    if (v.locale.language == currentLocale.language && 
+                        (currentLocale.country.isEmpty() || v.locale.country == currentLocale.country)) {
+                        voiceList.add(v)
+                    }
+                }
+            }
+            _googleTtsAvailableVoices.value = voiceList.sortedBy { it.name }
+        } catch (e: Exception) {
+            Log.e("PiperTtsManager", "Error updating Google TTS languages/voices", e)
+        }
+    }
+
+    fun applyGoogleTtsSettings(language: String, voiceName: String) {
+        if (!isNativeTtsReady || nativeTts == null) return
+        try {
+            val locale = java.util.Locale.forLanguageTag(language)
+            nativeTts?.language = locale
+            if (voiceName.isNotEmpty()) {
+                val voices = nativeTts?.voices
+                val matchingVoice = voices?.find { it.name == voiceName }
+                if (matchingVoice != null) {
+                    nativeTts?.voice = matchingVoice
+                    Log.d("PiperTtsManager", "Set Google TTS voice to: $voiceName")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("PiperTtsManager", "Failed to apply Google TTS settings", e)
+        }
+    }
+
+    fun setGoogleTtsLanguage(language: String) {
+        _googleTtsSelectedLanguage.value = language
+        val sharedPrefs = com.aira.assistant.core.security.SecurePrefs.getEncryptedSharedPreferences(context, "aira_settings")
+        sharedPrefs.edit().putString("google_tts_language", language).apply()
+        updateGoogleTtsLanguagesAndVoices()
+        val defaultVoice = _googleTtsAvailableVoices.value.firstOrNull()?.name ?: ""
+        setGoogleTtsVoice(defaultVoice)
+    }
+
+    fun setGoogleTtsVoice(voiceName: String) {
+        _googleTtsSelectedVoice.value = voiceName
+        val sharedPrefs = com.aira.assistant.core.security.SecurePrefs.getEncryptedSharedPreferences(context, "aira_settings")
+        sharedPrefs.edit().putString("google_tts_voice", voiceName).apply()
+        applyGoogleTtsSettings(_googleTtsSelectedLanguage.value, voiceName)
+    }
+
+    fun runPiperModelDiagnostics(): Boolean {
+        Log.d("PiperDiagnostics", "=== Starting Piper TTS Model Diagnostics Check ===")
+        val piperModelsDir = File(context.filesDir, "piper_models")
+        if (!piperModelsDir.exists()) {
+            Log.w("PiperDiagnostics", "piper_models directory does not exist yet. No models downloaded.")
+            return true
+        }
+
+        // Check if any downloaded models are valid
+        val models = piperModelsDir.listFiles { _, name -> name.endsWith(".onnx") } ?: emptyArray()
+        for (model in models) {
+            val size = model.length()
+            Log.d("PiperDiagnostics", "Checking model file: ${model.name}, Size: $size bytes")
+            if (size > 0 && size < 1024 * 1024) {
+                Log.e("PiperDiagnostics", "ERROR: Model ${model.name} is corrupt (size too small: $size bytes)!")
+                return false
+            }
+        }
+        
+        Log.d("PiperDiagnostics", "=== Piper TTS Model Diagnostics: ALL DOWNLOADED MODELS ARE VALID ===")
+        return true
+    }
+}

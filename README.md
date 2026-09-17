@@ -30,15 +30,35 @@ A powerful **offline-first AI voice assistant** for Android with an immersive Ir
 
 ---
 
-## 📋 Technical Details
+## 📋 Technical Architecture
+```
+                     +----------------------------------+
+                     |         com.aira.assistant       |
+                     +----------------------------------+
+                                      |
+         +-----------------+----------+----------+-----------------+
+         |                 |                     |                 |
+         v                 v                     v                 v
+   ChatViewModel     VoiceViewModel    AutomationViewModel  SettingsViewModel
+         |                 |                     |                 |
+         |                 +----------+----------+                 |
+         v                            v                            v
+   [AiBrain / SSE]           [AutomationDispatcher]         [SecurePrefs / Room]
+   (Gemini, Groq,             /     |      |     \         (AES-256 GCM Keystore,
+    OpenAI, Claude,      Connect Audio Display Apps & UI)   v13 Schema with
+    OpenRouter, etc.)                                       Safe Migrations)
+```
 
 | Component | Technology |
 |-----------|-----------|
-| **UI Framework** | Jetpack Compose (Kotlin) + Material 3 |
-| **Architecture** | MVVM |
-| **Local Storage** | Room Database |
-| **Networking** | OkHttp with custom interceptors |
-| **Speech** | Native Android SpeechRecognizer & TextToSpeech |
+| **Package** | `com.aira.assistant` |
+| **UI Framework** | Jetpack Compose (Kotlin 2.0) + Material 3 |
+| **Architecture** | Clean Architecture / Decoupled MVVM |
+| **Automation** | `AutomationDispatcher` + Specialized Domain Handlers (Shizuku + Accessibility) |
+| **Local Storage** | Room Database v13 with Safe Migrations |
+| **Security** | AndroidX Security Crypto 1.1.0 (`SecurePrefs` Keystore Vault) |
+| **Networking** | OkHttp 4.10 + Retrofit 2.12 + SSE Streaming |
+| **Speech Engine** | Vosk STT (Offline) + Piper Neural TTS (JNI) + Android Speech Fallback |
 
 ---
 

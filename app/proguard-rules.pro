@@ -3,14 +3,8 @@
 # proguardFiles setting in build.gradle.
 
 # Keep project classes and models
--keep class com.example.aira.** { *; }
+-keep class com.aira.assistant.** { *; }
 -keep class com.aira.voice.** { *; }
--keep class com.example.utils.** { *; }
--keep class com.example.models.** { *; }
--keep class com.example.service.** { *; }
--keep class com.example.data.** { *; }
--keep class com.example.ui.** { *; }
--keep class com.example.** { *; }
 -keep class com.google.** { *; }
 
 # ==============================================================================
@@ -69,7 +63,7 @@
     public <methods>;
     public <fields>;
 }
--keep class com.example.util.NativeLibraryLoader { *; }
+-keep class com.aira.assistant.core.native.NativeLibraryLoader { *; }
 -dontwarn com.tencent.piperncnn.**
 -dontwarn com.rhasspy.**
 -dontwarn ai.onnxruntime.**
@@ -122,7 +116,7 @@
 -dontwarn dev.rikka.shizuku.**
 
 # ==============================================================================
-# Networking & Serialization (OkHttp, Retrofit, Moshi)
+# Networking & Serialization (OkHttp, Retrofit)
 # ==============================================================================
 -keep class okhttp3.** { *; }
 -keep class retrofit2.** { *; }
@@ -137,9 +131,6 @@
     java.lang.Object writeReplace();
     java.lang.Object readResolve();
 }
-
--keep class * { @com.squareup.moshi.JsonQualifier <fields>; }
--dontwarn com.squareup.moshi.**
 
 # ==============================================================================
 # General XML & 3rd Party Warnings Suppression
