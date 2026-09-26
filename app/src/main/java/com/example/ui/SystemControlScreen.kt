@@ -84,16 +84,9 @@ fun SystemControlScreen(
         composable("automation_home") {
             AutomationHomeScreen(
                 viewModel = viewModel,
-                onNavigateToSmartAutomations = { navController.navigate("smart_automations_screen") },
                 onNavigateToSmartAuto = { navController.navigate("smart_auto_screen") },
                 onNavigateToMyActions = { navController.navigate("my_actions_screen") },
                 onNavigateToVoiceCommands = { navController.navigate("voice_command_screen") }
-            )
-        }
-        composable("smart_automations_screen") {
-            com.example.ui.automation.AutomationsScreen(
-                airaViewModel = viewModel,
-                onBack = { navController.popBackStack() }
             )
         }
         composable("smart_auto_screen") {
@@ -121,7 +114,6 @@ fun SystemControlScreen(
 @Composable
 fun AutomationHomeScreen(
     viewModel: AiraViewModel,
-    onNavigateToSmartAutomations: () -> Unit,
     onNavigateToSmartAuto: () -> Unit,
     onNavigateToMyActions: () -> Unit,
     onNavigateToVoiceCommands: () -> Unit
@@ -583,91 +575,16 @@ fun AutomationHomeScreen(
                 }
             }
 
-            // ================== REDESIGNED SECTION: SMART AUTOMATIONS & ROUTINES ==================
+            // ================== REDESIGNED SECTION: 3 NAVIGATION OPTIONS ==================
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(
-                    text = "Smart Automations & Routines",
+                    text = "AI Routines & Automation",
                     fontWeight = FontWeight.Medium,
                     fontSize = 13.sp, // Labels
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
                     fontFamily = FontFamily.SansSerif,
                     modifier = Modifier.padding(start = 8.dp)
                 )
-
-                // Option 0 (Hero): Smart Automations Hub
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(Dimens.CardCornerRadius))
-                        .clickable { onNavigateToSmartAutomations() }
-                        .testTag("smart_automations_hub_card"),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)),
-                    shape = RoundedCornerShape(Dimens.CardCornerRadius),
-                    border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .defaultMinSize(minHeight = Dimens.CardHeightLarge)
-                            .padding(Dimens.PaddingCardInner),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMedium)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(52.dp)
-                                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(Dimens.RadiusMedium)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
-                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Dimens.SpaceExtraSmall)) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Text(
-                                    text = "Smart Automations",
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.SansSerif,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Surface(
-                                    shape = RoundedCornerShape(4.dp),
-                                    color = MaterialTheme.colorScheme.primary,
-                                    contentColor = MaterialTheme.colorScheme.onPrimary
-                                ) {
-                                    Text(
-                                        text = "NEW",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
-                                    )
-                                }
-                            }
-                            Text(
-                                text = "Automate anything with your voice. No complicated flowcharts — just tell AIRA what to do.",
-                                fontSize = 13.sp,
-                                fontFamily = FontFamily.SansSerif,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                lineHeight = 17.sp
-                            )
-                        }
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = "Navigate",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(Dimens.IconSmall)
-                        )
-                    }
-                }
 
                 // Option 1: Smart Auto
                 Card(

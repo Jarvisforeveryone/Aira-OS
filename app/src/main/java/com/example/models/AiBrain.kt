@@ -363,7 +363,8 @@ data class DAGStep(
 
 object JarvisWorkflowDAG {
     fun parseMultiStepInput(input: String, brightness: Int = 50): List<DAGStep> {
-        val parts = com.example.utils.InstantMultiCommandDispatcher.splitIntoSubCommands(input)
+        val separators = Regex("\\b(?:and then|then|and also|after that|also)\\b|,", RegexOption.IGNORE_CASE)
+        val parts = input.split(separators).map { it.trim() }.filter { it.isNotBlank() }
 
         if (parts.size <= 1) {
             val single = com.example.utils.CommandParser.parse(input, brightness)

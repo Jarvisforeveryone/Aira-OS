@@ -2648,18 +2648,6 @@ class AiraViewModel(application: Application) : AndroidViewModel(application), R
 
                 val lowercaseInput = userInput.lowercase().trim()
 
-                // 0. Instant Multi-Command & Hardware Dispatcher (0-50ms local execution, zero network, zero hallucination)
-                val instantResult = com.example.utils.InstantMultiCommandDispatcher.dispatch(getApplication(), userInput, this@AiraViewModel)
-                if (instantResult != null && instantResult.isHandled) {
-                    val reply = instantResult.finalResponseText
-                    chatDao.insertMessage(ChatMessage(sender = "aira", message = reply))
-                    addVoiceCommandLog(userInput, if (instantResult.executedCount > 1) "MULTI_COMMAND" else "INSTANT_COMMAND", "SUCCESS", reply)
-                    processAIResponse(reply)
-                    updateSttState(SttState.IDLE)
-                    _currentStatus.value = "Done."
-                    return@launch
-                }
-
                 // 1. Core Voice Commands Analyzer (Intelligent matching 80%+ / variables)
                 val voiceCommandMgr = VoiceCommandManager.getInstance(getApplication())
                 val matchedCmd = voiceCommandMgr.matchAndExecuteCommand(lowercaseInput, this@AiraViewModel)

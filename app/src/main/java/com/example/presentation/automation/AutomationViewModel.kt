@@ -6,11 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.AppDatabase
 import com.example.data.MacroEntity
 import com.example.service.AiraAccessibilityService
-import com.example.utils.MacroExecutionResult
-import com.example.utils.MacroManager
-import com.example.utils.PredefinedAutomation
+import com.example.service.AiraAutomationEngine
 import com.example.utils.ShizukuManager
-import com.example.utils.SmartAutomationParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -18,23 +15,18 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.util.Locale
 
 data class AutomationUiState(
     val isAccessibilityActive: Boolean = false,
     val isShizukuActive: Boolean = false,
     val lastExecutedMacro: String? = null,
     val isExecuting: Boolean = false,
-    val statusMessage: String = "Ready",
-    val lastExecutionResult: MacroExecutionResult? = null,
-    val activeTestingMacroId: String? = null,
-    val currentInputPrompt: String = "",
-    val feedbackMessage: String? = null
+    val statusMessage: String = "Ready"
 )
 
 class AutomationViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val db = AppDatabase.getInstance(application)
+    private val db = AppDatabase.getDatabase(application)
     private val macroDao = db.macroDao()
 
     val macros: StateFlow<List<MacroEntity>> = macroDao.getAllMacrosFlow()
@@ -45,25 +37,6 @@ class AutomationViewModel(application: Application) : AndroidViewModel(applicati
 
     init {
         refreshAutomationStatus()
-        seedDefaultTemplatesIfEmpty()
-    }
-
-    private fun seedDefaultTemplatesIfEmpty() {
-        viewModelScope.launch(Dispatchers.IO) {
-            val existing = macroDao.getAllMacros()
-            if (existing.isEmpty()) {
-                // Seed initial high-value automations so the app is instantly rich & ready
-                for (template in SmartAutomationParser.PREDEFINED_TEMPLATES.take(4)) {
-                    val entity = MacroEntity(
-                        id = template.id,
-                        trigger = template.triggerPhrase,
-                        actionsJson = SmartAutomationParser.actionsToJson(template.actions),
-                        description = template.title
-                    )
-                    macroDao.insertMacro(entity)
-                }
-            }
-        }
     }
 
     fun refreshAutomationStatus() {
@@ -78,83 +51,29 @@ class AutomationViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    fun setInputPrompt(text: String) {
-        _uiState.value = _uiState.value.copy(currentInputPrompt = text)
-    }
-
-    /**
-     * Creates an automation directly from user speech or typed sentence with zero technical jargon.
-     */
-    fun createAutomationFromSpeech(spokenText: String, onComplete: ((String) -> Unit)? = null) {
-        if (spokenText.isBlank()) return
+    fun executeMacro(macro: MacroEntity) {
         viewModelScope.launch(Dispatchers.IO) {
-            val parsed = SmartAutomationParser.parseNaturalLanguage(spokenText)
-            val jsonActions = SmartAutomationParser.actionsToJson(parsed.actions)
-            val entity = MacroEntity(
-                trigger = parsed.triggerPhrase,
-                actionsJson = jsonActions,
-                description = parsed.title
-            )
-            macroDao.insertMacro(entity)
-            _uiState.value = _uiState.value.copy(
-                currentInputPrompt = "",
-                feedbackMessage = "Created \"${parsed.title}\" with ${parsed.actions.size} actions!"
-            )
-            onComplete?.invoke(parsed.title)
+            _uiState.value = _uiState.value.copy(isExecuting = true, lastExecutedMacro = macro.description.ifBlank { macro.trigger })
+            val automationEngine = AiraAutomationEngine(getApplication())
+            automationEngine.executeIntent(macro.actionsJson)
+            _uiState.value = _uiState.value.copy(isExecuting = false)
         }
     }
 
-    /**
-     * Installs a pre-made automation template with 1 tap.
-     */
-    fun installTemplate(template: PredefinedAutomation) {
+    fun saveMacro(name: String, triggerPhrase: String, actionsJson: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            val entity = MacroEntity(
-                id = template.id,
-                trigger = template.triggerPhrase,
-                actionsJson = SmartAutomationParser.actionsToJson(template.actions),
-                description = template.title
+            val macro = MacroEntity(
+                trigger = triggerPhrase,
+                actionsJson = actionsJson,
+                description = name
             )
-            macroDao.insertMacro(entity)
-            _uiState.value = _uiState.value.copy(
-                feedbackMessage = "Installed \"${template.title}\"!"
-            )
-        }
-    }
-
-    /**
-     * Executes the automation immediately and returns live step-by-step results.
-     */
-    fun testAutomation(macro: MacroEntity) {
-        viewModelScope.launch(Dispatchers.IO) {
-            val title = macro.description.ifBlank { macro.trigger.replaceFirstChar { it.uppercase() } }
-            _uiState.value = _uiState.value.copy(
-                isExecuting = true,
-                activeTestingMacroId = macro.id,
-                lastExecutedMacro = title
-            )
-
-            val result = MacroManager.processMacro(getApplication(), macro.trigger)
-
-            _uiState.value = _uiState.value.copy(
-                isExecuting = false,
-                activeTestingMacroId = null,
-                lastExecutionResult = result,
-                feedbackMessage = if (result.executed) "Executed $title successfully!" else "Execution finished: ${result.summary}"
-            )
+            macroDao.insertMacro(macro)
         }
     }
 
     fun deleteMacro(macro: MacroEntity) {
         viewModelScope.launch(Dispatchers.IO) {
             macroDao.deleteMacroById(macro.id)
-            _uiState.value = _uiState.value.copy(
-                feedbackMessage = "Removed \"${macro.description.ifBlank { macro.trigger }}\""
-            )
         }
-    }
-
-    fun clearFeedbackMessage() {
-        _uiState.value = _uiState.value.copy(feedbackMessage = null)
     }
 }
