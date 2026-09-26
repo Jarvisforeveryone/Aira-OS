@@ -1,15 +1,11 @@
 package com.aira.voice
 
-import com.aira.assistant.core.native.NativeLibraryLoader
-import com.aira.assistant.core.memory.MemoryManager
-import com.aira.assistant.core.memory.NativeModelType
-
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
 import android.util.Log
-import com.aira.assistant.core.audio.PiperTtsManager
+import com.example.service.PiperTtsManager
 import com.tencent.piperncnn.PiperNcnn
 import kotlinx.coroutines.*
 import java.util.concurrent.Executors
@@ -20,8 +16,7 @@ class PiperTtsEngine(private val context: Context) {
     private var piperNcnn: PiperNcnn? = null
     private var isModelLoaded = false
 
-    private val jniExecutor = Executors.newFixedThreadPool(2)
-    private val jniDispatcher = jniExecutor.asCoroutineDispatcher()
+    private val jniDispatcher = Executors.newFixedThreadPool(2).asCoroutineDispatcher()
     private val engineScope = CoroutineScope(jniDispatcher + SupervisorJob())
     private var activePlayJob: Job? = null
     private var audioTrack: AudioTrack? = null
@@ -29,7 +24,7 @@ class PiperTtsEngine(private val context: Context) {
     private fun ensureLibrariesLoaded() {
         if (nativeLibsLoaded) return
         try {
-            com.aira.assistant.core.native.NativeLibraryLoader.loadLibraries(context)
+            com.example.util.NativeLibraryLoader.loadLibraries(context)
             nativeLibsLoaded = true
             Log.d("PiperTtsEngine", "Native libraries loaded successfully on demand")
         } catch (e: Throwable) {
@@ -40,9 +35,9 @@ class PiperTtsEngine(private val context: Context) {
     suspend fun initialize() = withContext(jniDispatcher) {
         ensureLibrariesLoaded()
         if (isModelLoaded) return@withContext
-        com.aira.assistant.core.memory.MemoryManager.loadModelOnDemand(context, com.aira.assistant.core.memory.NativeModelType.PIPER_TTS) {
+        com.example.utils.MemoryManager.loadModelOnDemand(context, com.example.utils.NativeModelType.PIPER_TTS) {
             try {
-                if (!com.aira.assistant.core.native.NativeLibraryLoader.isLoaded()) {
+                if (!com.example.util.NativeLibraryLoader.isLoaded()) {
                     Log.w("PiperTtsEngine", "Native libraries not loaded, skipping JNI model load")
                     return@loadModelOnDemand
                 }
@@ -74,7 +69,7 @@ class PiperTtsEngine(private val context: Context) {
 
         activePlayJob = engineScope.launch(jniDispatcher) {
             try {
-                if (!com.aira.assistant.core.native.NativeLibraryLoader.isLoaded()) {
+                if (!com.example.util.NativeLibraryLoader.isLoaded()) {
                     Log.w("PiperTtsEngine", "Native libraries not loaded, cannot speak via JNI")
                     return@launch
                 }
@@ -142,7 +137,7 @@ class PiperTtsEngine(private val context: Context) {
                         .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                         .build()
                 )
-                .setBufferSizeInBytes(maxOf(minBufferSize, (floatData.size * 4).coerceAtMost(262144)))
+                .setBufferSizeInBytes(maxOf(minBufferSize, floatData.size * 4))
                 .setTransferMode(AudioTrack.MODE_STREAM)
                 .build()
 
@@ -193,7 +188,7 @@ class PiperTtsEngine(private val context: Context) {
 
     fun release() {
         Log.d("PiperTtsEngine", "Release requested")
-        com.aira.assistant.core.memory.MemoryManager.releaseModel(com.aira.assistant.core.memory.NativeModelType.PIPER_TTS) {
+        com.example.utils.MemoryManager.releaseModel(com.example.utils.NativeModelType.PIPER_TTS) {
             stop()
             piperNcnn = null
             isModelLoaded = false
@@ -211,8 +206,6 @@ class PiperTtsEngine(private val context: Context) {
         release()
         try {
             engineScope.cancel()
-            jniDispatcher.close()
-            jniExecutor.shutdown()
         } catch (e: Exception) {
             Log.e("PiperTtsEngine", "Error canceling engineScope", e)
         }

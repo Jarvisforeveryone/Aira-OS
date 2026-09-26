@@ -2,7 +2,7 @@ package com.tencent.piperncnn
 
 import android.content.res.AssetManager
 import android.util.Log
-import com.aira.assistant.core.native.NativeLibraryLoader
+import com.example.util.NativeLibraryLoader
 
 class PiperNcnn {
     external fun loadModel(mgr: AssetManager, modelPath: String, configPath: String): Boolean
